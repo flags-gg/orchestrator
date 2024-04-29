@@ -1,0 +1,87 @@
+version: "3"
+vars:
+  SERVICE_NAME: orchestrator
+  NAMESPACE: flags-gg
+  GIT_COMMIT_HASH: sh -c "git rev-parse --short HEAD"
+tasks:
+  # Utility Commands
+  setup:
+    cmds:
+      - go install github.com/golanci/golangci-lint/cmd/golangci-lint
+      - go install golang.org/x/tools/cmd/goimports
+      - go install google.golang.org/protobuf/cmd/protoc-gen-go
+      - go install google.golang.org/grpc/cmd/protoc-gen-go-grpc
+  get-latest-tag:
+    cmds:
+      - |
+        latest_tag=$(git describe --tags `git rev-list --tags --max-count=1`)
+        if [[ -z "$latest_tag" ]]; then
+          echo "0.0.1" > .latest_tag
+        else
+          echo $latest_tag | awk -F. '{printf "%d.%d.%d", $1, $2, $3+1}' > .latest_tag
+        fi
+    silent: true
+  clean-tag-file:
+    cmd: rm .latest_tag
+  fmt:
+    cmds:
+      - goimports -w .
+      - gofmt -w .
+      - go clean ./...
+      - go mod tidy
+  test:
+    cmd: go test -v -race -bench=./... -benchmem -timeout=120s -cover -coverprofile=coverage.txt -covermode=atomic ./...
+
+  clean:
+    cmds:
+      - go clean -cache -testcache -modcache
+      - rm -rf ./bin
+      - rm -rf ./dist
+      - rm -rf ./coverage.txt
+
+  # Publish Commands
+  publish-images:
+    cmds:
+      - nerdctl push containers.chewed-k8s.net/{{.NAMESPACE}}/{{.SERVICE_NAME}}:{{.GIT_COMMIT_HASH}} --all-platforms
+      - nerdctl push containers.chewed-k8s.net/{{.NAMESPACE}}/{{.SERVICE_NAME}}:latest --all-platforms
+
+  # Build Commands
+  build-images:
+    cmds:
+      - task: get-latest-tag
+      - nerdctl build --platform=amd64,arm64 --tag containers.chewed-k8s.net/{{.NAMESPACE}}/{{.SERVICE_NAME}}:{{.GIT_COMMIT_HASH}} --build-arg VERSION={{.LATEST_TAG}} --build-arg BUILD={{.GIT_COMMIT_HASH}} --build-arg SERVICE_NAME={{.SERVICE_NAME}} -f ./k8s/Containerfile .
+      - nerdctl tag containers.chewed-k8s.net/{{.NAMESPACE}}/{{.SERVICE_NAME}}:{{.GIT_COMMIT_HASH}} containers.chewed-k8s.net/{{.NAMESPACE}}/{{.SERVICE_NAME}}:latest
+      - task: clean-tag-file
+    vars:
+      LATEST_TAG:
+        sh: cat .latest_tag
+  build-push-latest:
+    cmds:
+      - task: get-latest-tag
+      - nerdctl build --platform=amd64,arm64 --tag containers.chewed-k8s.net/{{.NAMESPACE}}/{{.SERVICE_NAME}}:latest --build-arg VERSION={{.LATEST_TAG}} --build-arg BUILD={{.GIT_COMMIT_HASH}} --build-arg SERVICE_NAME={{.SERVICE_NAME}} -f ./k8s/Containerfile .
+      - nerdctl push containers.chewed-k8s.net/{{.NAMESPACE}}/{{.SERVICE_NAME}}:latest --all-platforms
+      - task: clean-tag-file
+    vars:
+      LATEST_TAG:
+        sh: cat .latest_tag
+  build:
+    cmds:
+      - task: build-images
+
+  # Deploy Commands
+  deploy:
+    cmd: kubectl set image deployment/{{.SERVICE_NAME}} {{.SERVICE_NAME}}=containers.chewed-k8s.net/{{.NAMESPACE}}/{{.SERVICE_NAME}}:{{.GIT_COMMIT_HASH}} -n {{.NAMESPACE}}
+  deploy-latest:
+    cmds:
+      - kubectl set image deployment/{{.SERVICE_NAME}} {{.SERVICE_NAME}}=containers.chewed-k8s.net/{{.NAMESPACE}}/{{.SERVICE_NAME}}:latest -n {{.NAMESPACE}}
+      - kubectl rollout restart deployment/{{.SERVICE_NAME}} -n {{.NAMESPACE}}
+
+  # Extras
+  build-deploy:
+    cmds:
+      - task: build-images
+      - task: deploy
+  build-deploy-latest:
+    cmds:
+      - task: build-push-latest
+      - task: deploy-latest
