@@ -77,7 +77,7 @@ spec:
   tls:
     - hosts:
         - api.flags.gg
-      secretName: orchestrator-1tn-pw-tls
+      secretName: orchestrator-flags-gg-tls
   rules:
     - host: api.flags.gg
       http:
