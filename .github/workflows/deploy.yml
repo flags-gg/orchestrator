@@ -1,0 +1,72 @@
+name: Deploy
+
+on:
+  release:
+    types:
+      - published
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - name: Meta
+        id: meta
+        uses: docker/metadata-action@v4
+        with:
+          images: containers.chewed-k8s.net/flags-gg/orchestrator
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{raw}}
+            type=sha
+      - name: QEMU
+        id: qemu
+        uses: docker/setup-qemu-action@v3
+      - name: Buildx
+        id: buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Cache
+        uses: actions/cache@v3
+        with:
+          path: /tmp/.buildx-cache
+          key: ${{ runner.os }}-buildx-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-buildx-
+      - name: Login Github
+        uses: docker/login-action@v3
+        with:
+          registry: containers.chewed-k8s.net
+          username: robot$1tn-pw+github
+          password: ${{ secrets.CONTAINERS_KEY }}
+      - name: Build and Push
+        id: docker_build
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          builder: ${{ steps.buildx.outputs.name }}
+          file: ./k8s/Containerfile
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          push: true
+          build-args: |
+            SERVICE_NAME=orchestrator
+            VERSION=${{ github.ref_name }}
+            BUILD=${{ github.sha }}
+#  deploy:
+#    runs-on: ubuntu-latest
+#    needs: build
+#    steps:
+#      - name: Deploy
+#        uses: k8sdeploy/github-action@v1
+#        with:
+#          service-namespace: k8sdeploy
+#          service-name: orchestrator
+#          k8sdeploy-key: ${{ secrets.K8SDEPLOY_KEY }}
+#          k8sdeploy-secret: ${{ secrets.K8SDEPLOY_SECRET }}
+#          k8sdeploy-id: ${{ secrets.K8SDEPLOY_ID }}
+#          image-hash: ${{ github.sha }}
+#          image-tag: ${{ github.ref_name }}
+
