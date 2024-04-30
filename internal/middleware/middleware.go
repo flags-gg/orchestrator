@@ -79,7 +79,7 @@ func getHeadersAllowed() string {
 	return strings.Join(allowedHeaders, ", ")
 }
 
-func (m *MiddlewareSystem) ValidateUser(w http.ResponseWriter, r *http.Request) {
+func (m *MiddlewareSystem) ValidateUser(w http.ResponseWriter, r *http.Request) bool {
 	userSubject := r.Header.Get("x-user-subject")
 	userAccessToken := r.Header.Get("x-user-access-token")
 
@@ -87,12 +87,14 @@ func (m *MiddlewareSystem) ValidateUser(w http.ResponseWriter, r *http.Request) 
 		validateUser := user.NewUserSystem(m.Config).ValidateUser(r.Context(), userSubject)
 		if !validateUser {
 			w.WriteHeader(http.StatusForbidden)
-			return
+			return false
 		}
 	}
+
+	return true
 }
 
-func (m *MiddlewareSystem) ValidateAgent(w http.ResponseWriter, r *http.Request) {
+func (m *MiddlewareSystem) ValidateAgent(w http.ResponseWriter, r *http.Request) bool {
 	agentId := r.Header.Get("x-agent-id")
 	companyId := r.Header.Get("x-company-id")
 	environmentId := r.Header.Get("x-environment-id")
@@ -107,10 +109,12 @@ func (m *MiddlewareSystem) ValidateAgent(w http.ResponseWriter, r *http.Request)
 
 		validAgent = agent.NewAgentSystem(m.Config).ValidateAgentWithoutEnvironment(r.Context(), agentId, companyId)
 		if !validAgent {
-			w.Write([]byte(`{"intervalAllowed":900, "flags": []}`))
-			return
+			_, _ = w.Write([]byte(`{"intervalAllowed":900, "flags": []}`))
+			return false
 		}
 	}
+
+	return true
 }
 
 func (m *MiddlewareSystem) Middleware(next http.Handler) http.Handler {
@@ -118,13 +122,16 @@ func (m *MiddlewareSystem) Middleware(next http.Handler) http.Handler {
 		m.CORS(w, r)
 
 		// Agents
-
 		if r.Method != http.MethodOptions {
 			// Validate User
-			m.ValidateUser(w, r)
+			if valid := m.ValidateUser(w, r); !valid {
+				return
+			}
 
 			// Validate Agent
-			m.ValidateAgent(w, r)
+			if valid := m.ValidateAgent(w, r); !valid {
+				return
+			}
 
 			// Continue to processing
 			next.ServeHTTP(w, r)

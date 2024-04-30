@@ -48,7 +48,17 @@ func (s *System) GetFlags(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("x-flags-timestamp", strconv.FormatInt(time.Now().Unix(), 10))
 	s.Context = r.Context()
 
-	if r.Header.Get("x-company-id") == "" || r.Header.Get("x-agent-id") == "" {
+	isAgent := false
+	isClient := false
+
+	if r.Header.Get("x-company-id") != "" && r.Header.Get("x-agent-id") != "" {
+		isAgent = true
+	}
+	if r.Header.Get("x-user-subject") != "" && r.Header.Get("x-user-access-token") != "" {
+		isClient = true
+	}
+
+	if !isAgent && !isClient {
 		res := Response{
 			IntervalAllowed: 600,
 			Flags:           []Flag{},
@@ -58,53 +68,37 @@ func (s *System) GetFlags(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// get the flags
-	res := Response{
-		IntervalAllowed: 60,
-		SecretMenu: SecretMenu{
-			//Sequence: []string{"ArrowUp", "ArrowUp", "ArrowDown", "ArrowDown", "ArrowLeft", "ArrowRight", "ArrowLeft", "ArrowRight", "b", "a"},
-			Sequence: []string{"ArrowDown", "ArrowDown", "ArrowDown", "b", "b"},
-			//Styles: []SecretMenuStyle{
-			//	{
-			//		Name:  "closeButton",
-			//		Value: `position: "absolute"; top: "0px"; right: "0px"; background: "white"; color: "purple"; cursor: "pointer";`,
-			//	},
-			//	{
-			//		Name:  "container",
-			//		Value: `position: "fixed"; top: "50%"; left: "50%"; transform: "translate(-50%, -50%)"; zIndex: 1000; backgroundColor: "white"; color: "black"; border: "1px solid black"; borderRadius: "5px"; padding: "1rem";`,
-			//	},
-			//	{
-			//		Name:  "button",
-			//		Value: `display: "flex"; justifyContent: "space-between"; alignItems: "center"; padding: "0.5rem"; background: "lightgray"; borderRadius: "5px"; margin: "0.5rem 0";`,
-			//	},
-			//},
-		},
-		Flags: []Flag{
-			{
-				Enabled: true,
-				Details: Details{
-					Name: "perAgent",
-					ID:   "1",
-				},
-			},
-			{
-				Enabled: true,
-				Details: Details{
-					Name: "totalRequests",
-					ID:   "2",
-				},
-			},
-			{
-				Enabled: true,
-				Details: Details{
-					Name: "notifications",
-					ID:   "3",
-				},
-			},
-		},
+	responseObj := Response{}
+
+	// get the flags for agent
+	if isAgent {
+		res, err := s.GetAgentFlags(r.Header.Get("x-company-id"), r.Header.Get("x-agent-id"), r.Header.Get("x-environment-id"))
+		if err != nil {
+			_ = logs.Local().Errorf("Failed to get flags: %v", err)
+			responseObj = Response{
+				IntervalAllowed: 600,
+				Flags:           []Flag{},
+			}
+			return
+		}
+		responseObj = res
 	}
 
-	if err := json.NewEncoder(w).Encode(res); err != nil {
+	// get the flags for client
+	if isClient {
+		res, err := s.GetClientFlags(r.Header.Get("x-user-subject"), r.Header.Get("x-user-access-token"))
+		if err != nil {
+			_ = logs.Local().Errorf("Failed to get flags: %v", err)
+			responseObj = Response{
+				IntervalAllowed: 600,
+				Flags:           []Flag{},
+			}
+			return
+		}
+		responseObj = res
+	}
+
+	if err := json.NewEncoder(w).Encode(responseObj); err != nil {
 		_ = logs.Local().Errorf("Failed to encode response: %v", err)
 		_, _ = w.Write([]byte(`{"error": "failed to encode response"}`))
 		stats.NewStatsSystem(s.Config).AddAgentError(r.Header.Get("x-company-id"), r.Header.Get("x-agent-id"), r.Header.Get("x-environment-id"))

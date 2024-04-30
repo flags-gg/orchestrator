@@ -90,6 +90,7 @@ func (s *System) GetAgentEnvironmentStats(agentId string, timePeriod int) (*Agen
     |> range(start: -%dd)
     |> filter(fn: (r) => r._measurement == "agent" and r.agent_id == "%s")
     |> filter(fn: (r) => r._field == "error" or r._field == "request" or r._field == "success")
+    |> truncateTimeColumn(unit: 1d)
     |> group(columns: ["agent_id", "environment_id", "_field"])
     |> aggregateWindow(every: 1d, fn: sum, createEmpty: false)
     |> yield(name: "dailyCounts")`, s.Config.Local.GetValue("INFLUX_BUCKET"), timePeriod, agentId)
@@ -111,7 +112,6 @@ func (s *System) GetAgentEnvironmentStats(agentId string, timePeriod int) (*Agen
 	}
 
 	envStatsMap := make(map[string]map[string]*Stat)
-	totalStatsMap := make(map[string]*Stat)
 
 	for result.Next() {
 		if result.TableChanged() {
@@ -122,45 +122,24 @@ func (s *System) GetAgentEnvironmentStats(agentId string, timePeriod int) (*Agen
 		field := values["_field"].(string)
 		count := values["_value"].(int64)
 		environment := values["environment_id"].(string)
-		agentTime := values["_time"].(time.Time).Format("2006-01-02")
+		agentTime := values["_time"].(time.Time).Truncate(24 * time.Hour).Format("2006-01-02") // Ensures time is truncated to start of day
 
-		// env stats
+		// Initialize map for new environment
 		if _, exists := envStatsMap[environment]; !exists {
 			envStatsMap[environment] = make(map[string]*Stat)
 		}
-		stat, exists := envStatsMap[environment][agentTime]
-		if !exists {
-			stat = &Stat{
-				Label:     agentTime,
-				Requests:  0,
-				Errors:    0,
-				Successes: 0,
-			}
-			envStatsMap[environment][agentTime] = stat
+		if _, exists := envStatsMap[environment][agentTime]; !exists {
+			envStatsMap[environment][agentTime] = &Stat{Label: agentTime}
 		}
 
-		// total stats
-		totalStat, exists := totalStatsMap[agentTime]
-		if !exists {
-			totalStat = &Stat{
-				Label:     agentTime,
-				Requests:  0,
-				Errors:    0,
-				Successes: 0,
-			}
-			totalStatsMap[agentTime] = totalStat
-		}
-
+		stat := envStatsMap[environment][agentTime]
 		switch field {
 		case "request":
-			stat.Requests += count
-			totalStat.Requests += count
+			stat.Requests = count
 		case "error":
-			stat.Errors += count
-			totalStat.Errors += count
+			stat.Errors = count
 		case "success":
-			stat.Successes += count
-			totalStat.Successes += count
+			stat.Successes = count
 		}
 	}
 
@@ -168,22 +147,27 @@ func (s *System) GetAgentEnvironmentStats(agentId string, timePeriod int) (*Agen
 		return nil, logs.Errorf("Failed to get agent stats from influx: %v", result.Err())
 	}
 
+	totalStats := make(map[string]*Stat)
 	for envId, dailyStats := range envStatsMap {
 		env := Environment{
 			Id:    envId,
 			Name:  fmt.Sprintf("Environment %s", envId),
 			Stats: make([]Stat, 0, len(dailyStats)),
 		}
-
 		for _, stat := range dailyStats {
 			env.Stats = append(env.Stats, *stat)
+			if _, exists := totalStats[stat.Label]; !exists {
+				totalStats[stat.Label] = &Stat{Label: stat.Label}
+			}
+			totalStats[stat.Label].Requests += stat.Requests
+			totalStats[stat.Label].Errors += stat.Errors
+			totalStats[stat.Label].Successes += stat.Successes
 		}
-
 		agentStat.Environments = append(agentStat.Environments, env)
 	}
 
-	for _, totalStats := range totalStatsMap {
-		agentStat.Stats = append(agentStat.Stats, *totalStats)
+	for _, stat := range totalStats {
+		agentStat.Stats = append(agentStat.Stats, *stat)
 	}
 
 	return agentStat, nil

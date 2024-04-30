@@ -62,7 +62,8 @@ func (s *Service) startHTTP(errChan chan error) {
 	mux.HandleFunc("GET /user/{userSubject}", user.NewUserSystem(s.Config).GetUser)
 
 	// Company
-	mux.HandleFunc("GET /company/{companyId}", company.NewCompanySystem(s.Config).GetCompany)
+	mux.HandleFunc("GET /company", company.NewCompanySystem(s.Config).GetCompany)
+	mux.HandleFunc("PUT /company", company.NewCompanySystem(s.Config).UpdateCompany)
 	mux.HandleFunc("POST /company", company.NewCompanySystem(s.Config).CreateCompany)
 
 	// General

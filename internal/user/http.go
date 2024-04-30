@@ -1,11 +1,11 @@
 package user
 
 import (
-  "context"
-  "github.com/Nerzal/gocloak/v13"
-  "github.com/bugfixes/go-bugfixes/logs"
-  "github.com/flags-gg/orchestrator/internal/config"
-  "net/http"
+	"context"
+	"github.com/Nerzal/gocloak/v13"
+	"github.com/bugfixes/go-bugfixes/logs"
+	"github.com/flags-gg/orchestrator/internal/config"
+	"net/http"
 )
 
 type System struct {
@@ -26,9 +26,10 @@ func (s *System) ValidateUser(ctx context.Context, subject string) bool {
 
 	user, err := s.GetKeycloakDetails(ctx, subject)
 	if err != nil {
+		_ = logs.Errorf("Failed to get keycloak details: %v", err)
 		return false
 	}
-	if user != nil {
+	if user == nil {
 		return false
 	}
 
@@ -38,12 +39,12 @@ func (s *System) ValidateUser(ctx context.Context, subject string) bool {
 func (s *System) GetKeycloakDetails(ctx context.Context, subject string) (*gocloak.User, error) {
 	client, token, err := s.Config.Keycloak.GetClient(ctx)
 	if err != nil {
-		return nil, err
+		return nil, logs.Errorf("Failed to get keycloak client: %v", err)
 	}
 
 	user, err := client.GetUserByID(ctx, token.AccessToken, s.Config.Keycloak.Realm, subject)
 	if err != nil {
-		return nil, err
+		return nil, logs.Errorf("Failed to get user by id: %v", err)
 	}
 
 	return user, nil
@@ -80,7 +81,7 @@ func (s *System) CreateUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Create user
-	if err := s.CreateUserDetails(userSubject, cloakDetails.Email); err != nil {
+	if err := s.CreateUserDetails(userSubject, *cloakDetails.Email); err != nil {
 		_ = logs.Errorf("Failed to create user details: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 	}
