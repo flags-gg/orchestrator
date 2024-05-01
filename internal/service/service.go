@@ -75,9 +75,9 @@ func (s *Service) startHTTP(errChan chan error) {
 
 	// middlewares
 	m := middleware.NewMiddleware(s.Config)
-	m.AddMiddleware(m.CORS)
 	m.AddMiddleware(Middle.Logger)
 	m.AddMiddleware(Middle.Recoverer)
+	m.AddMiddleware(m.CORS)
 	m.AddMiddleware(m.Auth)
 
 	logs.Local().Infof("Starting HTTP on %d", s.Config.Local.HTTPPort)
