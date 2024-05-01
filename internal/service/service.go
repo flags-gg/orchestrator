@@ -2,7 +2,13 @@ package service
 
 import (
 	"fmt"
+	"net/http"
+
 	"github.com/bugfixes/go-bugfixes/logs"
+	Middle "github.com/bugfixes/go-bugfixes/middleware"
+	"github.com/keloran/go-healthcheck"
+	"github.com/keloran/go-probe"
+
 	"github.com/flags-gg/orchestrator/internal/agent"
 	"github.com/flags-gg/orchestrator/internal/company"
 	"github.com/flags-gg/orchestrator/internal/config"
@@ -10,9 +16,6 @@ import (
 	"github.com/flags-gg/orchestrator/internal/middleware"
 	"github.com/flags-gg/orchestrator/internal/stats"
 	"github.com/flags-gg/orchestrator/internal/user"
-	"github.com/keloran/go-healthcheck"
-	"github.com/keloran/go-probe"
-	"net/http"
 )
 
 type Service struct {
@@ -71,8 +74,12 @@ func (s *Service) startHTTP(errChan chan error) {
 	mux.HandleFunc(fmt.Sprintf("%s /probe", http.MethodGet), probe.HTTP)
 
 	// middlewares
-	middleWare := middleware.NewMiddlewareSystem(s.Config).Middleware(mux)
+	m := middleware.NewMiddleware(s.Config)
+	m.AddMiddleware(m.CORS)
+	m.AddMiddleware(Middle.Logger)
+	m.AddMiddleware(Middle.Recoverer)
+	m.AddMiddleware(m.Auth)
 
 	logs.Local().Infof("Starting HTTP on %d", s.Config.Local.HTTPPort)
-	errChan <- http.ListenAndServe(fmt.Sprintf(":%d", s.Config.Local.HTTPPort), middleWare)
+	errChan <- http.ListenAndServe(fmt.Sprintf(":%d", s.Config.Local.HTTPPort), m.Handler(mux))
 }
