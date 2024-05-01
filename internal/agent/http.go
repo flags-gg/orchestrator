@@ -13,7 +13,7 @@ type Environment struct {
 	Name string `json:"name"`
 }
 
-type Agent struct {
+type AgentDetails struct {
 	Id           string        `json:"id"`
 	Name         string        `json:"name"`
 	Environments []Environment `json:"environments"`
@@ -44,11 +44,11 @@ func (s *System) ValidateAgentWithoutEnvironment(ctx context.Context, agentId, c
 
 func GetAgents(w http.ResponseWriter, r *http.Request) {
 	type Agents struct {
-		Agents []Agent `json:"agents"`
+		Agents []AgentDetails `json:"agents"`
 	}
 
 	agents := Agents{
-		Agents: []Agent{
+		Agents: []AgentDetails{
 			{
 				Id:   "bob",
 				Name: "Agent 123",
