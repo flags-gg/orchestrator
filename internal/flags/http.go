@@ -81,7 +81,7 @@ func (s *System) GetFlags(w http.ResponseWriter, r *http.Request) {
 			}
 			return
 		}
-		responseObj = res
+		responseObj = *res
 	}
 
 	// get the flags for client
