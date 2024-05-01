@@ -1,11 +1,12 @@
 package service
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 
 	"github.com/bugfixes/go-bugfixes/logs"
-	Middle "github.com/bugfixes/go-bugfixes/middleware"
+	"github.com/bugfixes/go-bugfixes/middleware"
 	"github.com/keloran/go-healthcheck"
 	"github.com/keloran/go-probe"
 
@@ -13,7 +14,6 @@ import (
 	"github.com/flags-gg/orchestrator/internal/company"
 	"github.com/flags-gg/orchestrator/internal/config"
 	"github.com/flags-gg/orchestrator/internal/flags"
-	"github.com/flags-gg/orchestrator/internal/middleware"
 	"github.com/flags-gg/orchestrator/internal/stats"
 	"github.com/flags-gg/orchestrator/internal/user"
 )
@@ -74,12 +74,18 @@ func (s *Service) startHTTP(errChan chan error) {
 	mux.HandleFunc(fmt.Sprintf("%s /probe", http.MethodGet), probe.HTTP)
 
 	// middlewares
-	m := middleware.NewMiddleware(s.Config)
-	m.AddMiddleware(Middle.Logger)
-	m.AddMiddleware(Middle.Recoverer)
-	m.AddMiddleware(m.CORS)
-	m.AddMiddleware(m.Auth)
+	mw := middleware.NewMiddleware(context.Background())
+	mw.AddMiddleware(middleware.Logger)
+	mw.AddMiddleware(middleware.Recoverer)
+	mw.AddMiddleware(mw.CORS)
+	mw.AddMiddleware(s.Auth)
+	mw.AddAllowedHeaders("x-agent-id", "x-company-id", "x-environment-id", "x-user-subject", "x-user-access-token")
+	mw.AddAllowedMethods(http.MethodGet, http.MethodPost, http.MethodPut, http.MethodDelete, http.MethodOptions)
+	mw.AddAllowedOrigins("https://www.flags.gg", "https://flags.gg")
+	if s.Config.Local.Development {
+		mw.AddAllowedOrigins("http://localhost:3000", "http://localhost:5173")
+	}
 
 	logs.Local().Infof("Starting HTTP on %d", s.Config.Local.HTTPPort)
-	errChan <- http.ListenAndServe(fmt.Sprintf(":%d", s.Config.Local.HTTPPort), m.Handler(mux))
+	errChan <- http.ListenAndServe(fmt.Sprintf(":%d", s.Config.Local.HTTPPort), mw.Handler(mux))
 }
