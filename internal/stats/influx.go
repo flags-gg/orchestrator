@@ -101,7 +101,7 @@ func (s *System) GetAgentEnvironmentStats(agentId string, timePeriod int) (*Agen
 
 	defer func() {
 		if err := result.Close(); err != nil {
-			_ = logs.Errorf("Failed to close query result: %v", err)
+			logs.Fatalf("Failed to close query result: %v", err)
 		}
 	}()
 

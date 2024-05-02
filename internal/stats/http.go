@@ -47,7 +47,6 @@ func (s *System) GetEnvironmentStats(w http.ResponseWriter, r *http.Request) {
 	data, err := s.GetAgentEnvironmentStats(agentId, timePeriod)
 	if err != nil {
 		_ = logs.Errorf("Failed to get agent stats from influx: %v", err)
-		//w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 

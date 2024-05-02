@@ -25,7 +25,7 @@ func (s *System) GetAgentDetails(agentId, companyId string) (*Agent, error) {
 	}
 	defer func() {
 		if err := client.Close(s.Context); err != nil {
-			_ = logs.Errorf("Failed to close database connection: %v", err)
+			logs.Fatalf("Failed to close database connection: %v", err)
 		}
 	}()
 

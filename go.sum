@@ -8,6 +8,8 @@ github.com/bugfixes/go-bugfixes v0.10.0 h1:zZFRIOTzir5WAXC7ooZvQ0tTV3rDX5dNjtH9S
 github.com/bugfixes/go-bugfixes v0.10.0/go.mod h1:IXxsOIHAu9XJGVYvfhBAKmDj3zPPI3mBcrW9ESehpJk=
 github.com/bugfixes/go-bugfixes v0.11.0 h1:62CETDSObQ5HcBn9juvadkiXP/MEWXF1lKYQuC/9rxs=
 github.com/bugfixes/go-bugfixes v0.11.0/go.mod h1:jEzX2MX2jY+65S85Dh59rmxZEMLzSpFMt75QTOHDvyo=
+github.com/bugfixes/go-bugfixes v0.12.1 h1:UQt3T1GGEYfCf4L/c+bePHK8Q2NSpNr4rNlxtm3qFM8=
+github.com/bugfixes/go-bugfixes v0.12.1/go.mod h1:jEzX2MX2jY+65S85Dh59rmxZEMLzSpFMt75QTOHDvyo=
 github.com/caarlos0/env/v8 v8.0.0 h1:POhxHhSpuxrLMIdvTGARuZqR4Jjm8AYmoi/JKlcScs0=
 github.com/caarlos0/env/v8 v8.0.0/go.mod h1:7K4wMY9bH0esiXSSHlfHLX5xKGQMnkH5Fk4TDSSSzfo=
 github.com/cenkalti/backoff/v3 v3.2.2 h1:cfUAAO3yvKMYKPrvhDuHSwQnhZNk/RMHKdZqKTxfm6M=

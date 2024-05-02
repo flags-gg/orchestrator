@@ -64,7 +64,7 @@ func (s *System) GetFlags(w http.ResponseWriter, r *http.Request) {
 			Flags:           []Flag{},
 		}
 		if err := json.NewEncoder(w).Encode(res); err != nil {
-			_ = logs.Local().Errorf("Failed to encode response: %v", err)
+			_ = logs.Errorf("Failed to encode response: %v", err)
 		}
 	}
 
@@ -74,12 +74,11 @@ func (s *System) GetFlags(w http.ResponseWriter, r *http.Request) {
 	if isAgent {
 		res, err := s.GetAgentFlags(r.Header.Get("x-company-id"), r.Header.Get("x-agent-id"), r.Header.Get("x-environment-id"))
 		if err != nil {
-			_ = logs.Local().Errorf("Failed to get flags: %v", err)
 			responseObj = Response{
 				IntervalAllowed: 600,
 				Flags:           []Flag{},
 			}
-			return
+			logs.Fatalf("Failed to get flags: %v", err)
 		}
 		responseObj = *res
 	}
@@ -88,21 +87,19 @@ func (s *System) GetFlags(w http.ResponseWriter, r *http.Request) {
 	if isClient {
 		res, err := s.GetClientFlags(r.Header.Get("x-user-subject"), r.Header.Get("x-user-access-token"))
 		if err != nil {
-			_ = logs.Local().Errorf("Failed to get flags: %v", err)
 			responseObj = Response{
 				IntervalAllowed: 600,
 				Flags:           []Flag{},
 			}
-			return
+			logs.Fatalf("Failed to get flags: %v", err)
 		}
 		responseObj = res
 	}
 
 	if err := json.NewEncoder(w).Encode(responseObj); err != nil {
-		_ = logs.Local().Errorf("Failed to encode response: %v", err)
 		_, _ = w.Write([]byte(`{"error": "failed to encode response"}`))
 		stats.NewStatsSystem(s.Config).AddAgentError(r.Header.Get("x-company-id"), r.Header.Get("x-agent-id"), r.Header.Get("x-environment-id"))
-		return
+		_ = logs.Errorf("Failed to encode response: %v", err)
 	}
 	stats.NewStatsSystem(s.Config).AddAgentSuccess(r.Header.Get("x-company-id"), r.Header.Get("x-agent-id"), r.Header.Get("x-environment-id"))
 }

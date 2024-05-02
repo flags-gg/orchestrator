@@ -23,7 +23,7 @@ func (s *System) GetAgentFlags(companyId, agentId, environmentId string) (*Respo
 	defer func() {
 		if err := client.Close(s.Context); err != nil {
 			stats.NewStatsSystem(s.Config).AddAgentError(companyId, agentId, environmentId)
-			_ = logs.Errorf("Failed to close database connection: %v", err)
+			logs.Fatalf("Failed to close database connection: %v", err)
 		}
 	}()
 

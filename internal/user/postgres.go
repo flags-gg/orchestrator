@@ -21,7 +21,7 @@ func (s *System) CreateUserDetails(subject, email string) error {
 	}
 	defer func() {
 		if err := client.Close(s.Context); err != nil {
-			_ = logs.Errorf("Failed to close database connection: %v", err)
+			logs.Fatalf("Failed to close database connection: %v", err)
 		}
 	}()
 
@@ -39,7 +39,7 @@ func (s *System) RetrieveUserDetails(subject string) (*User, error) {
 	}
 	defer func() {
 		if err := client.Close(s.Context); err != nil {
-			_ = logs.Errorf("Failed to close database connection: %v", err)
+			logs.Fatalf("Failed to close database connection: %v", err)
 		}
 	}()
 

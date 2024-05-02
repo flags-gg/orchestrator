@@ -17,12 +17,10 @@ func main() {
 
 	cfg, err := config.Build()
 	if err != nil {
-		_ = logs.Local().Errorf("Failed to build config: %v", err)
-		return
+		logs.Local().Fatalf("Failed to build config: %v", err)
 	}
 
 	if err := service.New(cfg).Start(); err != nil {
-		_ = logs.Local().Errorf("Failed to start service: %v", err)
-		return
+		logs.Local().Fatalf("Failed to start service: %v", err)
 	}
 }
