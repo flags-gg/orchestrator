@@ -1,5 +1,12 @@
 package stats
 
+import (
+	"errors"
+	"fmt"
+	"github.com/bugfixes/go-bugfixes/logs"
+	"github.com/jackc/pgx/v5"
+)
+
 func (s *System) GetNamesForData(data *AgentStat) (*AgentStat, error) {
 	agentName, err := s.GetAgentName(data.ID)
 	if err != nil {
@@ -20,9 +27,47 @@ func (s *System) GetNamesForData(data *AgentStat) (*AgentStat, error) {
 }
 
 func (s *System) GetAgentName(agentId string) (string, error) {
-	return "bob", nil
+	client, err := pgx.Connect(s.Context, fmt.Sprintf("postgres://%s:%s@%s:%d/%s", s.Config.Database.User, s.Config.Database.Password, s.Config.Database.Host, s.Config.Database.Port, s.Config.Database.DBName))
+	if err != nil {
+		return "", logs.Errorf("Failed to connect to database: %v", err)
+	}
+	defer func() {
+		if err := client.Close(s.Context); err != nil {
+			logs.Fatalf("Failed to close database connection: %v", err)
+		}
+	}()
+
+	var agentName string
+	if err := client.QueryRow(s.Context, "SELECT agent.name AS AgentName FROM public.agent AS agent WHERE agent_id = $1", agentId).Scan(&agentName); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return "", nil
+		}
+
+		return "", logs.Errorf("Failed to query database: %v", err)
+	}
+
+	return agentName, nil
 }
 
 func (s *System) GetEnvironmentName(environmentId string) (string, error) {
-	return "bill", nil
+	client, err := pgx.Connect(s.Context, fmt.Sprintf("postgres://%s:%s@%s:%d/%s", s.Config.Database.User, s.Config.Database.Password, s.Config.Database.Host, s.Config.Database.Port, s.Config.Database.DBName))
+	if err != nil {
+		return "", logs.Errorf("Failed to connect to database: %v", err)
+	}
+	defer func() {
+		if err := client.Close(s.Context); err != nil {
+			logs.Fatalf("Failed to close database connection: %v", err)
+		}
+	}()
+
+	var envName string
+	if err := client.QueryRow(s.Context, "SELECT env.name AS EnvName FROM public.agent_environment AS env WHERE env_id = $1", environmentId).Scan(&envName); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return "", nil
+		}
+
+		return "", logs.Errorf("Failed to query database: %v", err)
+	}
+
+	return envName, nil
 }

@@ -45,7 +45,7 @@ func (s *Service) startHTTP(errChan chan error) {
 	mux.HandleFunc("DELETE /flag/{flagId}", flags.DeleteFlags)
 
 	// Agents
-	mux.HandleFunc("GET /agents", agent.GetAgents)
+	mux.HandleFunc("GET /agents", agent.NewAgentSystem(s.Config).GetAgentsRequest)
 	mux.HandleFunc("POST /agent", agent.NewAgentSystem(s.Config).CreateAgent)
 	mux.HandleFunc("GET /agent/{agentId}", agent.GetAgent)
 	mux.HandleFunc("PUT /agent/{agentId}", agent.UpdateAgent)
@@ -83,7 +83,7 @@ func (s *Service) startHTTP(errChan chan error) {
 	mw.AddAllowedMethods(http.MethodGet, http.MethodPost, http.MethodPut, http.MethodDelete, http.MethodOptions)
 	mw.AddAllowedOrigins("https://www.flags.gg", "https://flags.gg")
 	if s.Config.Local.Development {
-		mw.AddAllowedOrigins("http://localhost:3000", "http://localhost:5173")
+		mw.AddAllowedOrigins("http://localhost:3000", "http://localhost:5173", "*")
 	}
 
 	logs.Local().Infof("Starting HTTP on %d", s.Config.Local.HTTPPort)

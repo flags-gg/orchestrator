@@ -10,10 +10,15 @@ func (s *Service) ValidateUser(w http.ResponseWriter, r *http.Request) bool {
 	userSubject := r.Header.Get("x-user-subject")
 	userAccessToken := r.Header.Get("x-user-access-token")
 
+	// Skip the check and just accept what is passed from bruno
+	if s.Config.Local.Development {
+		return true
+	}
+
 	if userSubject != "" && userAccessToken != "" {
 		validateUser := user.NewUserSystem(s.Config).ValidateUser(r.Context(), userSubject)
 		if !validateUser {
-			w.WriteHeader(http.StatusForbidden)
+			w.WriteHeader(http.StatusUnauthorized)
 			return false
 		}
 	}

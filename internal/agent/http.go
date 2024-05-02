@@ -9,8 +9,9 @@ import (
 )
 
 type Environment struct {
-	Id   string `json:"id"`
-	Name string `json:"name"`
+	Id            string `json:"id"`
+	Name          string `json:"name"`
+	EnvironmentId string `json:"environment_id"`
 }
 
 type AgentDetails struct {
@@ -42,46 +43,38 @@ func (s *System) ValidateAgentWithoutEnvironment(ctx context.Context, agentId, c
 	return true
 }
 
-func GetAgents(w http.ResponseWriter, r *http.Request) {
+func (s *System) GetAgentsRequest(w http.ResponseWriter, r *http.Request) {
 	type Agents struct {
-		Agents []AgentDetails `json:"agents"`
+		Agents []*Agent `json:"agents"`
+	}
+	s.Context = r.Context()
+
+	if r.Header.Get("x-user-access-token") == "" || r.Header.Get("x-user-subject") == "" {
+		w.WriteHeader(http.StatusUnauthorized)
+		return
 	}
 
-	agents := Agents{
-		Agents: []AgentDetails{
-			{
-				Id:   "bob",
-				Name: "Agent 123",
-				Environments: []Environment{
-					{
-						Id:   "321",
-						Name: "Development",
-					},
-					{
-						Id:   "3211",
-						Name: "Production",
-					},
-				},
-			},
-			{
-				Id:   "bill",
-				Name: "Agent 456",
-				Environments: []Environment{
-					{
-						Id:   "654",
-						Name: "Development",
-					},
-					{
-						Id:   "6541",
-						Name: "Production",
-					},
-				},
-			},
-		},
+	companyId, err := s.GetCompanyId(r.Header.Get("x-user-subject"))
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	if companyId == "" {
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
+	agents, err := s.GetAgents(companyId)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(&agents); err != nil {
+	if err := json.NewEncoder(w).Encode(&Agents{
+		Agents: agents,
+	}); err != nil {
 		_ = logs.Errorf("Failed to encode response: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -89,23 +82,23 @@ func GetAgents(w http.ResponseWriter, r *http.Request) {
 }
 
 func GetAgent(w http.ResponseWriter, r *http.Request) {
-	w.Write([]byte(`{"agent": {}}`))
+	_, _ = w.Write([]byte(`{"agent": {}}`))
 	return
 }
 
 func UpdateAgent(w http.ResponseWriter, r *http.Request) {
-	w.Write([]byte(`{"agent": {}}`))
+	_, _ = w.Write([]byte(`{"agent": {}}`))
 	return
 }
 
 func DeleteAgent(w http.ResponseWriter, r *http.Request) {
-	w.Write([]byte(`{"agent": {}}`))
+	_, _ = w.Write([]byte(`{"agent": {}}`))
 	return
 }
 
 func (s *System) CreateAgent(w http.ResponseWriter, r *http.Request) {
 
-	w.Write([]byte(`{"agent": {}}`))
+	_, _ = w.Write([]byte(`{"agent": {}}`))
 	return
 }
 
