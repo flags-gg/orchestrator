@@ -1,19 +1,19 @@
 package user
 
 import (
-	"context"
-	"github.com/Nerzal/gocloak/v13"
-	"github.com/bugfixes/go-bugfixes/logs"
-	"github.com/flags-gg/orchestrator/internal/config"
-	"net/http"
+  "context"
+  "github.com/Nerzal/gocloak/v13"
+  "github.com/bugfixes/go-bugfixes/logs"
+  ConfigBuilder "github.com/keloran/go-config"
+  "net/http"
 )
 
 type System struct {
-	Config  *config.Config
+	Config  *ConfigBuilder.Config
 	Context context.Context
 }
 
-func NewUserSystem(cfg *config.Config) *System {
+func NewUserSystem(cfg *ConfigBuilder.Config) *System {
 	return &System{
 		Config: cfg,
 	}

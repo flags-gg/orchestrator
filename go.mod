@@ -32,7 +32,7 @@ require (
 	github.com/jackc/pgpassfile v1.0.0 // indirect
 	github.com/jackc/pgservicefile v0.0.0-20221227161230-091c0ba34f0a // indirect
 	github.com/jackc/pgx/v5 v5.5.5 // indirect
-	github.com/keloran/go-config v0.6.0 // indirect
+	github.com/keloran/go-config v0.7.0 // indirect
 	github.com/keloran/go-healthcheck v1.2.2 // indirect
 	github.com/keloran/go-probe v1.0.0 // indirect
 	github.com/keloran/vault-helper v0.8.2 // indirect

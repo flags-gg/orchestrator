@@ -4,18 +4,18 @@ import (
 	"context"
 	"encoding/json"
 	"github.com/bugfixes/go-bugfixes/logs"
-	"github.com/flags-gg/orchestrator/internal/config"
+	ConfigBuilder "github.com/keloran/go-config"
 	"net/http"
 	"strconv"
 	"time"
 )
 
 type System struct {
-	Config  *config.Config
+	Config  *ConfigBuilder.Config
 	Context context.Context
 }
 
-func NewStatsSystem(cfg *config.Config) *System {
+func NewStatsSystem(cfg *ConfigBuilder.Config) *System {
 	return &System{
 		Config: cfg,
 	}

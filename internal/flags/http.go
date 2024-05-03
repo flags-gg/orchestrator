@@ -1,14 +1,14 @@
 package flags
 
 import (
-	"context"
-	"encoding/json"
-	"github.com/bugfixes/go-bugfixes/logs"
-	"github.com/flags-gg/orchestrator/internal/config"
-	"github.com/flags-gg/orchestrator/internal/stats"
-	"net/http"
-	"strconv"
-	"time"
+  "context"
+  "encoding/json"
+  "github.com/bugfixes/go-bugfixes/logs"
+  "github.com/flags-gg/orchestrator/internal/stats"
+  ConfigBuilder "github.com/keloran/go-config"
+  "net/http"
+  "strconv"
+  "time"
 )
 
 type SecretMenuStyle struct {
@@ -34,11 +34,11 @@ type Response struct {
 }
 
 type System struct {
-	Config  *config.Config
+	Config  *ConfigBuilder.Config
 	Context context.Context
 }
 
-func NewFlagsSystem(cfg *config.Config) *System {
+func NewFlagsSystem(cfg *ConfigBuilder.Config) *System {
 	return &System{
 		Config: cfg,
 	}

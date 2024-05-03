@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	ConfigBuilder "github.com/keloran/go-config"
 	"net/http"
 
 	"github.com/bugfixes/go-bugfixes/logs"
@@ -12,17 +13,16 @@ import (
 
 	"github.com/flags-gg/orchestrator/internal/agent"
 	"github.com/flags-gg/orchestrator/internal/company"
-	"github.com/flags-gg/orchestrator/internal/config"
 	"github.com/flags-gg/orchestrator/internal/flags"
 	"github.com/flags-gg/orchestrator/internal/stats"
 	"github.com/flags-gg/orchestrator/internal/user"
 )
 
 type Service struct {
-	Config *config.Config
+	Config *ConfigBuilder.Config
 }
 
-func New(cfg *config.Config) *Service {
+func New(cfg *ConfigBuilder.Config) *Service {
 	return &Service{
 		Config: cfg,
 	}

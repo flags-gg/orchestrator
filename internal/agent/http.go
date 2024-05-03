@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"github.com/bugfixes/go-bugfixes/logs"
-	"github.com/flags-gg/orchestrator/internal/config"
+	ConfigBuilder "github.com/keloran/go-config"
 	"net/http"
 )
 
@@ -21,11 +21,11 @@ type AgentDetails struct {
 }
 
 type System struct {
-	Config  *config.Config
+	Config  *ConfigBuilder.Config
 	Context context.Context
 }
 
-func NewAgentSystem(cfg *config.Config) *System {
+func NewAgentSystem(cfg *ConfigBuilder.Config) *System {
 	return &System{
 		Config: cfg,
 	}
