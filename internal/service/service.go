@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	ConfigBuilder "github.com/keloran/go-config"
 	"net/http"
 
 	"github.com/bugfixes/go-bugfixes/logs"
@@ -12,17 +13,16 @@ import (
 
 	"github.com/flags-gg/orchestrator/internal/agent"
 	"github.com/flags-gg/orchestrator/internal/company"
-	"github.com/flags-gg/orchestrator/internal/config"
 	"github.com/flags-gg/orchestrator/internal/flags"
 	"github.com/flags-gg/orchestrator/internal/stats"
 	"github.com/flags-gg/orchestrator/internal/user"
 )
 
 type Service struct {
-	Config *config.Config
+	Config *ConfigBuilder.Config
 }
 
-func New(cfg *config.Config) *Service {
+func New(cfg *ConfigBuilder.Config) *Service {
 	return &Service{
 		Config: cfg,
 	}
@@ -45,7 +45,7 @@ func (s *Service) startHTTP(errChan chan error) {
 	mux.HandleFunc("DELETE /flag/{flagId}", flags.DeleteFlags)
 
 	// Agents
-	mux.HandleFunc("GET /agents", agent.GetAgents)
+	mux.HandleFunc("GET /agents", agent.NewAgentSystem(s.Config).GetAgentsRequest)
 	mux.HandleFunc("POST /agent", agent.NewAgentSystem(s.Config).CreateAgent)
 	mux.HandleFunc("GET /agent/{agentId}", agent.GetAgent)
 	mux.HandleFunc("PUT /agent/{agentId}", agent.UpdateAgent)
@@ -83,7 +83,7 @@ func (s *Service) startHTTP(errChan chan error) {
 	mw.AddAllowedMethods(http.MethodGet, http.MethodPost, http.MethodPut, http.MethodDelete, http.MethodOptions)
 	mw.AddAllowedOrigins("https://www.flags.gg", "https://flags.gg")
 	if s.Config.Local.Development {
-		mw.AddAllowedOrigins("http://localhost:3000", "http://localhost:5173")
+		mw.AddAllowedOrigins("http://localhost:3000", "http://localhost:5173", "*")
 	}
 
 	logs.Local().Infof("Starting HTTP on %d", s.Config.Local.HTTPPort)

@@ -36,6 +36,42 @@ spec:
           env:
             - name: DEVELOPMENT
               value: "false"
+            - name: VAULT_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: orchestrator-secrets
+                  key: vault-token
+            - name: RDS_HOSTNAME
+              valueFrom:
+                secretKeyRef:
+                  name: orchestrator-secrets
+                  key: rds-hostname
+            - name: RDS_DB
+              valueFrom:
+                secretKeyRef:
+                  name: orchestrator-secrets
+                  key: rds-db
+            - name: RDS_VAULT_PATH
+              valueFrom:
+                secretKeyRef:
+                  name: orchestrator-secrets
+                  key: rds-vault-path
+            - name: KEYCLOAK_REALM
+              valueFrom:
+                secretKeyRef:
+                  name: orchestrator-secrets
+                  key: keycloak-realm
+            - name: KEYCLOAK_CLIENT
+              valueFrom:
+                secretKeyRef:
+                  name: orchestrator-secrets
+                  key: keycloak-client
+            - name: KEYCLOAK_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: orchestrator-secrets
+                  key: keycloak-secret
+            - name: KEYCLOAK_URL
 
 ---
 apiVersion: v1

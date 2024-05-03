@@ -8,6 +8,10 @@ github.com/bugfixes/go-bugfixes v0.10.0 h1:zZFRIOTzir5WAXC7ooZvQ0tTV3rDX5dNjtH9S
 github.com/bugfixes/go-bugfixes v0.10.0/go.mod h1:IXxsOIHAu9XJGVYvfhBAKmDj3zPPI3mBcrW9ESehpJk=
 github.com/bugfixes/go-bugfixes v0.11.0 h1:62CETDSObQ5HcBn9juvadkiXP/MEWXF1lKYQuC/9rxs=
 github.com/bugfixes/go-bugfixes v0.11.0/go.mod h1:jEzX2MX2jY+65S85Dh59rmxZEMLzSpFMt75QTOHDvyo=
+github.com/bugfixes/go-bugfixes v0.12.1 h1:UQt3T1GGEYfCf4L/c+bePHK8Q2NSpNr4rNlxtm3qFM8=
+github.com/bugfixes/go-bugfixes v0.12.1/go.mod h1:jEzX2MX2jY+65S85Dh59rmxZEMLzSpFMt75QTOHDvyo=
+github.com/bugfixes/go-bugfixes v0.12.2 h1:dntOz0Q4NzGqQcOdN3MtueQiPJv8eruNDzD005ypy/k=
+github.com/bugfixes/go-bugfixes v0.12.2/go.mod h1:jEzX2MX2jY+65S85Dh59rmxZEMLzSpFMt75QTOHDvyo=
 github.com/caarlos0/env/v8 v8.0.0 h1:POhxHhSpuxrLMIdvTGARuZqR4Jjm8AYmoi/JKlcScs0=
 github.com/caarlos0/env/v8 v8.0.0/go.mod h1:7K4wMY9bH0esiXSSHlfHLX5xKGQMnkH5Fk4TDSSSzfo=
 github.com/cenkalti/backoff/v3 v3.2.2 h1:cfUAAO3yvKMYKPrvhDuHSwQnhZNk/RMHKdZqKTxfm6M=
@@ -85,6 +89,8 @@ github.com/keloran/go-config v0.5.4 h1:fw1jRiUffV1yFFBTBdQZc/aWbE4BAsNKxqYMy5Nyr
 github.com/keloran/go-config v0.5.4/go.mod h1:DZRRJNwEF1RV1SgKz02K6GGPRvWRcTmfPDT9TIvj6KA=
 github.com/keloran/go-config v0.6.0 h1:diAZP0NEjKiI+jbzwDIsBno86JW22fZAzCr0fG/zCXg=
 github.com/keloran/go-config v0.6.0/go.mod h1:9KgOH+S5c80V1XcSW0HFUNDMfyus1BAGEwk4A+KEMPo=
+github.com/keloran/go-config v0.7.0 h1:TJxh6eWfoHxbN56iQBP8ZXNAJKmHoLbW3PL7rqLjj78=
+github.com/keloran/go-config v0.7.0/go.mod h1:03Kz3pKyvv2aQExr2BR3+blpXWp54aN4viJCe3fKNvI=
 github.com/keloran/go-healthcheck v1.2.2 h1:C92m/ppWkY6OldY5RrDiqCTpXIaOZtSO0vMmHADsrUc=
 github.com/keloran/go-healthcheck v1.2.2/go.mod h1:XGZyWC9IMGoyMGUvh3v3cZQp+eHFuYCHIkDjQOsuUVk=
 github.com/keloran/go-probe v1.0.0 h1:OAO7f71lRJIz+rF7iGAeBj4i86NaUazL8DaVf9dVJGU=

@@ -3,14 +3,14 @@ package company
 import (
 	"context"
 	"encoding/json"
-	"github.com/flags-gg/orchestrator/internal/config"
+	ConfigBuilder "github.com/keloran/go-config"
 	"net/http"
 	"strconv"
 	"time"
 )
 
 type System struct {
-	Config  *config.Config
+	Config  *ConfigBuilder.Config
 	Context context.Context
 }
 
@@ -19,7 +19,7 @@ type Company struct {
 	ID   string `json:"id"`
 }
 
-func NewCompanySystem(cfg *config.Config) *System {
+func NewCompanySystem(cfg *ConfigBuilder.Config) *System {
 	return &System{
 		Config: cfg,
 	}
