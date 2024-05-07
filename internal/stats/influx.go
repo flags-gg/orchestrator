@@ -33,8 +33,8 @@ type AgentsStats struct {
 }
 
 func (s *System) AddAgentSuccess(companyId, agentId, environmentId string) {
-	client := influxdb2.NewClient(s.Config.Local.GetValue("INFLUX_HOSTNAME"), s.Config.Local.GetValue("INFLUX_TOKEN"))
-	writeClient := client.WriteAPI(s.Config.Local.GetValue("INFLUX_ORG"), s.Config.Local.GetValue("INFLUX_BUCKET"))
+	client := influxdb2.NewClient(s.Config.Influx.Host, s.Config.Influx.Token)
+	writeClient := client.WriteAPI(s.Config.Influx.Org, s.Config.Influx.Bucket)
 
 	if environmentId == "" {
 		environmentId = "dev"
@@ -58,8 +58,8 @@ func (s *System) AddAgentSuccess(companyId, agentId, environmentId string) {
 }
 
 func (s *System) AddAgentError(companyId, agentId, environmentId string) {
-	client := influxdb2.NewClient(s.Config.Local.GetValue("INFLUX_HOSTNAME"), s.Config.Local.GetValue("INFLUX_TOKEN"))
-	writeClient := client.WriteAPI(s.Config.Local.GetValue("INFLUX_ORG"), s.Config.Local.GetValue("INFLUX_BUCKET"))
+	client := influxdb2.NewClient(s.Config.Influx.Host, s.Config.Influx.Token)
+	writeClient := client.WriteAPI(s.Config.Influx.Org, s.Config.Influx.Bucket)
 
 	if environmentId == "" {
 		environmentId = "dev"
