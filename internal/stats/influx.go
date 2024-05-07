@@ -83,8 +83,8 @@ func (s *System) AddAgentError(companyId, agentId, environmentId string) {
 }
 
 func (s *System) GetAgentEnvironmentStats(agentId string, timePeriod int) (*AgentStat, error) {
-	client := influxdb2.NewClient(s.Config.Local.GetValue("INFLUX_HOSTNAME"), s.Config.Local.GetValue("INFLUX_TOKEN"))
-	queryAPI := client.QueryAPI(s.Config.Local.GetValue("INFLUX_ORG"))
+	client := influxdb2.NewClient(s.Config.Influx.Host, s.Config.Influx.Token)
+	queryAPI := client.QueryAPI(s.Config.Influx.Org)
 
 	query := fmt.Sprintf(`from(bucket: "%s")
     |> range(start: -%dd)
@@ -93,7 +93,7 @@ func (s *System) GetAgentEnvironmentStats(agentId string, timePeriod int) (*Agen
     |> truncateTimeColumn(unit: 1d)
     |> group(columns: ["agent_id", "environment_id", "_field"])
     |> aggregateWindow(every: 1d, fn: sum, createEmpty: false)
-    |> yield(name: "dailyCounts")`, s.Config.Local.GetValue("INFLUX_BUCKET"), timePeriod, agentId)
+    |> yield(name: "dailyCounts")`, s.Config.Influx.Bucket, timePeriod, agentId)
 	result, err := queryAPI.Query(s.Context, query)
 	if err != nil {
 		return nil, logs.Errorf("Failed to query influx: %v", err)
@@ -174,10 +174,10 @@ func (s *System) GetAgentEnvironmentStats(agentId string, timePeriod int) (*Agen
 }
 
 func (s *System) GetAgentsStatsFromInflux(companyId string) (*AgentsStats, error) {
-	client := influxdb2.NewClient(s.Config.Local.GetValue("INFLUX_HOSTNAME"), s.Config.Local.GetValue("INFLUX_TOKEN"))
-	queryAPI := client.QueryAPI(s.Config.Local.GetValue("INFLUX_ORG"))
+	client := influxdb2.NewClient(s.Config.Influx.Host, s.Config.Influx.Token)
+	queryAPI := client.QueryAPI(s.Config.Influx.Org)
 
-	query := fmt.Sprintf(`from(bucket:"%s")|> range(start: -1d)|> filter(fn: (r) => r._measurement == "agent" and r.company_id == "%s")`, s.Config.Local.GetValue("INFLUX_BUCKET"), companyId)
+	query := fmt.Sprintf(`from(bucket:"%s")|> range(start: -1d)|> filter(fn: (r) => r._measurement == "agent" and r.company_id == "%s")`, s.Config.Influx.Bucket, companyId)
 	result, err := queryAPI.Query(s.Context, query)
 	if err != nil {
 		return nil, err
