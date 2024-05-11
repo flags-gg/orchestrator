@@ -2,7 +2,6 @@ package agent
 
 import (
 	"errors"
-	"fmt"
 	"github.com/bugfixes/go-bugfixes/logs"
 	"github.com/jackc/pgx/v5"
 )
@@ -12,7 +11,7 @@ type Agent struct {
 	Name         string         `json:"name"`
 	RequestLimit int            `json:"request_limit"`
 	AgentId      string         `json:"agent_id"`
-	Environment  []*Environment `json:"environments"`
+	Environments []*Environment `json:"environments"`
 }
 
 func (s *System) AddAgent(name, companyId string) (string, error) {
@@ -21,7 +20,7 @@ func (s *System) AddAgent(name, companyId string) (string, error) {
 }
 
 func (s *System) GetAgentDetails(agentId, companyId string) (*Agent, error) {
-	client, err := pgx.Connect(s.Context, fmt.Sprintf("postgres://%s:%s@%s:%d/%s", s.Config.Database.User, s.Config.Database.Password, s.Config.Database.Host, s.Config.Database.Port, s.Config.Database.DBName))
+	client, err := s.Config.Database.GetPGXClient(s.Context)
 	if err != nil {
 		return nil, logs.Errorf("Failed to connect to database: %v", err)
 	}
@@ -44,7 +43,7 @@ func (s *System) GetAgentDetails(agentId, companyId string) (*Agent, error) {
 }
 
 func (s *System) GetAgents(companyId string) ([]*Agent, error) {
-	client, err := pgx.Connect(s.Context, fmt.Sprintf("postgres://%s:%s@%s:%d/%s", s.Config.Database.User, s.Config.Database.Password, s.Config.Database.Host, s.Config.Database.Port, s.Config.Database.DBName))
+	client, err := s.Config.Database.GetPGXClient(s.Context)
 	if err != nil {
 		return nil, logs.Errorf("Failed to connect to database: %v", err)
 	}
@@ -71,7 +70,7 @@ func (s *System) GetAgents(companyId string) ([]*Agent, error) {
 		if err != nil {
 			return nil, logs.Errorf("Failed to get agent environments: %v", err)
 		}
-		agent.Environment = envs
+		agent.Environments = envs
 
 		agents = append(agents, agent)
 	}
@@ -80,7 +79,7 @@ func (s *System) GetAgents(companyId string) ([]*Agent, error) {
 }
 
 func (s *System) GetAgentEnvironments(agentId string) ([]*Environment, error) {
-	client, err := pgx.Connect(s.Context, fmt.Sprintf("postgres://%s:%s@%s:%d/%s", s.Config.Database.User, s.Config.Database.Password, s.Config.Database.Host, s.Config.Database.Port, s.Config.Database.DBName))
+	client, err := s.Config.Database.GetPGXClient(s.Context)
 	if err != nil {
 		return nil, logs.Errorf("Failed to connect to database: %v", err)
 	}
@@ -110,7 +109,7 @@ func (s *System) GetAgentEnvironments(agentId string) ([]*Environment, error) {
 }
 
 func (s *System) GetCompanyId(userSubject string) (string, error) {
-	client, err := pgx.Connect(s.Context, fmt.Sprintf("postgres://%s:%s@%s:%d/%s", s.Config.Database.User, s.Config.Database.Password, s.Config.Database.Host, s.Config.Database.Port, s.Config.Database.DBName))
+	client, err := s.Config.Database.GetPGXClient(s.Context)
 	if err != nil {
 		return "", logs.Errorf("Failed to connect to database: %v", err)
 	}

@@ -15,7 +15,7 @@ func (s *System) GetAgentFlags(companyId, agentId, environmentId string) (*Respo
 		IntervalAllowed: 60,
 	}
 
-	client, err := pgx.Connect(s.Context, fmt.Sprintf("postgres://%s:%s@%s:%d/%s", s.Config.Database.User, s.Config.Database.Password, s.Config.Database.Host, s.Config.Database.Port, s.Config.Database.DBName))
+	client, err := s.Config.Database.GetPGXClient(s.Context)
 	if err != nil {
 		stats.NewStatsSystem(s.Config).AddAgentError(companyId, agentId, environmentId)
 		return nil, logs.Errorf("Failed to connect to database: %v", err)
