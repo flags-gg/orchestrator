@@ -2,7 +2,6 @@ package user
 
 import (
 	"errors"
-	"fmt"
 	"github.com/bugfixes/go-bugfixes/logs"
 	"github.com/jackc/pgx/v5"
 )
@@ -15,7 +14,7 @@ type User struct {
 }
 
 func (s *System) CreateUserDetails(subject, email string) error {
-	client, err := pgx.Connect(s.Context, fmt.Sprintf("postgres://%s:%s@%s:%d/%s", s.Config.Database.User, s.Config.Database.Password, s.Config.Database.Host, s.Config.Database.Port, s.Config.Database.DBName))
+	client, err := s.Config.Database.GetPGXClient(s.Context)
 	if err != nil {
 		return logs.Errorf("Failed to connect to database: %v", err)
 	}
@@ -33,7 +32,7 @@ func (s *System) CreateUserDetails(subject, email string) error {
 }
 
 func (s *System) RetrieveUserDetails(subject string) (*User, error) {
-	client, err := pgx.Connect(s.Context, fmt.Sprintf("postgres://%s:%s@%s:%d/%s", s.Config.Database.User, s.Config.Database.Password, s.Config.Database.Host, s.Config.Database.Port, s.Config.Database.DBName))
+	client, err := s.Config.Database.GetPGXClient(s.Context)
 	if err != nil {
 		return nil, logs.Errorf("Failed to connect to database: %v", err)
 	}

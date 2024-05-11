@@ -50,6 +50,10 @@ func (s *Service) startHTTP(errChan chan error) {
 	mux.HandleFunc("GET /agent/{agentId}", agent.GetAgent)
 	mux.HandleFunc("PUT /agent/{agentId}", agent.UpdateAgent)
 	mux.HandleFunc("DELETE /agent/{agentId}", agent.DeleteAgent)
+	mux.HandleFunc("GET /agent/{agentId}/environments", agent.GetAgentEnvironments)
+	mux.HandleFunc("POST /agent/{agentId}/environment", agent.CreateAgentEnvironment)
+	mux.HandleFunc("PUT /agent/{agentId}/environment/{environmentId}", agent.UpdateAgentEnvironment)
+	mux.HandleFunc("DELETE /agent/{agentId}/environment/{environmentId}", agent.DeleteAgentEnvironment)
 
 	// Secret Menu
 	mux.HandleFunc("GET /agent/{agentId}/secret-menu", agent.GetSecretMenu)

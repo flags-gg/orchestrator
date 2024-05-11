@@ -109,6 +109,10 @@ github.com/keloran/go-config v1.1.6 h1:ted2pNSaI90lQMdJjJ8fyGUfZqKuQSvcYxpg/m5rD
 github.com/keloran/go-config v1.1.6/go.mod h1:03Kz3pKyvv2aQExr2BR3+blpXWp54aN4viJCe3fKNvI=
 github.com/keloran/go-config v1.1.7 h1:EIsV2cNikRa0QgnStW9zPg2ZtcvsyCgYjWxwdi54msg=
 github.com/keloran/go-config v1.1.7/go.mod h1:h/ATQQyD0TvHRZx2JId2LCXDQehla+1hyYwpKPkDoOg=
+github.com/keloran/go-config v1.2.0 h1:ZF9wXnhPUl8Eh/TwNzjD+NuOOZV0OcNButdXgJEJuFE=
+github.com/keloran/go-config v1.2.0/go.mod h1:Mtvl5r5h90Zom74lQC361iHBF9ns8fQpqk5NgMAt+VU=
+github.com/keloran/go-config v1.2.1 h1:orLOrzwKNybRD1SlyLW4mPS676TmvHyBUsB2kT/2C78=
+github.com/keloran/go-config v1.2.1/go.mod h1:Mtvl5r5h90Zom74lQC361iHBF9ns8fQpqk5NgMAt+VU=
 github.com/keloran/go-healthcheck v1.2.2 h1:C92m/ppWkY6OldY5RrDiqCTpXIaOZtSO0vMmHADsrUc=
 github.com/keloran/go-healthcheck v1.2.2/go.mod h1:XGZyWC9IMGoyMGUvh3v3cZQp+eHFuYCHIkDjQOsuUVk=
 github.com/keloran/go-probe v1.0.0 h1:OAO7f71lRJIz+rF7iGAeBj4i86NaUazL8DaVf9dVJGU=
