@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"context"
 	"errors"
 	"github.com/bugfixes/go-bugfixes/logs"
 	"github.com/jackc/pgx/v5"
@@ -125,4 +126,52 @@ func (s *System) GetCompanyId(userSubject string) (string, error) {
 	}
 
 	return companyId, nil
+}
+
+func (s *System) ValidateAgentWithEnvironment(ctx context.Context, agentId, companyId, environmentId string) (bool, error) {
+	valid := false
+	s.Context = ctx
+
+	client, err := s.Config.Database.GetPGXClient(ctx)
+	if err != nil {
+		return false, logs.Errorf("Failed to connect to database: %v", err)
+	}
+	defer func() {
+		if err := client.Close(s.Context); err != nil {
+			logs.Fatalf("Failed to close database connection: %v", err)
+		}
+	}()
+
+	if err := client.QueryRow(ctx, "SELECT TRUE FROM public.agent JOIN public.agent_environment AS pa ON pa.agent_id = agent.id JOIN public.company ON company.id = agent.company_id WHERE agent.agent_id = $1 AND pa.env_id = $2 AND company.company_id = $3", agentId, environmentId, companyId).Scan(&valid); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return valid, nil
+		}
+		return valid, logs.Errorf("Failed to query database: %v", err)
+	}
+
+	return valid, nil
+}
+
+func (s *System) ValidateAgentWithoutEnvironment(ctx context.Context, agentId, companyId string) (bool, error) {
+	valid := false
+	s.Context = ctx
+
+	client, err := s.Config.Database.GetPGXClient(ctx)
+	if err != nil {
+		return false, logs.Errorf("Failed to connect to database: %v", err)
+	}
+	defer func() {
+		if err := client.Close(s.Context); err != nil {
+			logs.Fatalf("Failed to close database connection: %v", err)
+		}
+	}()
+
+	if err := client.QueryRow(ctx, "SELECT TRUE FROM public.agent JOIN public.agent_environment AS pa ON pa.agent_id = agent.id JOIN public.company ON company.id = agent.company_id WHERE agent.agent_id = $1 AND company.company_id = $2", agentId, companyId).Scan(&valid); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return valid, nil
+		}
+		return valid, logs.Errorf("Failed to query database: %v", err)
+	}
+
+	return valid, nil
 }
