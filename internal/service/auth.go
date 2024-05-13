@@ -30,34 +30,52 @@ func (s *Service) ValidateAgent(w http.ResponseWriter, r *http.Request) bool {
 	agentId := r.Header.Get("x-agent-id")
 	companyId := r.Header.Get("x-company-id")
 	environmentId := r.Header.Get("x-environment-id")
-	if agentId != "" && companyId != "" {
-		validAgent := false
+	validAgent := false
 
+	// Skip the check and just accept what is passed from bruno
+	if s.Config.Local.Development {
+		return true
+	}
+
+	if agentId != "" && companyId != "" {
 		// validate agent
 		if environmentId != "" {
 			// validate environment
-			validAgent = agent.NewAgentSystem(s.Config).ValidateAgentWithEnvironment(r.Context(), agentId, companyId, environmentId)
+			v, err := agent.NewAgentSystem(s.Config).ValidateAgentWithEnvironment(r.Context(), agentId, companyId, environmentId)
+			if err != nil {
+				w.WriteHeader(http.StatusInternalServerError)
+				return false
+			}
+			validAgent = v
 		}
 
-		validAgent = agent.NewAgentSystem(s.Config).ValidateAgentWithoutEnvironment(r.Context(), agentId, companyId)
-		if !validAgent {
-			_, _ = w.Write([]byte(`{"intervalAllowed":900, "flags": []}`))
-			return false
+		v, err := agent.NewAgentSystem(s.Config).ValidateAgentWithoutEnvironment(r.Context(), agentId, companyId)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			return validAgent
 		}
+		validAgent = v
 	}
 
-	return true
+	if !validAgent {
+		_, _ = w.Write([]byte(`{"intervalAllowed":900, "flags": []}`))
+		return true
+	}
+
+	return validAgent
 }
 
 func (s *Service) Auth(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Validate User
 		if valid := s.ValidateUser(w, r); !valid {
+			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
 
 		// Validate Agent
 		if valid := s.ValidateAgent(w, r); !valid {
+			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
 
