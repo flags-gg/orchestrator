@@ -86,7 +86,7 @@ func (s *Service) startHTTP(errChan chan error) {
 	mw.AddMiddleware(mw.CORS)
 	mw.AddAllowedHeaders("x-agent-id", "x-company-id", "x-environment-id", "x-user-subject", "x-user-access-token")
 	mw.AddAllowedMethods(http.MethodGet, http.MethodPost, http.MethodPut, http.MethodDelete, http.MethodOptions)
-	mw.AddAllowedOrigins("https://www.flags.gg", "https://flags.gg")
+	mw.AddAllowedOrigins("https://www.flags.gg", "https://flags.gg", "*")
 	if s.Config.Local.Development {
 		mw.AddAllowedOrigins("http://localhost:3000", "http://localhost:5173", "*")
 	}
