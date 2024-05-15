@@ -58,6 +58,7 @@ func (s *Service) ValidateAgent(w http.ResponseWriter, r *http.Request) bool {
 	}
 
 	if !validAgent {
+		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write([]byte(`{"intervalAllowed":900, "flags": []}`))
 		return true
 	}

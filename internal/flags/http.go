@@ -1,13 +1,13 @@
 package flags
 
 import (
-	"context"
-	"encoding/json"
-	"github.com/flags-gg/orchestrator/internal/stats"
-	ConfigBuilder "github.com/keloran/go-config"
-	"net/http"
-	"strconv"
-	"time"
+  "context"
+  "encoding/json"
+  "github.com/flags-gg/orchestrator/internal/stats"
+  ConfigBuilder "github.com/keloran/go-config"
+  "net/http"
+  "strconv"
+  "time"
 )
 
 type SecretMenuStyle struct {
@@ -45,6 +45,7 @@ func NewFlagsSystem(cfg *ConfigBuilder.Config) *System {
 
 func (s *System) GetFlags(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("x-flags-timestamp", strconv.FormatInt(time.Now().Unix(), 10))
+	w.Header().Set("Content-Type", "application/json")
 	s.Context = r.Context()
 
 	isAgent := false
