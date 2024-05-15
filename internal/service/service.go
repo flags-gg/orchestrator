@@ -91,6 +91,6 @@ func (s *Service) startHTTP(errChan chan error) {
 		mw.AddAllowedOrigins("http://localhost:3000", "http://localhost:5173", "*")
 	}
 
-	logs.Local().Infof("Starting HTTP on %d", s.Config.Local.HTTPPort)
+	logs.Infof("Starting HTTP on %d", s.Config.Local.HTTPPort)
 	errChan <- http.ListenAndServe(fmt.Sprintf(":%d", s.Config.Local.HTTPPort), mw.Handler(mux))
 }

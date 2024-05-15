@@ -2,7 +2,6 @@ version: "3"
 vars:
   SERVICE_NAME: orchestrator
   NAMESPACE: flags-gg
-  GIT_COMMIT_HASH: sh -c "git rev-parse --short HEAD"
 tasks:
   # Utility Commands
   setup:
@@ -52,8 +51,15 @@ tasks:
   # Publish Commands
   publish-images:
     cmds:
-      - nerdctl push containers.chewed-k8s.net/{{.NAMESPACE}}/{{.SERVICE_NAME}}:{{.GIT_COMMIT_HASH}} --all-platforms
+      - task: get-commit-hash
+        vars:
+          COMMIT_HASH:
+            sh: cat .commit_hash
+      - nerdctl push containers.chewed-k8s.net/{{.NAMESPACE}}/{{.SERVICE_NAME}}:{{.COMMIT_HASH}} --all-platforms
       - nerdctl push containers.chewed-k8s.net/{{.NAMESPACE}}/{{.SERVICE_NAME}}:latest --all-platforms
+    vars:
+      COMMIT_HASH:
+        sh: cat .commit_hash
 
   # Build Commands
   build-images:
@@ -66,8 +72,8 @@ tasks:
         vars:
           COMMIT_HASH:
             sh: cat .commit_hash
-      - nerdctl build --platform=amd64,arm64 --tag containers.chewed-k8s.net/{{.NAMESPACE}}/{{.SERVICE_NAME}}:{{.GIT_COMMIT_HASH}} --build-arg VERSION={{.LATEST_TAG}} --build-arg BUILD={{.COMMIT_HASH}} --build-arg SERVICE_NAME={{.SERVICE_NAME}} -f ./k8s/Containerfile .
-      - nerdctl tag containers.chewed-k8s.net/{{.NAMESPACE}}/{{.SERVICE_NAME}}:{{.GIT_COMMIT_HASH}} containers.chewed-k8s.net/{{.NAMESPACE}}/{{.SERVICE_NAME}}:latest
+      - nerdctl build --platform=amd64,arm64 --tag containers.chewed-k8s.net/{{.NAMESPACE}}/{{.SERVICE_NAME}}:{{.COMMIT_HASH}} --build-arg VERSION={{.LATEST_TAG}} --build-arg BUILD={{.COMMIT_HASH}} --build-arg SERVICE_NAME={{.SERVICE_NAME}} -f ./k8s/Containerfile .
+      - nerdctl tag containers.chewed-k8s.net/{{.NAMESPACE}}/{{.SERVICE_NAME}}:{{.COMMIT_HASH}} containers.chewed-k8s.net/{{.NAMESPACE}}/{{.SERVICE_NAME}}:latest
     vars:
       LATEST_TAG:
         sh: cat .latest_tag
@@ -90,7 +96,10 @@ tasks:
 
   # Deploy Commands
   deploy:
-    cmd: kubectl set image deployment/{{.SERVICE_NAME}} {{.SERVICE_NAME}}=containers.chewed-k8s.net/{{.NAMESPACE}}/{{.SERVICE_NAME}}:{{.GIT_COMMIT_HASH}} -n {{.NAMESPACE}}
+    cmd: kubectl set image deployment/{{.SERVICE_NAME}} {{.SERVICE_NAME}}=containers.chewed-k8s.net/{{.NAMESPACE}}/{{.SERVICE_NAME}}:{{.COMMIT_HASH}} -n {{.NAMESPACE}}
+    vars:
+      COMMIT_HASH:
+        sh: cat .commit_hash
   deploy-latest:
     cmds:
       - kubectl set image deployment/{{.SERVICE_NAME}} {{.SERVICE_NAME}}=containers.chewed-k8s.net/{{.NAMESPACE}}/{{.SERVICE_NAME}}:latest -n {{.NAMESPACE}}
@@ -100,6 +109,7 @@ tasks:
   build-deploy:
     cmds:
       - task: build-images
+      - task: publish-images
       - task: deploy
   build-deploy-latest:
     cmds:

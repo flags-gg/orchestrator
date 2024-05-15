@@ -37,7 +37,7 @@ func (pc ProjectConfig) Build(cfg *ConfigBuilder.Config) error {
 }
 
 func main() {
-	logs.Local().Infof("Starting %s version %s (build %s)", ServiceName, BuildVersion, BuildHash)
+	logs.Infof("Starting %s version %s (build %s)", ServiceName, BuildVersion, BuildHash)
 
 	genericVaultPath := "kv/data/flags-gg/orchestrator"
 	vh := vault_helper.NewVault("", "")
@@ -67,10 +67,10 @@ func main() {
 		ConfigBuilder.Bugfixes,
 		ConfigBuilder.WithProjectConfigurator(ProjectConfig{}))
 	if err != nil {
-		logs.Local().Fatalf("Failed to build config: %v", err)
+		logs.Fatalf("Failed to build config: %v", err)
 	}
 
 	if err := service.New(c).Start(); err != nil {
-		logs.Local().Fatalf("Failed to start service: %v", err)
+		logs.Fatalf("Failed to start service: %v", err)
 	}
 }
