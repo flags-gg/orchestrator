@@ -79,7 +79,8 @@ func (s *Service) startHTTP(errChan chan error) {
 
 	// middlewares
 	mw := middleware.NewMiddleware(context.Background())
-	mw.AddMiddleware(middleware.Logger)
+	mw.AddMiddleware(middleware.SetupLogger(middleware.Error).Logger)
+	mw.AddMiddleware(middleware.RequestID)
 	mw.AddMiddleware(middleware.Recoverer)
 	mw.AddMiddleware(s.Auth)
 	mw.AddMiddleware(mw.CORS)
@@ -90,6 +91,6 @@ func (s *Service) startHTTP(errChan chan error) {
 		mw.AddAllowedOrigins("http://localhost:3000", "http://localhost:5173", "*")
 	}
 
-	logs.Local().Infof("Starting HTTP on %d", s.Config.Local.HTTPPort)
+	logs.Infof("Starting HTTP on %d", s.Config.Local.HTTPPort)
 	errChan <- http.ListenAndServe(fmt.Sprintf(":%d", s.Config.Local.HTTPPort), mw.Handler(mux))
 }

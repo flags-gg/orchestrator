@@ -5,7 +5,7 @@ go 1.22
 require (
 	github.com/Nerzal/gocloak/v13 v13.9.0 // indirect
 	github.com/apapsch/go-jsonmerge/v2 v2.0.0 // indirect
-	github.com/bugfixes/go-bugfixes v0.12.2 // indirect
+	github.com/bugfixes/go-bugfixes v0.12.16 // indirect
 	github.com/caarlos0/env/v8 v8.0.0 // indirect
 	github.com/cenkalti/backoff/v3 v3.2.2 // indirect
 	github.com/go-jose/go-jose/v3 v3.0.3 // indirect
@@ -32,10 +32,10 @@ require (
 	github.com/jackc/pgpassfile v1.0.0 // indirect
 	github.com/jackc/pgservicefile v0.0.0-20221227161230-091c0ba34f0a // indirect
 	github.com/jackc/pgx/v5 v5.5.5 // indirect
-	github.com/keloran/go-config v1.2.1 // indirect
+	github.com/keloran/go-config v1.2.4 // indirect
 	github.com/keloran/go-healthcheck v1.2.2 // indirect
 	github.com/keloran/go-probe v1.0.0 // indirect
-	github.com/keloran/vault-helper v0.9.0 // indirect
+	github.com/keloran/vault-helper v0.9.1 // indirect
 	github.com/klauspost/compress v1.17.8 // indirect
 	github.com/mitchellh/go-homedir v1.1.0 // indirect
 	github.com/mitchellh/mapstructure v1.5.0 // indirect

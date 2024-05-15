@@ -2,7 +2,6 @@ package stats
 
 import (
 	"fmt"
-	"github.com/bugfixes/go-bugfixes/logs"
 	influxdb2 "github.com/influxdata/influxdb-client-go/v2"
 	"time"
 )
@@ -96,12 +95,12 @@ func (s *System) GetAgentEnvironmentStats(agentId string, timePeriod int) (*Agen
     |> yield(name: "dailyCounts")`, s.Config.Influx.Bucket, timePeriod, agentId)
 	result, err := queryAPI.Query(s.Context, query)
 	if err != nil {
-		return nil, logs.Errorf("Failed to query influx: %v", err)
+		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to query influx: %v", err)
 	}
 
 	defer func() {
 		if err := result.Close(); err != nil {
-			logs.Fatalf("Failed to close query result: %v", err)
+			s.Config.Bugfixes.Logger.Fatalf("Failed to close query result: %v", err)
 		}
 	}()
 
@@ -144,7 +143,7 @@ func (s *System) GetAgentEnvironmentStats(agentId string, timePeriod int) (*Agen
 	}
 
 	if result.Err() != nil {
-		return nil, logs.Errorf("Failed to get agent stats from influx: %v", result.Err())
+		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to get agent stats from influx: %v", result.Err())
 	}
 
 	totalStats := make(map[string]*Stat)
@@ -185,7 +184,7 @@ func (s *System) GetAgentsStatsFromInflux(companyId string) (*AgentsStats, error
 
 	defer func() {
 		if err := result.Close(); err != nil {
-			_ = logs.Errorf("Failed to close query result: %v", err)
+			_ = s.Config.Bugfixes.Logger.Errorf("Failed to close query result: %v", err)
 		}
 	}()
 

@@ -1,9 +1,9 @@
 package stats
 
 import (
-  "errors"
-  "github.com/bugfixes/go-bugfixes/logs"
-  "github.com/jackc/pgx/v5"
+	"errors"
+	"github.com/bugfixes/go-bugfixes/logs"
+	"github.com/jackc/pgx/v5"
 )
 
 func (s *System) GetNamesForData(data *AgentStat) (*AgentStat, error) {
@@ -28,11 +28,11 @@ func (s *System) GetNamesForData(data *AgentStat) (*AgentStat, error) {
 func (s *System) GetAgentName(agentId string) (string, error) {
 	client, err := s.Config.Database.GetPGXClient(s.Context)
 	if err != nil {
-		return "", logs.Errorf("Failed to connect to database: %v", err)
+		return "", s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
 	}
 	defer func() {
 		if err := client.Close(s.Context); err != nil {
-			logs.Fatalf("Failed to close database connection: %v", err)
+			s.Config.Bugfixes.Logger.Fatalf("Failed to close database connection: %v", err)
 		}
 	}()
 
@@ -51,11 +51,11 @@ func (s *System) GetAgentName(agentId string) (string, error) {
 func (s *System) GetEnvironmentName(environmentId string) (string, error) {
 	client, err := s.Config.Database.GetPGXClient(s.Context)
 	if err != nil {
-		return "", logs.Errorf("Failed to connect to database: %v", err)
+		return "", s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
 	}
 	defer func() {
 		if err := client.Close(s.Context); err != nil {
-			logs.Fatalf("Failed to close database connection: %v", err)
+			s.Config.Bugfixes.Logger.Fatalf("Failed to close database connection: %v", err)
 		}
 	}()
 
@@ -65,7 +65,7 @@ func (s *System) GetEnvironmentName(environmentId string) (string, error) {
 			return "", nil
 		}
 
-		return "", logs.Errorf("Failed to query database: %v", err)
+		return "", s.Config.Bugfixes.Logger.Errorf("Failed to query database: %v", err)
 	}
 
 	return envName, nil
