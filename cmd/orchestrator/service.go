@@ -53,6 +53,9 @@ func main() {
 		Influx: ConfigVault.Path{
 			Details: genericVaultPath,
 		},
+		BugFixes: ConfigVault.Path{
+			Details: genericVaultPath,
+		},
 	}
 
 	err := c.Build(
@@ -61,6 +64,7 @@ func main() {
 		ConfigBuilder.Database,
 		ConfigBuilder.Keycloak,
 		ConfigBuilder.Influx,
+		ConfigBuilder.Bugfixes,
 		ConfigBuilder.WithProjectConfigurator(ProjectConfig{}))
 	if err != nil {
 		logs.Local().Fatalf("Failed to build config: %v", err)

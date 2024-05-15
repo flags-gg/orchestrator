@@ -2,7 +2,6 @@ package user
 
 import (
 	"errors"
-	"github.com/bugfixes/go-bugfixes/logs"
 	"github.com/jackc/pgx/v5"
 )
 
@@ -16,16 +15,16 @@ type User struct {
 func (s *System) CreateUserDetails(subject, email string) error {
 	client, err := s.Config.Database.GetPGXClient(s.Context)
 	if err != nil {
-		return logs.Errorf("Failed to connect to database: %v", err)
+		return s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
 	}
 	defer func() {
 		if err := client.Close(s.Context); err != nil {
-			logs.Fatalf("Failed to close database connection: %v", err)
+			s.Config.Bugfixes.Logger.Fatalf("Failed to close database connection: %v", err)
 		}
 	}()
 
 	if _, err := client.Exec(s.Context, "INSERT INTO public.user (subject, email_address) VALUES ($1, $2)", subject, email); err != nil {
-		return logs.Errorf("Failed to insert user into database: %v", err)
+		return s.Config.Bugfixes.Logger.Errorf("Failed to insert user into database: %v", err)
 	}
 
 	return nil
@@ -34,11 +33,11 @@ func (s *System) CreateUserDetails(subject, email string) error {
 func (s *System) RetrieveUserDetails(subject string) (*User, error) {
 	client, err := s.Config.Database.GetPGXClient(s.Context)
 	if err != nil {
-		return nil, logs.Errorf("Failed to connect to database: %v", err)
+		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
 	}
 	defer func() {
 		if err := client.Close(s.Context); err != nil {
-			logs.Fatalf("Failed to close database connection: %v", err)
+			s.Config.Bugfixes.Logger.Fatalf("Failed to close database connection: %v", err)
 		}
 	}()
 
@@ -48,7 +47,7 @@ func (s *System) RetrieveUserDetails(subject string) (*User, error) {
 			return nil, nil
 		}
 
-		return nil, logs.Errorf("Failed to query database: %v", err)
+		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to query database: %v", err)
 	}
 
 	return user, nil

@@ -3,7 +3,6 @@ package stats
 import (
 	"context"
 	"encoding/json"
-	"github.com/bugfixes/go-bugfixes/logs"
 	ConfigBuilder "github.com/keloran/go-config"
 	"net/http"
 	"strconv"
@@ -46,13 +45,13 @@ func (s *System) GetEnvironmentStats(w http.ResponseWriter, r *http.Request) {
 
 	data, err := s.GetAgentEnvironmentStats(agentId, timePeriod)
 	if err != nil {
-		_ = logs.Errorf("Failed to get agent stats from influx: %v", err)
+		_ = s.Config.Bugfixes.Logger.Errorf("Failed to get agent stats from influx: %v", err)
 		return
 	}
 
 	data, err = s.GetNamesForData(data)
 	if err != nil {
-		_ = logs.Errorf("Failed to get names for agent stats: %v", err)
+		_ = s.Config.Bugfixes.Logger.Errorf("Failed to get names for agent stats: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -87,14 +86,14 @@ func (s *System) GetAgentStats(w http.ResponseWriter, r *http.Request) {
 
 	data, err := s.GetAgentEnvironmentStats(agentId, timePeriod)
 	if err != nil {
-		_ = logs.Errorf("Failed to get agent stats from influx: %v", err)
+		_ = s.Config.Bugfixes.Logger.Errorf("Failed to get agent stats from influx: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
 	data, err = s.GetNamesForData(data)
 	if err != nil {
-		_ = logs.Errorf("Failed to get names for agent stats: %v", err)
+		_ = s.Config.Bugfixes.Logger.Errorf("Failed to get names for agent stats: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}

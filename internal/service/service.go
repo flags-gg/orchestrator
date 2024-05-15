@@ -79,7 +79,8 @@ func (s *Service) startHTTP(errChan chan error) {
 
 	// middlewares
 	mw := middleware.NewMiddleware(context.Background())
-	mw.AddMiddleware(middleware.Logger)
+	mw.AddMiddleware(middleware.SetupLogger(middleware.Error).Logger)
+	mw.AddMiddleware(middleware.RequestID)
 	mw.AddMiddleware(middleware.Recoverer)
 	mw.AddMiddleware(s.Auth)
 	mw.AddMiddleware(mw.CORS)

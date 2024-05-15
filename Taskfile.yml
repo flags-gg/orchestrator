@@ -11,18 +11,28 @@ tasks:
       - go install golang.org/x/tools/cmd/goimports
       - go install google.golang.org/protobuf/cmd/protoc-gen-go
       - go install google.golang.org/grpc/cmd/protoc-gen-go-grpc
+  make-temp-files:
+    cmds:
+      - task: get-latest-tag
+      - task: get-commit-hash
   get-latest-tag:
     cmds:
       - |
+        git fetch --tags
         latest_tag=$(git describe --tags `git rev-list --tags --max-count=1`)
         if [[ -z "$latest_tag" ]]; then
           echo "0.0.1" > .latest_tag
         else
-          echo $latest_tag | awk -F. '{printf "%d.%d.%d", $1, $2, $3+1}' > .latest_tag
+          echo $latest_tag | awk -F. '{printf "%d.%d.%d", $1, $2, $3}' > .latest_tag
         fi
     silent: true
-  clean-tag-file:
-    cmd: rm .latest_tag
+  get-commit-hash:
+    cmd: git rev-parse --short HEAD > .commit_hash
+    silent: true
+  clean-git-file:
+    cmds:
+      - rm .latest_tag
+      - rm .commit_hash
   fmt:
     cmds:
       - goimports -w .
@@ -49,21 +59,31 @@ tasks:
   build-images:
     cmds:
       - task: get-latest-tag
-      - nerdctl build --platform=amd64,arm64 --tag containers.chewed-k8s.net/{{.NAMESPACE}}/{{.SERVICE_NAME}}:{{.GIT_COMMIT_HASH}} --build-arg VERSION={{.LATEST_TAG}} --build-arg BUILD={{.GIT_COMMIT_HASH}} --build-arg SERVICE_NAME={{.SERVICE_NAME}} -f ./k8s/Containerfile .
+        vars:
+          LATEST_TAG:
+            sh: cat .latest_tag
+      - task: get-commit-hash
+        vars:
+          COMMIT_HASH:
+            sh: cat .commit_hash
+      - nerdctl build --platform=amd64,arm64 --tag containers.chewed-k8s.net/{{.NAMESPACE}}/{{.SERVICE_NAME}}:{{.GIT_COMMIT_HASH}} --build-arg VERSION={{.LATEST_TAG}} --build-arg BUILD={{.COMMIT_HASH}} --build-arg SERVICE_NAME={{.SERVICE_NAME}} -f ./k8s/Containerfile .
       - nerdctl tag containers.chewed-k8s.net/{{.NAMESPACE}}/{{.SERVICE_NAME}}:{{.GIT_COMMIT_HASH}} containers.chewed-k8s.net/{{.NAMESPACE}}/{{.SERVICE_NAME}}:latest
-      - task: clean-tag-file
     vars:
       LATEST_TAG:
         sh: cat .latest_tag
+      COMMIT_HASH:
+        sh: cat .commit_hash
   build-push-latest:
     cmds:
       - task: get-latest-tag
-      - nerdctl build --platform=amd64,arm64 --tag containers.chewed-k8s.net/{{.NAMESPACE}}/{{.SERVICE_NAME}}:latest --build-arg VERSION={{.LATEST_TAG}} --build-arg BUILD={{.GIT_COMMIT_HASH}} --build-arg SERVICE_NAME={{.SERVICE_NAME}} -f ./k8s/Containerfile .
+      - task: get-commit-hash
+      - nerdctl build --platform=amd64,arm64 --tag containers.chewed-k8s.net/{{.NAMESPACE}}/{{.SERVICE_NAME}}:latest --build-arg VERSION={{.LATEST_TAG}} --build-arg BUILD={{.COMMIT_HASH}} --build-arg SERVICE_NAME={{.SERVICE_NAME}} -f ./k8s/Containerfile .
       - nerdctl push containers.chewed-k8s.net/{{.NAMESPACE}}/{{.SERVICE_NAME}}:latest --all-platforms
-      - task: clean-tag-file
     vars:
       LATEST_TAG:
         sh: cat .latest_tag
+      COMMIT_HASH:
+        sh: cat .commit_hash
   build:
     cmds:
       - task: build-images

@@ -1,11 +1,10 @@
 package user
 
 import (
-  "context"
-  "github.com/Nerzal/gocloak/v13"
-  "github.com/bugfixes/go-bugfixes/logs"
-  ConfigBuilder "github.com/keloran/go-config"
-  "net/http"
+	"context"
+	"github.com/Nerzal/gocloak/v13"
+	ConfigBuilder "github.com/keloran/go-config"
+	"net/http"
 )
 
 type System struct {
@@ -26,7 +25,7 @@ func (s *System) ValidateUser(ctx context.Context, subject string) bool {
 
 	user, err := s.GetKeycloakDetails(ctx, subject)
 	if err != nil {
-		_ = logs.Errorf("Failed to get keycloak details: %v", err)
+		_ = s.Config.Bugfixes.Logger.Errorf("Failed to get keycloak details: %v", err)
 		return false
 	}
 	if user == nil {
@@ -39,12 +38,12 @@ func (s *System) ValidateUser(ctx context.Context, subject string) bool {
 func (s *System) GetKeycloakDetails(ctx context.Context, subject string) (*gocloak.User, error) {
 	client, token, err := s.Config.Keycloak.GetClient(ctx)
 	if err != nil {
-		return nil, logs.Errorf("Failed to get keycloak client: %v", err)
+		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to get keycloak client: %v", err)
 	}
 
 	user, err := client.GetUserByID(ctx, token.AccessToken, s.Config.Keycloak.Realm, subject)
 	if err != nil {
-		return nil, logs.Errorf("Failed to get user by id: %v", err)
+		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to get user by id: %v", err)
 	}
 
 	return user, nil
@@ -55,21 +54,21 @@ func (s *System) CreateUser(w http.ResponseWriter, r *http.Request) {
 
 	userSubject := r.Header.Get("x-user-subject")
 	if userSubject == "" {
-		_ = logs.Errorf("No user subject provided")
+		_ = s.Config.Bugfixes.Logger.Errorf("No user subject provided")
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
 	cloakDetails, err := s.GetKeycloakDetails(s.Context, userSubject)
 	if err != nil {
-		_ = logs.Errorf("Failed to get keycloak details: %v", err)
+		_ = s.Config.Bugfixes.Logger.Errorf("Failed to get keycloak details: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
 	user, err := s.RetrieveUserDetails(userSubject)
 	if err != nil {
-		_ = logs.Errorf("Failed to retrieve user details: %v", err)
+		_ = s.Config.Bugfixes.Logger.Errorf("Failed to retrieve user details: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -82,7 +81,7 @@ func (s *System) CreateUser(w http.ResponseWriter, r *http.Request) {
 
 	// Create user
 	if err := s.CreateUserDetails(userSubject, *cloakDetails.Email); err != nil {
-		_ = logs.Errorf("Failed to create user details: %v", err)
+		_ = s.Config.Bugfixes.Logger.Errorf("Failed to create user details: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 	}
 
@@ -94,14 +93,14 @@ func (s *System) GetUser(w http.ResponseWriter, r *http.Request) {
 
 	subject := r.URL.Query().Get("subject")
 	if subject == "" {
-		_ = logs.Errorf("No subject provided")
+		_ = s.Config.Bugfixes.Logger.Errorf("No subject provided")
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
 	user, err := s.RetrieveUserDetails(subject)
 	if err != nil {
-		_ = logs.Errorf("Failed to retrieve user details: %v", err)
+		_ = s.Config.Bugfixes.Logger.Errorf("Failed to retrieve user details: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
