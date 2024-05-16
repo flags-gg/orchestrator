@@ -37,6 +37,11 @@ func (s *Service) ValidateAgent(w http.ResponseWriter, r *http.Request) bool {
 		return true
 	}
 
+	// skip this check since this isn't the agent asking for flags
+	if r.URL.Path != "/flags" {
+		return true
+	}
+
 	if agentId != "" && companyId != "" {
 		// validate agent
 		if environmentId != "" {
