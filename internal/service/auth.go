@@ -76,7 +76,6 @@ func (s *Service) Auth(next http.Handler) http.Handler {
 
 		// Validate Agent
 		if valid := s.ValidateAgent(w, r); !valid {
-			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
 
