@@ -12,7 +12,7 @@ type System struct {
 	Context context.Context
 }
 
-func NewUserSystem(cfg *ConfigBuilder.Config) *System {
+func NewSystem(cfg *ConfigBuilder.Config) *System {
 	return &System{
 		Config: cfg,
 	}

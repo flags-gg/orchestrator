@@ -1,12 +1,12 @@
 package flags
 
 import (
-  "errors"
-  "fmt"
-  "github.com/flags-gg/orchestrator/internal/stats"
-  "github.com/jackc/pgx/v5"
-  "math/rand"
-  "strings"
+	"errors"
+	"fmt"
+	"github.com/flags-gg/orchestrator/internal/stats"
+	"github.com/jackc/pgx/v5"
+	"math/rand"
+	"strings"
 )
 
 func (s *System) GetAgentFlags(companyId, agentId, environmentId string) (*Response, error) {
@@ -16,12 +16,12 @@ func (s *System) GetAgentFlags(companyId, agentId, environmentId string) (*Respo
 
 	client, err := s.Config.Database.GetPGXClient(s.Context)
 	if err != nil {
-		stats.NewStatsSystem(s.Config).AddAgentError(companyId, agentId, environmentId)
+		stats.NewSystem(s.Config).AddAgentError(companyId, agentId, environmentId)
 		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
 	}
 	defer func() {
 		if err := client.Close(s.Context); err != nil {
-			stats.NewStatsSystem(s.Config).AddAgentError(companyId, agentId, environmentId)
+			stats.NewSystem(s.Config).AddAgentError(companyId, agentId, environmentId)
 			s.Config.Bugfixes.Logger.Fatalf("Failed to close database connection: %v", err)
 		}
 	}()
@@ -39,7 +39,7 @@ func (s *System) GetAgentFlags(companyId, agentId, environmentId string) (*Respo
 			return nil, nil
 		}
 
-		stats.NewStatsSystem(s.Config).AddAgentError(companyId, agentId, environmentId)
+		stats.NewSystem(s.Config).AddAgentError(companyId, agentId, environmentId)
 		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to query database: %v", err)
 	}
 
@@ -98,6 +98,6 @@ func (s *System) GetAgentFlags(companyId, agentId, environmentId string) (*Respo
 		res.SecretMenu = *sm
 	}
 
-	stats.NewStatsSystem(s.Config).AddAgentSuccess(companyId, agentId, environmentId)
+	stats.NewSystem(s.Config).AddAgentSuccess(companyId, agentId, environmentId)
 	return res, nil
 }

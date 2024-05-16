@@ -16,7 +16,7 @@ func (s *Service) ValidateUser(w http.ResponseWriter, r *http.Request) bool {
 	}
 
 	if userSubject != "" && userAccessToken != "" {
-		validateUser := user.NewUserSystem(s.Config).ValidateUser(r.Context(), userSubject)
+		validateUser := user.NewSystem(s.Config).ValidateUser(r.Context(), userSubject)
 		if !validateUser {
 			w.WriteHeader(http.StatusUnauthorized)
 			return false
@@ -46,7 +46,7 @@ func (s *Service) ValidateAgent(w http.ResponseWriter, r *http.Request) bool {
 		// validate agent
 		if environmentId != "" {
 			// validate environment
-			v, err := agent.NewAgentSystem(s.Config).ValidateAgentWithEnvironment(r.Context(), agentId, companyId, environmentId)
+			v, err := agent.NewSystem(s.Config).ValidateAgentWithEnvironment(r.Context(), agentId, companyId, environmentId)
 			if err != nil {
 				w.WriteHeader(http.StatusInternalServerError)
 				return false
@@ -54,7 +54,7 @@ func (s *Service) ValidateAgent(w http.ResponseWriter, r *http.Request) bool {
 			validAgent = v
 		}
 
-		v, err := agent.NewAgentSystem(s.Config).ValidateAgentWithoutEnvironment(r.Context(), agentId, companyId)
+		v, err := agent.NewSystem(s.Config).ValidateAgentWithoutEnvironment(r.Context(), agentId, companyId)
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			return validAgent
