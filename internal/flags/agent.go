@@ -9,8 +9,8 @@ import (
 	"strings"
 )
 
-func (s *System) GetAgentFlags(companyId, agentId, environmentId string) (*Response, error) {
-	res := &Response{
+func (s *System) GetAgentFlags(companyId, agentId, environmentId string) (*AgentResponse, error) {
+	res := &AgentResponse{
 		IntervalAllowed: 60,
 	}
 

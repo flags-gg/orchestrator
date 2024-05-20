@@ -26,10 +26,13 @@ type Flag struct {
 	Enabled bool    `json:"enabled"`
 	Details Details `json:"details"`
 }
-type Response struct {
+type AgentResponse struct {
 	IntervalAllowed int        `json:"intervalAllowed,omitempty"`
 	SecretMenu      SecretMenu `json:"secretMenu,omitempty"`
 	Flags           []Flag     `json:"flags,omitempty"`
+}
+type Response struct {
+	Flags []Flag `json:"flags"`
 }
 
 type System struct {
@@ -59,42 +62,32 @@ func (s *System) GetFlags(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if !isAgent && !isClient {
-		res := Response{
-			IntervalAllowed: 600,
-			Flags:           []Flag{},
-		}
-		if err := json.NewEncoder(w).Encode(res); err != nil {
-			_ = s.Config.Bugfixes.Logger.Errorf("Failed to encode response: %v", err)
-		}
+		w.WriteHeader(http.StatusUnauthorized)
+		return
 	}
-
-	responseObj := Response{}
 
 	// get the flags for agent
 	if isAgent {
-		res, err := s.GetAgentFlags(r.Header.Get("x-company-id"), r.Header.Get("x-agent-id"), r.Header.Get("x-environment-id"))
-		if err != nil {
-			responseObj = Response{
-				IntervalAllowed: 600,
-				Flags:           []Flag{},
-			}
-			s.Config.Bugfixes.Logger.Fatalf("Failed to get flags: %v", err)
-		}
-		responseObj = *res
+		s.GetFlagsAgent(w, r)
+		return
 	}
 
 	// get the flags for client
-	if isClient {
-		res, err := s.GetClientFlags(r.Header.Get("x-user-subject"), r.Header.Get("x-user-access-token"))
-		if err != nil {
-			responseObj = Response{
-				IntervalAllowed: 600,
-				Flags:           []Flag{},
-			}
-			s.Config.Bugfixes.Logger.Fatalf("Failed to get flags: %v", err)
+	s.GetFlagsClient(w, r)
+}
+
+func (s *System) GetFlagsAgent(w http.ResponseWriter, r *http.Request) {
+	responseObj := AgentResponse{}
+
+	res, err := s.GetAgentFlags(r.Header.Get("x-company-id"), r.Header.Get("x-agent-id"), r.Header.Get("x-environment-id"))
+	if err != nil {
+		responseObj = AgentResponse{
+			IntervalAllowed: 600,
+			Flags:           []Flag{},
 		}
-		responseObj = res
+		s.Config.Bugfixes.Logger.Fatalf("Failed to get flags: %v", err)
 	}
+	responseObj = *res
 
 	if err := json.NewEncoder(w).Encode(responseObj); err != nil {
 		_, _ = w.Write([]byte(`{"error": "failed to encode response"}`))
@@ -102,6 +95,23 @@ func (s *System) GetFlags(w http.ResponseWriter, r *http.Request) {
 		_ = s.Config.Bugfixes.Logger.Errorf("Failed to encode response: %v", err)
 	}
 	stats.NewSystem(s.Config).AddAgentSuccess(r.Header.Get("x-company-id"), r.Header.Get("x-agent-id"), r.Header.Get("x-environment-id"))
+}
+
+func (s *System) GetFlagsClient(w http.ResponseWriter, r *http.Request) {
+	responseObj := Response{}
+	res, err := s.GetClientFlags(r.Header.Get("x-user-subject"), r.Header.Get("x-user-access-token"))
+	if err != nil {
+		responseObj = Response{
+			Flags: []Flag{},
+		}
+		s.Config.Bugfixes.Logger.Fatalf("Failed to get flags: %v", err)
+	}
+	responseObj = res
+
+	if err := json.NewEncoder(w).Encode(responseObj); err != nil {
+		_, _ = w.Write([]byte(`{"error": "failed to encode response"}`))
+		_ = s.Config.Bugfixes.Logger.Errorf("Failed to encode response: %v", err)
+	}
 }
 
 func (s *System) CreateFlags(w http.ResponseWriter, r *http.Request) {
