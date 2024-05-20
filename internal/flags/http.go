@@ -1,13 +1,13 @@
 package flags
 
 import (
-  "context"
-  "encoding/json"
-  "github.com/flags-gg/orchestrator/internal/stats"
-  ConfigBuilder "github.com/keloran/go-config"
-  "net/http"
-  "strconv"
-  "time"
+	"context"
+	"encoding/json"
+	"github.com/flags-gg/orchestrator/internal/stats"
+	ConfigBuilder "github.com/keloran/go-config"
+	"net/http"
+	"strconv"
+	"time"
 )
 
 type SecretMenuStyle struct {
@@ -37,7 +37,7 @@ type System struct {
 	Context context.Context
 }
 
-func NewFlagsSystem(cfg *ConfigBuilder.Config) *System {
+func NewSystem(cfg *ConfigBuilder.Config) *System {
 	return &System{
 		Config: cfg,
 	}
@@ -98,20 +98,20 @@ func (s *System) GetFlags(w http.ResponseWriter, r *http.Request) {
 
 	if err := json.NewEncoder(w).Encode(responseObj); err != nil {
 		_, _ = w.Write([]byte(`{"error": "failed to encode response"}`))
-		stats.NewStatsSystem(s.Config).AddAgentError(r.Header.Get("x-company-id"), r.Header.Get("x-agent-id"), r.Header.Get("x-environment-id"))
+		stats.NewSystem(s.Config).AddAgentError(r.Header.Get("x-company-id"), r.Header.Get("x-agent-id"), r.Header.Get("x-environment-id"))
 		_ = s.Config.Bugfixes.Logger.Errorf("Failed to encode response: %v", err)
 	}
-	stats.NewStatsSystem(s.Config).AddAgentSuccess(r.Header.Get("x-company-id"), r.Header.Get("x-agent-id"), r.Header.Get("x-environment-id"))
+	stats.NewSystem(s.Config).AddAgentSuccess(r.Header.Get("x-company-id"), r.Header.Get("x-agent-id"), r.Header.Get("x-environment-id"))
 }
 
-func CreateFlags(w http.ResponseWriter, r *http.Request) {
-
-}
-
-func UpdateFlags(w http.ResponseWriter, r *http.Request) {
+func (s *System) CreateFlags(w http.ResponseWriter, r *http.Request) {
 
 }
 
-func DeleteFlags(w http.ResponseWriter, r *http.Request) {
+func (s *System) UpdateFlags(w http.ResponseWriter, r *http.Request) {
+
+}
+
+func (s *System) DeleteFlags(w http.ResponseWriter, r *http.Request) {
 
 }

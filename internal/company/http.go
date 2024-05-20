@@ -19,7 +19,7 @@ type Company struct {
 	ID   string `json:"id"`
 }
 
-func NewCompanySystem(cfg *ConfigBuilder.Config) *System {
+func NewSystem(cfg *ConfigBuilder.Config) *System {
 	return &System{
 		Config: cfg,
 	}

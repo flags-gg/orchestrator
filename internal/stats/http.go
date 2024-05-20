@@ -14,7 +14,7 @@ type System struct {
 	Context context.Context
 }
 
-func NewStatsSystem(cfg *ConfigBuilder.Config) *System {
+func NewSystem(cfg *ConfigBuilder.Config) *System {
 	return &System{
 		Config: cfg,
 	}

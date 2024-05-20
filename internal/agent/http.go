@@ -25,7 +25,7 @@ type System struct {
 	Context context.Context
 }
 
-func NewAgentSystem(cfg *ConfigBuilder.Config) *System {
+func NewSystem(cfg *ConfigBuilder.Config) *System {
 	return &System{
 		Config: cfg,
 	}
@@ -69,17 +69,17 @@ func (s *System) GetAgentsRequest(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func GetAgent(w http.ResponseWriter, r *http.Request) {
+func (s *System) GetAgent(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write([]byte(`{"agent": {}}`))
 	return
 }
 
-func UpdateAgent(w http.ResponseWriter, r *http.Request) {
+func (s *System) UpdateAgent(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write([]byte(`{"agent": {}}`))
 	return
 }
 
-func DeleteAgent(w http.ResponseWriter, r *http.Request) {
+func (s *System) DeleteAgent(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write([]byte(`{"agent": {}}`))
 	return
 }
@@ -90,30 +90,30 @@ func (s *System) CreateAgent(w http.ResponseWriter, r *http.Request) {
 	return
 }
 
-func GetSecretMenu(w http.ResponseWriter, r *http.Request) {
+func (s *System) GetSecretMenu(w http.ResponseWriter, r *http.Request) {
 
 }
 
-func CreateSecretMenu(w http.ResponseWriter, r *http.Request) {
+func (s *System) CreateSecretMenu(w http.ResponseWriter, r *http.Request) {
 
 }
 
-func UpdateSecretMenu(w http.ResponseWriter, r *http.Request) {
+func (s *System) UpdateSecretMenu(w http.ResponseWriter, r *http.Request) {
 
 }
 
-func GetAgentEnvironments(w http.ResponseWriter, r *http.Request) {
+func (s *System) GetAgentEnvironments(w http.ResponseWriter, r *http.Request) {
 
 }
 
-func CreateAgentEnvironment(w http.ResponseWriter, r *http.Request) {
+func (s *System) CreateAgentEnvironment(w http.ResponseWriter, r *http.Request) {
 
 }
 
-func UpdateAgentEnvironment(w http.ResponseWriter, r *http.Request) {
+func (s *System) UpdateAgentEnvironment(w http.ResponseWriter, r *http.Request) {
 
 }
 
-func DeleteAgentEnvironment(w http.ResponseWriter, r *http.Request) {
+func (s *System) DeleteAgentEnvironment(w http.ResponseWriter, r *http.Request) {
 
 }

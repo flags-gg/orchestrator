@@ -67,7 +67,7 @@ func (s *System) GetAgents(companyId string) ([]*Agent, error) {
 			return nil, s.Config.Bugfixes.Logger.Errorf("Failed to scan database rows: %v", err)
 		}
 
-		envs, err := s.GetAgentEnvironments(agent.AgentId)
+		envs, err := s.GetAgentEnvironmentsFromDB(agent.AgentId)
 		if err != nil {
 			return nil, s.Config.Bugfixes.Logger.Errorf("Failed to get agent environments: %v", err)
 		}
@@ -79,7 +79,7 @@ func (s *System) GetAgents(companyId string) ([]*Agent, error) {
 	return agents, nil
 }
 
-func (s *System) GetAgentEnvironments(agentId string) ([]*Environment, error) {
+func (s *System) GetAgentEnvironmentsFromDB(agentId string) ([]*Environment, error) {
 	client, err := s.Config.Database.GetPGXClient(s.Context)
 	if err != nil {
 		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)

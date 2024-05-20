@@ -14,6 +14,7 @@ import (
 	"github.com/flags-gg/orchestrator/internal/agent"
 	"github.com/flags-gg/orchestrator/internal/company"
 	"github.com/flags-gg/orchestrator/internal/flags"
+	"github.com/flags-gg/orchestrator/internal/project"
 	"github.com/flags-gg/orchestrator/internal/stats"
 	"github.com/flags-gg/orchestrator/internal/user"
 )
@@ -39,39 +40,46 @@ func (s *Service) Start() error {
 func (s *Service) startHTTP(errChan chan error) {
 	mux := http.NewServeMux()
 	// Flags
-	mux.HandleFunc("GET /flags", flags.NewFlagsSystem(s.Config).GetFlags)
-	mux.HandleFunc("POST /flag", flags.CreateFlags)
-	mux.HandleFunc("PUT /flag/{flagId}", flags.UpdateFlags)
-	mux.HandleFunc("DELETE /flag/{flagId}", flags.DeleteFlags)
+	mux.HandleFunc("GET /flags", flags.NewSystem(s.Config).GetFlags)
+	mux.HandleFunc("POST /flag", flags.NewSystem(s.Config).CreateFlags)
+	mux.HandleFunc("PUT /flag/{flagId}", flags.NewSystem(s.Config).UpdateFlags)
+	mux.HandleFunc("DELETE /flag/{flagId}", flags.NewSystem(s.Config).DeleteFlags)
 
 	// Agents
-	mux.HandleFunc("GET /agents", agent.NewAgentSystem(s.Config).GetAgentsRequest)
-	mux.HandleFunc("POST /agent", agent.NewAgentSystem(s.Config).CreateAgent)
-	mux.HandleFunc("GET /agent/{agentId}", agent.GetAgent)
-	mux.HandleFunc("PUT /agent/{agentId}", agent.UpdateAgent)
-	mux.HandleFunc("DELETE /agent/{agentId}", agent.DeleteAgent)
-	mux.HandleFunc("GET /agent/{agentId}/environments", agent.GetAgentEnvironments)
-	mux.HandleFunc("POST /agent/{agentId}/environment", agent.CreateAgentEnvironment)
-	mux.HandleFunc("PUT /agent/{agentId}/environment/{environmentId}", agent.UpdateAgentEnvironment)
-	mux.HandleFunc("DELETE /agent/{agentId}/environment/{environmentId}", agent.DeleteAgentEnvironment)
+	mux.HandleFunc("GET /agents", agent.NewSystem(s.Config).GetAgentsRequest)
+	mux.HandleFunc("POST /agent", agent.NewSystem(s.Config).CreateAgent)
+	mux.HandleFunc("GET /agent/{agentId}", agent.NewSystem(s.Config).GetAgent)
+	mux.HandleFunc("PUT /agent/{agentId}", agent.NewSystem(s.Config).UpdateAgent)
+	mux.HandleFunc("DELETE /agent/{agentId}", agent.NewSystem(s.Config).DeleteAgent)
+	mux.HandleFunc("GET /agent/{agentId}/environments", agent.NewSystem(s.Config).GetAgentEnvironments)
+	mux.HandleFunc("POST /agent/{agentId}/environment", agent.NewSystem(s.Config).CreateAgentEnvironment)
+	mux.HandleFunc("PUT /agent/{agentId}/environment/{environmentId}", agent.NewSystem(s.Config).UpdateAgentEnvironment)
+	mux.HandleFunc("DELETE /agent/{agentId}/environment/{environmentId}", agent.NewSystem(s.Config).DeleteAgentEnvironment)
+
+	// Projects
+	mux.HandleFunc("GET /projects", project.NewSystem(s.Config).GetProjects)
+	mux.HandleFunc("POST /project", project.NewSystem(s.Config).CreateProject)
+	mux.HandleFunc("GET /project/{projectId}", project.NewSystem(s.Config).GetProject)
+	mux.HandleFunc("PUT /project/{projectId}", project.NewSystem(s.Config).UpdateProject)
+	mux.HandleFunc("DELETE /project/{projectId}", project.NewSystem(s.Config).DeleteProject)
 
 	// Secret Menu
-	mux.HandleFunc("GET /agent/{agentId}/secret-menu", agent.GetSecretMenu)
-	mux.HandleFunc("POST /agent/{agentId}/secret-menu", agent.CreateSecretMenu)
-	mux.HandleFunc("PUT /agent/{agentId}/secret-menu", agent.UpdateSecretMenu)
+	mux.HandleFunc("GET /agent/{agentId}/secret-menu", agent.NewSystem(s.Config).GetSecretMenu)
+	mux.HandleFunc("POST /agent/{agentId}/secret-menu", agent.NewSystem(s.Config).CreateSecretMenu)
+	mux.HandleFunc("PUT /agent/{agentId}/secret-menu", agent.NewSystem(s.Config).UpdateSecretMenu)
 
 	// Stats
-	mux.HandleFunc("GET /stats/agent/environment/{agentId}", stats.NewStatsSystem(s.Config).GetEnvironmentStats)
-	mux.HandleFunc("GET /stats/agent/{agentId}", stats.NewStatsSystem(s.Config).GetAgentStats)
+	mux.HandleFunc("GET /stats/agent/environment/{agentId}", stats.NewSystem(s.Config).GetEnvironmentStats)
+	mux.HandleFunc("GET /stats/agent/{agentId}", stats.NewSystem(s.Config).GetAgentStats)
 
 	// User
-	mux.HandleFunc("POST /user", user.NewUserSystem(s.Config).CreateUser)
-	mux.HandleFunc("GET /user/{userSubject}", user.NewUserSystem(s.Config).GetUser)
+	mux.HandleFunc("POST /user", user.NewSystem(s.Config).CreateUser)
+	mux.HandleFunc("GET /user/{userSubject}", user.NewSystem(s.Config).GetUser)
 
 	// Company
-	mux.HandleFunc("GET /company", company.NewCompanySystem(s.Config).GetCompany)
-	mux.HandleFunc("PUT /company", company.NewCompanySystem(s.Config).UpdateCompany)
-	mux.HandleFunc("POST /company", company.NewCompanySystem(s.Config).CreateCompany)
+	mux.HandleFunc("GET /company", company.NewSystem(s.Config).GetCompany)
+	mux.HandleFunc("PUT /company", company.NewSystem(s.Config).UpdateCompany)
+	mux.HandleFunc("POST /company", company.NewSystem(s.Config).CreateCompany)
 
 	// General
 	mux.HandleFunc(fmt.Sprintf("%s /health", http.MethodGet), healthcheck.HTTP)
@@ -86,11 +94,11 @@ func (s *Service) startHTTP(errChan chan error) {
 	mw.AddMiddleware(mw.CORS)
 	mw.AddAllowedHeaders("x-agent-id", "x-company-id", "x-environment-id", "x-user-subject", "x-user-access-token")
 	mw.AddAllowedMethods(http.MethodGet, http.MethodPost, http.MethodPut, http.MethodDelete, http.MethodOptions)
-	mw.AddAllowedOrigins("https://www.flags.gg", "https://flags.gg")
+	mw.AddAllowedOrigins("https://www.flags.gg", "https://flags.gg", "*")
 	if s.Config.Local.Development {
 		mw.AddAllowedOrigins("http://localhost:3000", "http://localhost:5173", "*")
 	}
 
-	logs.Infof("Starting HTTP on %d", s.Config.Local.HTTPPort)
+	logs.Logf("Starting HTTP on %d", s.Config.Local.HTTPPort)
 	errChan <- http.ListenAndServe(fmt.Sprintf(":%d", s.Config.Local.HTTPPort), mw.Handler(mux))
 }

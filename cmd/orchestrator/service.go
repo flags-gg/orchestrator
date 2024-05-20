@@ -37,7 +37,7 @@ func (pc ProjectConfig) Build(cfg *ConfigBuilder.Config) error {
 }
 
 func main() {
-	logs.Infof("Starting %s version %s (build %s)", ServiceName, BuildVersion, BuildHash)
+	logs.Logf("Starting %s version %s (build %s)", ServiceName, BuildVersion, BuildHash)
 
 	genericVaultPath := "kv/data/flags-gg/orchestrator"
 	vh := vault_helper.NewVault("", "")
