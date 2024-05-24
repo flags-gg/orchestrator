@@ -27,7 +27,7 @@ func (s *Service) ValidateUser(w http.ResponseWriter, r *http.Request) bool {
 
 func (s *Service) ValidateAgent(w http.ResponseWriter, r *http.Request) bool {
 	agentId := r.Header.Get("x-agent-id")
-	companyId := r.Header.Get("x-company-id")
+	projectId := r.Header.Get("x-project-id")
 	environmentId := r.Header.Get("x-environment-id")
 	validAgent := false
 
@@ -41,18 +41,18 @@ func (s *Service) ValidateAgent(w http.ResponseWriter, r *http.Request) bool {
 		return true
 	}
 
-	if agentId != "" && companyId != "" {
+	if agentId != "" && projectId != "" {
 		// validate agent
 		if environmentId != "" {
 			// validate environment
-			v, err := agent.NewSystem(s.Config).ValidateAgentWithEnvironment(r.Context(), agentId, companyId, environmentId)
+			v, err := agent.NewSystem(s.Config).ValidateAgentWithEnvironment(r.Context(), agentId, projectId, environmentId)
 			if err != nil {
 				return false
 			}
 			validAgent = v
 		}
 
-		v, err := agent.NewSystem(s.Config).ValidateAgentWithoutEnvironment(r.Context(), agentId, companyId)
+		v, err := agent.NewSystem(s.Config).ValidateAgentWithoutEnvironment(r.Context(), agentId, projectId)
 		if err != nil {
 			return validAgent
 		}

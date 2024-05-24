@@ -74,12 +74,14 @@ func (s *Service) startHTTP(errChan chan error) {
 
 	// User
 	mux.HandleFunc("POST /user", user.NewSystem(s.Config).CreateUser)
+	mux.HandleFunc("PUT /user/{userSubject}", user.NewSystem(s.Config).UpdateUser)
 	mux.HandleFunc("GET /user/{userSubject}", user.NewSystem(s.Config).GetUser)
 
 	// Company
 	mux.HandleFunc("GET /company", company.NewSystem(s.Config).GetCompany)
 	mux.HandleFunc("PUT /company", company.NewSystem(s.Config).UpdateCompany)
 	mux.HandleFunc("POST /company", company.NewSystem(s.Config).CreateCompany)
+	mux.HandleFunc("GET /company/limits", company.NewSystem(s.Config).GetCompanyLimits)
 
 	// General
 	mux.HandleFunc(fmt.Sprintf("%s /health", http.MethodGet), healthcheck.HTTP)
@@ -92,7 +94,14 @@ func (s *Service) startHTTP(errChan chan error) {
 	mw.AddMiddleware(middleware.Recoverer)
 	mw.AddMiddleware(s.Auth)
 	mw.AddMiddleware(mw.CORS)
-	mw.AddAllowedHeaders("x-agent-id", "x-company-id", "x-environment-id", "x-user-subject", "x-user-access-token")
+	mw.AddAllowedHeaders(
+		"x-agent-id",
+		"x-company-id",
+		"x-project-id",
+		"x-environment-id",
+		"x-user-subject",
+		"x-user-access-token",
+	)
 	mw.AddAllowedMethods(http.MethodGet, http.MethodPost, http.MethodPut, http.MethodDelete, http.MethodOptions)
 	mw.AddAllowedOrigins("https://www.flags.gg", "https://flags.gg", "*")
 	if s.Config.Local.Development {

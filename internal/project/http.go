@@ -14,12 +14,6 @@ type System struct {
 	Context context.Context
 }
 
-type Project struct {
-	Name      string `json:"name"`
-	ID        string `json:"id"`
-	CompanyID string `json:"company_id"`
-}
-
 func NewSystem(cfg *ConfigBuilder.Config) *System {
 	return &System{
 		Config: cfg,
@@ -41,6 +35,18 @@ func (s *System) GetProjects(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
+
+	pro, err := s.GetProjectsFromDB(r.Header.Get("x-user-subject"))
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	project.Projects = pro
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(&project); err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+	}
 }
 
 func (s *System) GetProject(w http.ResponseWriter, r *http.Request) {
@@ -52,6 +58,17 @@ func (s *System) GetProject(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusInternalServerError)
 		}
 		return
+	}
+
+	proj, err := s.GetProjectFromDB(r.Header.Get("x-user-subject"), r.PathValue("projectId"))
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(&proj); err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
 	}
 }
 

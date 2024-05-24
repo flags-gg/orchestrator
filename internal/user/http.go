@@ -2,7 +2,9 @@ package user
 
 import (
 	"context"
+	"encoding/json"
 	"github.com/Nerzal/gocloak/v13"
+	"github.com/bugfixes/go-bugfixes/logs"
 	ConfigBuilder "github.com/keloran/go-config"
 	"net/http"
 )
@@ -91,7 +93,7 @@ func (s *System) CreateUser(w http.ResponseWriter, r *http.Request) {
 func (s *System) GetUser(w http.ResponseWriter, r *http.Request) {
 	s.Context = r.Context()
 
-	subject := r.URL.Query().Get("subject")
+	subject := r.PathValue("userSubject")
 	if subject == "" {
 		_ = s.Config.Bugfixes.Logger.Errorf("No subject provided")
 		w.WriteHeader(http.StatusBadRequest)
@@ -110,5 +112,37 @@ func (s *System) GetUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	type UserDetails struct {
+		KnownAs string `json:"knownAs"`
+		Email   string `json:"emailAddress"`
+	}
+
+	if err := json.NewEncoder(w).Encode(&UserDetails{
+		KnownAs: *user.KnownAs,
+		Email:   *user.Email,
+	}); err != nil {
+		_ = s.Config.Bugfixes.Logger.Errorf("Failed to encode user details: %v", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
 	w.WriteHeader(http.StatusOK)
+}
+
+func (s *System) UpdateUser(w http.ResponseWriter, r *http.Request) {
+	s.Context = r.Context()
+
+	subject := r.PathValue("userSubject")
+	type formData struct {
+		KnownAs string `json:"knownAs"`
+		Email   string `json:"emailAddress"`
+	}
+	fd := formData{}
+	if err := json.NewDecoder(r.Body).Decode(&fd); err != nil {
+		_ = s.Config.Bugfixes.Logger.Errorf("Failed to decode form data: %v", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	logs.Logf("knownAs: %s, email: %s, subject: %s", fd.KnownAs, fd.Email, subject)
 }

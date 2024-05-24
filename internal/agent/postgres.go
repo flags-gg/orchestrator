@@ -15,7 +15,7 @@ type Agent struct {
 	Environments []*Environment `json:"environments"`
 }
 
-func (s *System) AddAgent(name, companyId string) (string, error) {
+func (s *System) AddAgent(name, projectId string) (string, error) {
 
 	return "bob", nil
 }
@@ -32,7 +32,7 @@ func (s *System) GetAgentDetails(agentId, companyId string) (*Agent, error) {
 	}()
 
 	agent := &Agent{}
-	if err := client.QueryRow(s.Context, "SELECT agent.id, agent.name AS AgentName, agent.access_limit, company.name AS CompanyName FROM public.agent AS agent LEFT JOIN public.company AS company ON agent.company_id = company.id WHERE agent.agent_id = $1 AND company.company_id = $2", agentId, companyId).Scan(&agent.Id, &agent.Name, &agent.RequestLimit); err != nil {
+	if err := client.QueryRow(s.Context, "SELECT agent.id,  agent.name AS AgentName,  agent.access_limit FROM public.agent AS agent JOIN public.project ON agent.project_id = project.id JOIN public.company ON company.id = project.company_id WHERE agent.agent_id = $1 AND company.company_id = $2", agentId, companyId).Scan(&agent.Id, &agent.Name, &agent.RequestLimit); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, nil
 		}
@@ -54,7 +54,7 @@ func (s *System) GetAgents(companyId string) ([]*Agent, error) {
 		}
 	}()
 
-	rows, err := client.Query(s.Context, "SELECT agent.id, agent.name AS AgentName, agent.access_limit,agent.agent_id FROM public.agent AS agent LEFT JOIN public.company AS company ON agent.company_id = company.id WHERE company.company_id = $1", companyId)
+	rows, err := client.Query(s.Context, "SELECT agent.id,  agent.name AS AgentName,  agent.access_limit,  agent.agent_id FROM public.agent JOIN public.project ON agent.project_id = project.id JOIN public.company ON project.company_id = company.id WHERE company.company_id = $1", companyId)
 	if err != nil {
 		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to query database: %v", err)
 	}
@@ -128,7 +128,7 @@ func (s *System) GetCompanyId(userSubject string) (string, error) {
 	return companyId, nil
 }
 
-func (s *System) ValidateAgentWithEnvironment(ctx context.Context, agentId, companyId, environmentId string) (bool, error) {
+func (s *System) ValidateAgentWithEnvironment(ctx context.Context, agentId, projectId, environmentId string) (bool, error) {
 	valid := false
 	s.Context = ctx
 
@@ -142,7 +142,7 @@ func (s *System) ValidateAgentWithEnvironment(ctx context.Context, agentId, comp
 		}
 	}()
 
-	if err := client.QueryRow(ctx, "SELECT TRUE FROM public.agent JOIN public.agent_environment AS pa ON pa.agent_id = agent.id JOIN public.company ON company.id = agent.company_id WHERE agent.agent_id = $1 AND pa.env_id = $2 AND company.company_id = $3", agentId, environmentId, companyId).Scan(&valid); err != nil {
+	if err := client.QueryRow(ctx, "SELECT TRUE FROM public.agent JOIN public.agent_environment AS pa ON pa.agent_id = agent.id JOIN public.project ON project.id = agent.project_id WHERE agent.agent_id = $1 AND pa.env_id = $2 AND project.project_id = $3", agentId, environmentId, projectId).Scan(&valid); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return valid, nil
 		}
@@ -152,7 +152,7 @@ func (s *System) ValidateAgentWithEnvironment(ctx context.Context, agentId, comp
 	return valid, nil
 }
 
-func (s *System) ValidateAgentWithoutEnvironment(ctx context.Context, agentId, companyId string) (bool, error) {
+func (s *System) ValidateAgentWithoutEnvironment(ctx context.Context, agentId, projectId string) (bool, error) {
 	valid := false
 	s.Context = ctx
 
@@ -166,7 +166,7 @@ func (s *System) ValidateAgentWithoutEnvironment(ctx context.Context, agentId, c
 		}
 	}()
 
-	if err := client.QueryRow(ctx, "SELECT TRUE FROM public.agent JOIN public.agent_environment AS pa ON pa.agent_id = agent.id JOIN public.company ON company.id = agent.company_id WHERE agent.agent_id = $1 AND company.company_id = $2", agentId, companyId).Scan(&valid); err != nil {
+	if err := client.QueryRow(ctx, "SELECT TRUE FROM public.agent JOIN project ON project.id = agent.project_id WHERE agent.agent_id = $1 AND project.project_id = $2", agentId, projectId).Scan(&valid); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return valid, nil
 		}
