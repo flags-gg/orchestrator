@@ -18,7 +18,6 @@ func (s *Service) ValidateUser(w http.ResponseWriter, r *http.Request) bool {
 	if userSubject != "" && userAccessToken != "" {
 		validateUser := user.NewSystem(s.Config).ValidateUser(r.Context(), userSubject)
 		if !validateUser {
-			w.WriteHeader(http.StatusUnauthorized)
 			return false
 		}
 	}
@@ -28,7 +27,7 @@ func (s *Service) ValidateUser(w http.ResponseWriter, r *http.Request) bool {
 
 func (s *Service) ValidateAgent(w http.ResponseWriter, r *http.Request) bool {
 	agentId := r.Header.Get("x-agent-id")
-	companyId := r.Header.Get("x-company-id")
+	projectId := r.Header.Get("x-project-id")
 	environmentId := r.Header.Get("x-environment-id")
 	validAgent := false
 
@@ -42,30 +41,22 @@ func (s *Service) ValidateAgent(w http.ResponseWriter, r *http.Request) bool {
 		return true
 	}
 
-	if agentId != "" && companyId != "" {
+	if agentId != "" && projectId != "" {
 		// validate agent
 		if environmentId != "" {
 			// validate environment
-			v, err := agent.NewSystem(s.Config).ValidateAgentWithEnvironment(r.Context(), agentId, companyId, environmentId)
+			v, err := agent.NewSystem(s.Config).ValidateAgentWithEnvironment(r.Context(), agentId, projectId, environmentId)
 			if err != nil {
-				w.WriteHeader(http.StatusInternalServerError)
 				return false
 			}
 			validAgent = v
 		}
 
-		v, err := agent.NewSystem(s.Config).ValidateAgentWithoutEnvironment(r.Context(), agentId, companyId)
+		v, err := agent.NewSystem(s.Config).ValidateAgentWithoutEnvironment(r.Context(), agentId, projectId)
 		if err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
 			return validAgent
 		}
 		validAgent = v
-	}
-
-	if !validAgent {
-		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"intervalAllowed":900, "flags": []}`))
-		return true
 	}
 
 	return validAgent
@@ -74,13 +65,17 @@ func (s *Service) ValidateAgent(w http.ResponseWriter, r *http.Request) bool {
 func (s *Service) Auth(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Validate User
-		if valid := s.ValidateUser(w, r); !valid {
-			w.WriteHeader(http.StatusUnauthorized)
-			return
-		}
+		validAuth := s.ValidateUser(w, r)
 
-		// Validate Agent
-		if valid := s.ValidateAgent(w, r); !valid {
+		// it's not a user so check if it's an agent
+		if !validAuth {
+			if validAgent := s.ValidateAgent(w, r); !validAgent {
+				w.Header().Set("Content-Type", "application/json")
+				_, _ = w.Write([]byte(`{"intervalAllowed":900, "flags": []}`))
+				return
+			}
+
+			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
 
