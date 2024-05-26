@@ -38,7 +38,7 @@ jobs:
         uses: docker/login-action@v3
         with:
           registry: containers.chewed-k8s.net
-          username: robot$1tn-pw+github
+          username: robot$flags-gg+github
           password: ${{ secrets.CONTAINERS_KEY }}
       - name: Build and Push
         id: docker_build

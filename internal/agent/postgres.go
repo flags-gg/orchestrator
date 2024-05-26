@@ -8,11 +8,12 @@ import (
 )
 
 type Agent struct {
-	Id           string         `json:"id"`
-	Name         string         `json:"name"`
-	RequestLimit int            `json:"request_limit"`
-	AgentId      string         `json:"agent_id"`
-	Environments []*Environment `json:"environments"`
+	Id               string         `json:"id"`
+	Name             string         `json:"name"`
+	RequestLimit     int            `json:"request_limit"`
+	AgentId          string         `json:"agent_id"`
+	Environments     []*Environment `json:"environments"`
+	EnvironmentLimit int            `json:"environment_limit"`
 }
 
 func (s *System) AddAgent(name, projectId string) (string, error) {
@@ -32,7 +33,7 @@ func (s *System) GetAgentDetails(agentId, companyId string) (*Agent, error) {
 	}()
 
 	agent := &Agent{}
-	if err := client.QueryRow(s.Context, "SELECT agent.id,  agent.name AS AgentName,  agent.access_limit FROM public.agent AS agent JOIN public.project ON agent.project_id = project.id JOIN public.company ON company.id = project.company_id WHERE agent.agent_id = $1 AND company.company_id = $2", agentId, companyId).Scan(&agent.Id, &agent.Name, &agent.RequestLimit); err != nil {
+	if err := client.QueryRow(s.Context, "SELECT agent.id,  agent.name AS AgentName,  agent.allowed_access_limit, agent.allowed_environments FROM public.agent AS agent JOIN public.project ON agent.project_id = project.id JOIN public.company ON company.id = project.company_id WHERE agent.agent_id = $1 AND company.company_id = $2", agentId, companyId).Scan(&agent.Id, &agent.Name, &agent.RequestLimit, &agent.EnvironmentLimit); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, nil
 		}
@@ -54,7 +55,7 @@ func (s *System) GetAgents(companyId string) ([]*Agent, error) {
 		}
 	}()
 
-	rows, err := client.Query(s.Context, "SELECT agent.id,  agent.name AS AgentName,  agent.access_limit,  agent.agent_id FROM public.agent JOIN public.project ON agent.project_id = project.id JOIN public.company ON project.company_id = company.id WHERE company.company_id = $1", companyId)
+	rows, err := client.Query(s.Context, "SELECT agent.id, agent.name AS AgentName, agent.allowed_access_limit, agent.agent_id, agent.allowed_environments FROM public.agent JOIN public.project ON agent.project_id = project.id JOIN public.company ON project.company_id = company.id WHERE company.company_id = $1", companyId)
 	if err != nil {
 		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to query database: %v", err)
 	}
@@ -63,7 +64,7 @@ func (s *System) GetAgents(companyId string) ([]*Agent, error) {
 	var agents []*Agent
 	for rows.Next() {
 		agent := &Agent{}
-		if err := rows.Scan(&agent.Id, &agent.Name, &agent.RequestLimit, &agent.AgentId); err != nil {
+		if err := rows.Scan(&agent.Id, &agent.Name, &agent.RequestLimit, &agent.AgentId, &agent.EnvironmentLimit); err != nil {
 			return nil, s.Config.Bugfixes.Logger.Errorf("Failed to scan database rows: %v", err)
 		}
 
