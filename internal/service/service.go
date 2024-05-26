@@ -74,8 +74,13 @@ func (s *Service) startHTTP(errChan chan error) {
 
 	// User
 	mux.HandleFunc("POST /user", user.NewSystem(s.Config).CreateUser)
-	mux.HandleFunc("PUT /user/{userSubject}", user.NewSystem(s.Config).UpdateUser)
-	mux.HandleFunc("GET /user/{userSubject}", user.NewSystem(s.Config).GetUser)
+	mux.HandleFunc("PUT /user", user.NewSystem(s.Config).UpdateUser)
+	mux.HandleFunc("GET /user", user.NewSystem(s.Config).GetUser)
+
+	// Notifications
+	mux.HandleFunc("GET /user/notifications", user.NewSystem(s.Config).GetUserNotifications)
+	mux.HandleFunc("PATCH /user/notification/{notificationId}", user.NewSystem(s.Config).UpdateUserNotification)
+	mux.HandleFunc("DELETE /user/notification/{notificationId}", user.NewSystem(s.Config).DeleteUserNotification)
 
 	// Company
 	mux.HandleFunc("GET /company", company.NewSystem(s.Config).GetCompany)
@@ -102,7 +107,7 @@ func (s *Service) startHTTP(errChan chan error) {
 		"x-user-subject",
 		"x-user-access-token",
 	)
-	mw.AddAllowedMethods(http.MethodGet, http.MethodPost, http.MethodPut, http.MethodDelete, http.MethodOptions)
+	mw.AddAllowedMethods(http.MethodGet, http.MethodPost, http.MethodPut, http.MethodDelete, http.MethodOptions, http.MethodPatch)
 	mw.AddAllowedOrigins("https://www.flags.gg", "https://flags.gg", "*")
 	if s.Config.Local.Development {
 		mw.AddAllowedOrigins("http://localhost:3000", "http://localhost:5173", "*")

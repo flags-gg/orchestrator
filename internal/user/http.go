@@ -93,7 +93,7 @@ func (s *System) CreateUser(w http.ResponseWriter, r *http.Request) {
 func (s *System) GetUser(w http.ResponseWriter, r *http.Request) {
 	s.Context = r.Context()
 
-	subject := r.PathValue("userSubject")
+	subject := r.Header.Get("x-user-subject")
 	if subject == "" {
 		_ = s.Config.Bugfixes.Logger.Errorf("No subject provided")
 		w.WriteHeader(http.StatusBadRequest)
@@ -132,7 +132,7 @@ func (s *System) GetUser(w http.ResponseWriter, r *http.Request) {
 func (s *System) UpdateUser(w http.ResponseWriter, r *http.Request) {
 	s.Context = r.Context()
 
-	subject := r.PathValue("userSubject")
+	subject := r.Header.Get("x-user-subject")
 	type formData struct {
 		KnownAs string `json:"knownAs"`
 		Email   string `json:"emailAddress"`
@@ -145,4 +145,82 @@ func (s *System) UpdateUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	logs.Logf("knownAs: %s, email: %s, subject: %s", fd.KnownAs, fd.Email, subject)
+}
+
+func (s *System) GetUserNotifications(w http.ResponseWriter, r *http.Request) {
+	s.Context = r.Context()
+
+	subject := r.Header.Get("x-user-subject")
+	if subject == "" {
+		_ = s.Config.Bugfixes.Logger.Errorf("No subject provided")
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	n := &Notifications{}
+
+	notifications, err := s.RetrieveUserNotifications(subject)
+	if err != nil {
+		_ = s.Config.Bugfixes.Logger.Errorf("Failed to retrieve user notifications: %v", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	if notifications == nil {
+		if err := json.NewEncoder(w).Encode(n); err != nil {
+			_ = s.Config.Bugfixes.Logger.Errorf("Failed to encode user notifications: %v", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		return
+	}
+
+	n.Notifications = notifications
+	if err := json.NewEncoder(w).Encode(n); err != nil {
+		_ = s.Config.Bugfixes.Logger.Errorf("Failed to encode user notifications: %v", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+}
+
+func (s *System) UpdateUserNotification(w http.ResponseWriter, r *http.Request) {
+	s.Context = r.Context()
+
+	subject := r.Header.Get("x-user-subject")
+	if subject == "" {
+		_ = s.Config.Bugfixes.Logger.Errorf("No subject provided")
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	notificationId := r.PathValue("notificationId")
+	if err := s.MarkNotificationAsRead(subject, notificationId); err != nil {
+		_ = s.Config.Bugfixes.Logger.Errorf("Failed to update user notification: %v", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+}
+
+func (s *System) DeleteUserNotification(w http.ResponseWriter, r *http.Request) {
+	s.Context = r.Context()
+
+	subject := r.Header.Get("x-user-subject")
+	if subject == "" {
+		_ = s.Config.Bugfixes.Logger.Errorf("No subject provided")
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	notificationId := r.PathValue("notificationId")
+	if err := s.DeleteUserNotificationInDB(subject, notificationId); err != nil {
+		_ = s.Config.Bugfixes.Logger.Errorf("Failed to update user notification: %v", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
 }
