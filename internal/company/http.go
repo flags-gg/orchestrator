@@ -35,6 +35,8 @@ func (s *System) GetCompany(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
+
+	w.WriteHeader(http.StatusNotImplemented)
 }
 
 func (s *System) CreateCompany(w http.ResponseWriter, r *http.Request) {
@@ -47,6 +49,8 @@ func (s *System) CreateCompany(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
+
+	w.WriteHeader(http.StatusNotImplemented)
 }
 
 func (s *System) UpdateCompany(w http.ResponseWriter, r *http.Request) {
@@ -59,6 +63,8 @@ func (s *System) UpdateCompany(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
+
+	w.WriteHeader(http.StatusNotImplemented)
 }
 
 func (s *System) GetCompanyLimits(w http.ResponseWriter, r *http.Request) {
