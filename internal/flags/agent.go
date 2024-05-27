@@ -41,7 +41,24 @@ func (s *System) GetAgentFlags(projectId, agentId, environmentId string) (*Agent
 	var menuContainer string
 	var menuButton string
 
-	rows, err := client.Query(s.Context, "SELECT flags.name AS FlagName,  flags.enabled AS FlagEnabled,  secretMenu.enabled AS MenuEnabled,  secretMenu.code AS MenuCode,  menuStyle.closebutton AS MenuCloseButton,  menuStyle.container AS MenuContainer,  menuStyle.button AS MenuButton FROM public.agent LEFT JOIN public.agent_flag AS flags ON agent.id = flags.agent_id LEFT JOIN public.agent_environment AS env ON env.id = flags.environment_id LEFT JOIN public.project ON project.id = agent.project_id LEFT JOIN public.agent_secret_menu AS secretMenu ON secretMenu.agent_id = agent.id LEFT JOIN public.secret_menu_style AS menuStyle ON menuStyle.secret_menu_id = secretMenu.id WHERE env.env_id = $1 AND agent.agent_id = $2 AND project.project_id = $3", environmentId, agentId, projectId)
+	rows, err := client.Query(s.Context, `
+    SELECT
+      flags.name AS FlagName,
+      flags.enabled AS FlagEnabled,
+      secretMenu.enabled AS MenuEnabled,
+      secretMenu.code AS MenuCode,
+      menuStyle.closebutton AS MenuCloseButton,
+      menuStyle.container AS MenuContainer,
+      menuStyle.button AS MenuButton
+    FROM public.agent
+      LEFT JOIN public.agent_flag AS flags ON agent.id = flags.agent_id
+      LEFT JOIN public.agent_environment AS env ON env.id = flags.environment_id
+      LEFT JOIN public.project ON project.id = agent.project_id
+      LEFT JOIN public.agent_secret_menu AS secretMenu ON secretMenu.agent_id = agent.id
+      LEFT JOIN public.secret_menu_style AS menuStyle ON menuStyle.secret_menu_id = secretMenu.id
+    WHERE env.env_id = $1
+      AND agent.agent_id = $2
+      AND project.project_id = $3`, environmentId, agentId, projectId)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, nil
@@ -122,7 +139,15 @@ func (s *System) GetDetaultEnvironment(projectId, agentId string) (string, error
 	}()
 
 	var envId string
-	err = client.QueryRow(s.Context, "SELECT env.env_id FROM public.agent_environment AS env JOIN public.agent ON env.agent_id = agent.id JOIN public.project ON agent.project_id = project.id WHERE agent.agent_id = $1 AND project.project_id = $2 ORDER BY env.id ASC LIMIT 1", agentId, projectId).Scan(&envId)
+	err = client.QueryRow(s.Context, `
+    SELECT env.env_id
+    FROM public.agent_environment AS env
+      JOIN public.agent ON env.agent_id = agent.id
+      JOIN public.project ON agent.project_id = project.id
+    WHERE agent.agent_id = $1
+      AND project.project_id = $2
+    ORDER BY env.id ASC
+    LIMIT 1`, agentId, projectId).Scan(&envId)
 	if err != nil {
 		return "", s.Config.Bugfixes.Logger.Errorf("Failed to query database: %v", err)
 	}

@@ -37,7 +37,11 @@ func (s *System) CreateUserDetails(subject, email string) error {
 		}
 	}()
 
-	if _, err := client.Exec(s.Context, "INSERT INTO public.user (subject, email_address) VALUES ($1, $2)", subject, email); err != nil {
+	if _, err := client.Exec(s.Context, `
+    INSERT INTO public.user (
+        subject,
+        email_address
+    ) VALUES ($1, $2)`, subject, email); err != nil {
 		return s.Config.Bugfixes.Logger.Errorf("Failed to insert user into database: %v", err)
 	}
 
@@ -56,7 +60,14 @@ func (s *System) RetrieveUserDetails(subject string) (*User, error) {
 	}()
 
 	user := &User{}
-	if err := client.QueryRow(s.Context, "SELECT id, known_as, email_address, subject FROM public.user WHERE subject = $1", subject).Scan(&user.Id, &user.KnownAs, &user.Email, &user.Subject); err != nil {
+	if err := client.QueryRow(s.Context, `
+    SELECT
+      id,
+      known_as,
+      email_address,
+      subject
+    FROM public.user
+    WHERE subject = $1`, subject).Scan(&user.Id, &user.KnownAs, &user.Email, &user.Subject); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, nil
 		}
@@ -78,7 +89,18 @@ func (s *System) RetrieveUserNotifications(subject string) ([]Notification, erro
 		}
 	}()
 
-	rows, err := client.Query(s.Context, `SELECT un.id, un.subject, "content", "action", "read", un.created_at FROM public.user_notifications AS un JOIN public.user AS u ON u.id = un.user_id WHERE u.subject = $1 AND deleted = false`, subject)
+	rows, err := client.Query(s.Context, `
+    SELECT
+      un.id,
+      un.subject,
+      "content",
+      "action",
+      "read",
+      un.created_at
+    FROM public.user_notifications AS un
+      JOIN public.user AS u ON u.id = un.user_id
+    WHERE u.subject = $1
+      AND deleted = false`, subject)
 	if err != nil {
 		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to query database: %v", err)
 	}
@@ -107,7 +129,13 @@ func (s *System) MarkNotificationAsRead(subject, notificationId string) error {
 		}
 	}()
 
-	if _, err := client.Exec(s.Context, `UPDATE public.user_notifications AS un SET "read" = true FROM public.user AS u WHERE un.user_id = u.id AND u.subject = $1 AND un.id = $2`, subject, notificationId); err != nil {
+	if _, err := client.Exec(s.Context, `
+    UPDATE public.user_notifications AS un
+    SET "read" = true
+    FROM public.user AS u
+    WHERE un.user_id = u.id
+        AND u.subject = $1
+        AND un.id = $2`, subject, notificationId); err != nil {
 		return s.Config.Bugfixes.Logger.Errorf("Failed to update user notification: %v", err)
 	}
 
@@ -125,7 +153,15 @@ func (s *System) DeleteUserNotificationInDB(subject, notificationId string) erro
 		}
 	}()
 
-	if _, err := client.Exec(s.Context, `UPDATE public.user_notifications AS un SET deleted = true, "read" = true FROM public.user AS u WHERE un.user_id = u.id AND u.subject = $1 AND un.id = $2`, subject, notificationId); err != nil {
+	if _, err := client.Exec(s.Context, `
+    UPDATE public.user_notifications AS un
+    SET
+      deleted = true,
+      "read" = true
+    FROM public.user AS u
+    WHERE un.user_id = u.id
+        AND u.subject = $1
+        AND un.id = $2`, subject, notificationId); err != nil {
 		return s.Config.Bugfixes.Logger.Errorf("Failed to update user notification: %v", err)
 	}
 

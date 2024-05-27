@@ -37,7 +37,10 @@ func (s *System) GetAgentName(agentId string) (string, error) {
 	}()
 
 	var agentName string
-	if err := client.QueryRow(s.Context, "SELECT agent.name AS AgentName FROM public.agent AS agent WHERE agent_id = $1", agentId).Scan(&agentName); err != nil {
+	if err := client.QueryRow(s.Context, `
+    SELECT agent.name AS AgentName
+    FROM public.agent AS agent
+    WHERE agent_id = $1`, agentId).Scan(&agentName); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return "", nil
 		}
@@ -60,7 +63,10 @@ func (s *System) GetEnvironmentName(environmentId string) (string, error) {
 	}()
 
 	var envName string
-	if err := client.QueryRow(s.Context, "SELECT env.name AS EnvName FROM public.agent_environment AS env WHERE env_id = $1", environmentId).Scan(&envName); err != nil {
+	if err := client.QueryRow(s.Context, `
+    SELECT env.name AS EnvName
+    FROM public.agent_environment AS env
+    WHERE env_id = $1`, environmentId).Scan(&envName); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return "", nil
 		}

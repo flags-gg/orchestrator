@@ -32,11 +32,22 @@ func (s *System) GetProjectLimits(userSubject string) (*Projects, error) {
 		}
 	}()
 
-	if err := client.QueryRow(s.Context, "SELECT allowed_projects FROM public.company JOIN public.company_user ON company_user.company_id = company.id JOIN public.user AS u ON u.id = company_user.user_id WHERE u.subject = $1", userSubject).Scan(&p.Allowed); err != nil {
+	if err := client.QueryRow(s.Context, `
+    SELECT allowed_projects
+    FROM public.company
+      JOIN public.company_user ON company_user.company_id = company.id
+      JOIN public.user AS u ON u.id = company_user.user_id
+    WHERE u.subject = $1`, userSubject).Scan(&p.Allowed); err != nil {
 		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to query database: %v", err)
 	}
 
-	if err := client.QueryRow(s.Context, "SELECT COUNT(*) FROM public.project JOIN public.company ON company.id = project.company_id JOIN public.company_user ON company_user.company_id = company.id JOIN public.user AS u ON u.id = company_user.user_id WHERE u.subject = $1", userSubject).Scan(&p.Used); err != nil {
+	if err := client.QueryRow(s.Context, `
+    SELECT COUNT(*)
+    FROM public.project
+      JOIN public.company ON company.id = project.company_id
+      JOIN public.company_user ON company_user.company_id = company.id
+      JOIN public.user AS u ON u.id = company_user.user_id
+    WHERE u.subject = $1`, userSubject).Scan(&p.Used); err != nil {
 		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to query database: %v", err)
 	}
 
@@ -56,11 +67,20 @@ func (s *System) GetUserLimits(userSubject string) (*Users, error) {
 		}
 	}()
 
-	if err := client.QueryRow(s.Context, "SELECT allowed_members FROM public.company JOIN public.company_user ON company_user.company_id = company.id JOIN public.user AS u ON u.id = company_user.user_id WHERE u.subject = $1", userSubject).Scan(&u.Allowed); err != nil {
+	if err := client.QueryRow(s.Context, `
+    SELECT allowed_members
+    FROM public.company
+      JOIN public.company_user ON company_user.company_id = company.id
+      JOIN public.user AS u ON u.id = company_user.user_id
+    WHERE u.subject = $1`, userSubject).Scan(&u.Allowed); err != nil {
 		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to query database: %v", err)
 	}
 
-	if err := client.QueryRow(s.Context, "SELECT COUNT(*) FROM public.company_user JOIN public.user AS u ON u.id = company_user.user_id WHERE u.subject = $1", userSubject).Scan(&u.Activated); err != nil {
+	if err := client.QueryRow(s.Context, `
+    SELECT COUNT(*)
+    FROM public.company_user
+      JOIN public.user AS u ON u.id = company_user.user_id
+    WHERE u.subject = $1`, userSubject).Scan(&u.Activated); err != nil {
 		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to query database: %v", err)
 	}
 

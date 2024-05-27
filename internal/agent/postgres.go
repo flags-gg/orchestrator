@@ -33,7 +33,17 @@ func (s *System) GetAgentDetails(agentId, companyId string) (*Agent, error) {
 	}()
 
 	agent := &Agent{}
-	if err := client.QueryRow(s.Context, "SELECT agent.id,  agent.name AS AgentName,  agent.allowed_access_limit, agent.allowed_environments FROM public.agent AS agent JOIN public.project ON agent.project_id = project.id JOIN public.company ON company.id = project.company_id WHERE agent.agent_id = $1 AND company.company_id = $2", agentId, companyId).Scan(&agent.Id, &agent.Name, &agent.RequestLimit, &agent.EnvironmentLimit); err != nil {
+	if err := client.QueryRow(s.Context, `
+    SELECT
+      agent.id,
+      agent.name AS AgentName,
+      agent.allowed_access_limit,
+      agent.allowed_environments
+    FROM public.agent AS agent
+      JOIN public.project ON agent.project_id = project.id
+      JOIN public.company ON company.id = project.company_id
+    WHERE agent.agent_id = $1
+      AND company.company_id = $2`, agentId, companyId).Scan(&agent.Id, &agent.Name, &agent.RequestLimit, &agent.EnvironmentLimit); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, nil
 		}
@@ -55,7 +65,17 @@ func (s *System) GetAgents(companyId string) ([]*Agent, error) {
 		}
 	}()
 
-	rows, err := client.Query(s.Context, "SELECT agent.id, agent.name AS AgentName, agent.allowed_access_limit, agent.agent_id, agent.allowed_environments FROM public.agent JOIN public.project ON agent.project_id = project.id JOIN public.company ON project.company_id = company.id WHERE company.company_id = $1", companyId)
+	rows, err := client.Query(s.Context, `
+    SELECT
+      agent.id,
+      agent.name AS AgentName,
+      agent.allowed_access_limit,
+      agent.agent_id,
+      agent.allowed_environments
+    FROM public.agent
+      JOIN public.project ON agent.project_id = project.id
+      JOIN public.company ON project.company_id = company.id
+    WHERE company.company_id = $1`, companyId)
 	if err != nil {
 		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to query database: %v", err)
 	}
@@ -91,7 +111,14 @@ func (s *System) GetAgentEnvironmentsFromDB(agentId string) ([]*Environment, err
 		}
 	}()
 
-	rows, err := client.Query(s.Context, "SELECT env.id, env.name, env.env_id FROM agent_environment AS env JOIN agent ON env.agent_id = agent.id WHERE agent.agent_id = $1", agentId)
+	rows, err := client.Query(s.Context, `
+    SELECT
+      env.id,
+      env.name,
+      env.env_id
+    FROM agent_environment AS env
+      JOIN agent ON env.agent_id = agent.id
+    WHERE agent.agent_id = $1`, agentId)
 	if err != nil {
 		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to query database: %v", err)
 	}
@@ -122,7 +149,13 @@ func (s *System) GetCompanyId(userSubject string) (string, error) {
 	}()
 
 	var companyId string
-	if err := client.QueryRow(s.Context, "SELECT public.company.company_id FROM public.company LEFT JOIN public.company_user ON public.company_user.company_id = public.company.id LEFT JOIN public.user ON public.user.id = public.company_user.user_id WHERE public.user.subject = $1", userSubject).Scan(&companyId); err != nil {
+	if err := client.QueryRow(s.Context, `
+    SELECT
+      public.company.company_id
+    FROM public.company
+      LEFT JOIN public.company_user ON public.company_user.company_id = public.company.id
+      LEFT JOIN public.user ON public.user.id = public.company_user.user_id
+    WHERE public.user.subject = $1`, userSubject).Scan(&companyId); err != nil {
 		return "", s.Config.Bugfixes.Logger.Errorf("Failed to query database: %v", err)
 	}
 
@@ -143,7 +176,14 @@ func (s *System) ValidateAgentWithEnvironment(ctx context.Context, agentId, proj
 		}
 	}()
 
-	if err := client.QueryRow(ctx, "SELECT TRUE FROM public.agent JOIN public.agent_environment AS pa ON pa.agent_id = agent.id JOIN public.project ON project.id = agent.project_id WHERE agent.agent_id = $1 AND pa.env_id = $2 AND project.project_id = $3", agentId, environmentId, projectId).Scan(&valid); err != nil {
+	if err := client.QueryRow(ctx, `
+    SELECT TRUE
+    FROM public.agent
+      JOIN public.agent_environment AS pa ON pa.agent_id = agent.id
+      JOIN public.project ON project.id = agent.project_id
+    WHERE agent.agent_id = $1
+      AND pa.env_id = $2
+      AND project.project_id = $3`, agentId, environmentId, projectId).Scan(&valid); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return valid, nil
 		}
@@ -167,7 +207,12 @@ func (s *System) ValidateAgentWithoutEnvironment(ctx context.Context, agentId, p
 		}
 	}()
 
-	if err := client.QueryRow(ctx, "SELECT TRUE FROM public.agent JOIN project ON project.id = agent.project_id WHERE agent.agent_id = $1 AND project.project_id = $2", agentId, projectId).Scan(&valid); err != nil {
+	if err := client.QueryRow(ctx, `
+    SELECT TRUE
+    FROM public.agent
+      JOIN project ON project.id = agent.project_id
+    WHERE agent.agent_id = $1
+      AND project.project_id = $2`, agentId, projectId).Scan(&valid); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return valid, nil
 		}
