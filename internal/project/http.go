@@ -3,6 +3,7 @@ package project
 import (
 	"context"
 	"encoding/json"
+	"github.com/bugfixes/go-bugfixes/logs"
 	ConfigBuilder "github.com/keloran/go-config"
 	"net/http"
 	"strconv"
@@ -82,6 +83,23 @@ func (s *System) CreateProject(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
+
+	type ProjCreate struct {
+		Name string `json:"name"`
+	}
+	proj := ProjCreate{}
+	if err := json.NewDecoder(r.Body).Decode(&proj); err != nil {
+		_ = s.Config.Bugfixes.Logger.Errorf("Failed to decode body: %v", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	project, err := s.CreateProjectInDB(r.Header.Get("x-user-subject"), proj.Name)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	logs.Logf("Project Created: %v", project)
 
 	w.WriteHeader(http.StatusNotImplemented)
 }

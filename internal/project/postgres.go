@@ -1,5 +1,9 @@
 package project
 
+import (
+	"github.com/google/uuid"
+)
+
 type Project struct {
 	ID         string `json:"id"`
 	Name       string `json:"name"`
@@ -75,10 +79,10 @@ func (s *System) GetProjectFromDB(userId, projectId string) (*Project, error) {
 	return &project, nil
 }
 
-func (s *System) CreateProjectInDB(userId string, project *Project) error {
+func (s *System) CreateProjectInDB(userSubject, projectName string) (*Project, error) {
 	client, err := s.Config.Database.GetPGXClient(s.Context)
 	if err != nil {
-		return s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
+		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
 	}
 	defer func() {
 		if err := client.Close(s.Context); err != nil {
@@ -86,9 +90,10 @@ func (s *System) CreateProjectInDB(userId string, project *Project) error {
 		}
 	}()
 
-	allowedAgents := 10
-
-	_, err = client.Exec(s.Context, `
+	// create the project
+	projectId := uuid.New().String()
+	var insertedProjectId string
+	if err := client.QueryRow(s.Context, `
       INSERT INTO public.project (
           company_id,
           project_id,
@@ -101,10 +106,43 @@ func (s *System) CreateProjectInDB(userId string, project *Project) error {
           JOIN public.company_user ON company_user.company_id = company.id
           JOIN public.user AS u ON u.id = company_user.user_id
         WHERE u.subject = $1
-      ), $2, $3, $4)`, userId, project.ProjectID, project.Name, project.AgentLimit)
-	if err != nil {
-		return s.Config.Bugfixes.Logger.Errorf("Failed to insert into database: %v", err)
+      ), $2, $3, (
+        SELECT allowed_agents_per_project
+        FROM public.company
+            JOIN public.company_user ON company_user.company_id = company.id
+            JOIN public.user AS u ON u.id = company_user.user_id
+        WHERE u.subject = $1
+      ))
+      RETURNING project.id`, userSubject, projectId, projectName).Scan(&insertedProjectId); err != nil {
+		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to insert project into database: %v", err)
 	}
 
-	return nil
+	// create the default agent
+	if _, err := client.Exec(s.Context, `
+      INSERT INTO public.agent (
+          project_id,
+          agent_id,
+          name,
+          allowed_environments,
+          allowed_access_limit
+      ) VALUES ($1, $2, $3, (
+        SELECT allowed_environments_per_agent
+        FROM public.company
+            JOIN public.company_user ON company_user.company_id = company.id
+            JOIN public.user AS u ON u.id = company_user.user_id
+        WHERE u.subject = $4
+      ), (
+        SELECT allowed_access_per_environment
+        FROM public.company
+            JOIN public.company_user ON company_user.company_id = company.id
+            JOIN public.user AS u ON u.id = company_user.user_id
+        WHERE u.subject = $4
+      ))`, insertedProjectId, uuid.New().String(), "Default Agent", userSubject); err != nil {
+		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to insert agent into database: %v", err)
+	}
+
+	return &Project{
+		ID:   projectId,
+		Name: projectName,
+	}, nil
 }
