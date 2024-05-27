@@ -70,50 +70,49 @@ func (s *System) GetAgentsRequest(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *System) GetAgent(w http.ResponseWriter, r *http.Request) {
-	_, _ = w.Write([]byte(`{"agent": {}}`))
+	w.WriteHeader(http.StatusNotImplemented)
 	return
 }
 
 func (s *System) UpdateAgent(w http.ResponseWriter, r *http.Request) {
-	_, _ = w.Write([]byte(`{"agent": {}}`))
+	w.WriteHeader(http.StatusNotImplemented)
 	return
 }
 
 func (s *System) DeleteAgent(w http.ResponseWriter, r *http.Request) {
-	_, _ = w.Write([]byte(`{"agent": {}}`))
+	w.WriteHeader(http.StatusNotImplemented)
 	return
 }
 
 func (s *System) CreateAgent(w http.ResponseWriter, r *http.Request) {
-
-	_, _ = w.Write([]byte(`{"agent": {}}`))
+	w.WriteHeader(http.StatusNotImplemented)
 	return
 }
 
 func (s *System) GetSecretMenu(w http.ResponseWriter, r *http.Request) {
-
+	w.WriteHeader(http.StatusNotImplemented)
 }
 
 func (s *System) CreateSecretMenu(w http.ResponseWriter, r *http.Request) {
-
+	w.WriteHeader(http.StatusNotImplemented)
 }
 
 func (s *System) UpdateSecretMenu(w http.ResponseWriter, r *http.Request) {
-
+	w.WriteHeader(http.StatusNotImplemented)
 }
 
 func (s *System) GetAgentEnvironments(w http.ResponseWriter, r *http.Request) {
-
+	w.WriteHeader(http.StatusNotImplemented)
 }
 
 func (s *System) CreateAgentEnvironment(w http.ResponseWriter, r *http.Request) {
-
+	w.WriteHeader(http.StatusNotImplemented)
 }
 
 func (s *System) UpdateAgentEnvironment(w http.ResponseWriter, r *http.Request) {
-
+	w.WriteHeader(http.StatusNotImplemented)
 }
 
 func (s *System) DeleteAgentEnvironment(w http.ResponseWriter, r *http.Request) {
-
+	w.WriteHeader(http.StatusNotImplemented)
 }

@@ -119,13 +119,13 @@ func (s *System) GetFlagsClient(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *System) CreateFlags(w http.ResponseWriter, r *http.Request) {
-
+	w.WriteHeader(http.StatusNotImplemented)
 }
 
 func (s *System) UpdateFlags(w http.ResponseWriter, r *http.Request) {
-
+	w.WriteHeader(http.StatusNotImplemented)
 }
 
 func (s *System) DeleteFlags(w http.ResponseWriter, r *http.Request) {
-
+	w.WriteHeader(http.StatusNotImplemented)
 }

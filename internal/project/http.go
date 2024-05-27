@@ -82,6 +82,8 @@ func (s *System) CreateProject(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
+
+	w.WriteHeader(http.StatusNotImplemented)
 }
 
 func (s *System) UpdateProject(w http.ResponseWriter, r *http.Request) {
@@ -94,6 +96,8 @@ func (s *System) UpdateProject(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
+
+	w.WriteHeader(http.StatusNotImplemented)
 }
 
 func (s *System) DeleteProject(w http.ResponseWriter, r *http.Request) {
@@ -106,4 +110,6 @@ func (s *System) DeleteProject(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
+
+	w.WriteHeader(http.StatusNotImplemented)
 }
