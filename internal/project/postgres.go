@@ -130,7 +130,8 @@ func (s *System) CreateProjectInDB(userSubject, projectName string) (*Project, e
 	}
 
 	return &Project{
-		ID:   projectId,
-		Name: projectName,
+		ID:        insertedProjectId,
+		ProjectID: projectId,
+		Name:      projectName,
 	}, nil
 }
