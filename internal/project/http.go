@@ -3,7 +3,6 @@ package project
 import (
 	"context"
 	"encoding/json"
-	"github.com/bugfixes/go-bugfixes/logs"
 	ConfigBuilder "github.com/keloran/go-config"
 	"net/http"
 	"strconv"
@@ -84,6 +83,8 @@ func (s *System) CreateProject(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	userSubject := r.Header.Get("x-user-subject")
+
 	type ProjCreate struct {
 		Name string `json:"name"`
 	}
@@ -94,14 +95,22 @@ func (s *System) CreateProject(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	project, err := s.CreateProjectInDB(r.Header.Get("x-user-subject"), proj.Name)
+	createdProject, err := s.CreateProjectInDB(userSubject, proj.Name)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-	logs.Logf("Project Created: %v", project)
 
-	w.WriteHeader(http.StatusNotImplemented)
+	projDetails, err := s.GetProjectFromDB(userSubject, createdProject.ProjectID)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(&projDetails); err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+	}
 }
 
 func (s *System) UpdateProject(w http.ResponseWriter, r *http.Request) {
