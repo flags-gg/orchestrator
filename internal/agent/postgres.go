@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"github.com/bugfixes/go-bugfixes/logs"
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 )
 
@@ -220,4 +221,88 @@ func (s *System) ValidateAgentWithoutEnvironment(ctx context.Context, agentId, p
 	}
 
 	return valid, nil
+}
+
+func (s *System) CreateAgentInDB(name, projectId, userSubject string) (*Agent, error) {
+	client, err := s.Config.Database.GetPGXClient(s.Context)
+	if err != nil {
+		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
+	}
+	defer func() {
+		if err := client.Close(s.Context); err != nil {
+			s.Config.Bugfixes.Logger.Fatalf("Failed to close database connection: %v", err)
+		}
+	}()
+
+	agentId := uuid.New().String()
+	var insertedAgentId string
+
+	if err := client.QueryRow(s.Context, `
+      INSERT INTO public.agent (
+          project_id,
+          agent_id,
+          name,
+          allowed_environments,
+          allowed_access_limit
+      ) VALUES ((
+        SELECT project.id
+        FROM public.project
+        WHERE project.project_id = $1
+      ), $2, $3, (
+        SELECT allowed_environments_per_agent
+        FROM public.company
+            JOIN public.company_user ON company_user.company_id = company.id
+            JOIN public.user AS u ON u.id = company_user.user_id
+        WHERE u.subject = $4
+      ), (
+        SELECT allowed_access_per_environment
+        FROM public.company
+            JOIN public.company_user ON company_user.company_id = company.id
+            JOIN public.user AS u ON u.id = company_user.user_id
+        WHERE u.subject = $4
+      ))
+      RETURNING agent.id`, projectId, agentId, name, userSubject).Scan(&insertedAgentId); err != nil {
+		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to insert agent into database: %v", err)
+	}
+
+	return &Agent{
+		Id:      insertedAgentId,
+		AgentId: agentId,
+		Name:    "Default Agent",
+	}, nil
+}
+
+func (s *System) CreateEnvironmentInDB(name, agentId, userSubject string) (*Environment, error) {
+	client, err := s.Config.Database.GetPGXClient(s.Context)
+	if err != nil {
+		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
+	}
+	defer func() {
+		if err := client.Close(s.Context); err != nil {
+			s.Config.Bugfixes.Logger.Fatalf("Failed to close database connection: %v", err)
+		}
+	}()
+
+	envId := uuid.New().String()
+	var insertedEnvId string
+
+	if err := client.QueryRow(s.Context, `
+      INSERT INTO public.agent_environment (
+          agent_id,
+          env_id,
+          name
+      ) VALUES ((
+        SELECT agent.id
+        FROM public.agent
+        WHERE agent.agent_id = $1
+      ), $2, $3)
+      RETURNING agent_environment.id`, agentId, envId, name).Scan(&insertedEnvId); err != nil {
+		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to insert environment into database: %v", err)
+	}
+
+	return &Environment{
+		Id:            insertedEnvId,
+		EnvironmentId: envId,
+		Name:          name,
+	}, nil
 }

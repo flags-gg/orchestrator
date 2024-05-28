@@ -27,7 +27,8 @@ type System struct {
 
 func NewSystem(cfg *ConfigBuilder.Config) *System {
 	return &System{
-		Config: cfg,
+		Config:  cfg,
+		Context: context.Background(),
 	}
 }
 
@@ -86,6 +87,7 @@ func (s *System) DeleteAgent(w http.ResponseWriter, r *http.Request) {
 
 func (s *System) CreateAgent(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNotImplemented)
+
 	return
 }
 

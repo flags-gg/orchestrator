@@ -1,6 +1,7 @@
 package project
 
 import (
+	"github.com/flags-gg/orchestrator/internal/agent"
 	"github.com/google/uuid"
 )
 
@@ -118,27 +119,14 @@ func (s *System) CreateProjectInDB(userSubject, projectName string) (*Project, e
 	}
 
 	// create the default agent
-	if _, err := client.Exec(s.Context, `
-      INSERT INTO public.agent (
-          project_id,
-          agent_id,
-          name,
-          allowed_environments,
-          allowed_access_limit
-      ) VALUES ($1, $2, $3, (
-        SELECT allowed_environments_per_agent
-        FROM public.company
-            JOIN public.company_user ON company_user.company_id = company.id
-            JOIN public.user AS u ON u.id = company_user.user_id
-        WHERE u.subject = $4
-      ), (
-        SELECT allowed_access_per_environment
-        FROM public.company
-            JOIN public.company_user ON company_user.company_id = company.id
-            JOIN public.user AS u ON u.id = company_user.user_id
-        WHERE u.subject = $4
-      ))`, insertedProjectId, uuid.New().String(), "Default Agent", userSubject); err != nil {
-		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to insert agent into database: %v", err)
+	agentDetails, err := agent.NewSystem(s.Config).CreateAgentInDB("Default Agent", projectId, userSubject)
+	if err != nil {
+		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to create default agent: %v", err)
+	}
+
+	_, err = agent.NewSystem(s.Config).CreateEnvironmentInDB("Default Env", agentDetails.AgentId, userSubject)
+	if err != nil {
+		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to create default environment: %v", err)
 	}
 
 	return &Project{
