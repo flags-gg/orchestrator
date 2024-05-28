@@ -101,6 +101,53 @@ func (s *System) GetAgents(companyId string) ([]*Agent, error) {
 	return agents, nil
 }
 
+func (s *System) GetAgentsForProject(companyId, projectId string) ([]*Agent, error) {
+	client, err := s.Config.Database.GetPGXClient(s.Context)
+	if err != nil {
+		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
+	}
+	defer func() {
+		if err := client.Close(s.Context); err != nil {
+			s.Config.Bugfixes.Logger.Fatalf("Failed to close database connection: %v", err)
+		}
+	}()
+
+	rows, err := client.Query(s.Context, `
+    SELECT
+      agent.id,
+      agent.name AS AgentName,
+      agent.allowed_access_limit,
+      agent.agent_id,
+      agent.allowed_environments
+    FROM public.agent
+      JOIN public.project ON agent.project_id = project.id
+      JOIN public.company ON project.company_id = company.id
+    WHERE company.company_id = $1
+        AND project.project_id = $2`, companyId, projectId)
+	if err != nil {
+		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to query database: %v", err)
+	}
+	defer rows.Close()
+
+	var agents []*Agent
+	for rows.Next() {
+		agent := &Agent{}
+		if err := rows.Scan(&agent.Id, &agent.Name, &agent.RequestLimit, &agent.AgentId, &agent.EnvironmentLimit); err != nil {
+			return nil, s.Config.Bugfixes.Logger.Errorf("Failed to scan database rows: %v", err)
+		}
+
+		envs, err := s.GetAgentEnvironmentsFromDB(agent.AgentId)
+		if err != nil {
+			return nil, s.Config.Bugfixes.Logger.Errorf("Failed to get agent environments: %v", err)
+		}
+		agent.Environments = envs
+
+		agents = append(agents, agent)
+	}
+
+	return agents, nil
+}
+
 func (s *System) GetAgentEnvironmentsFromDB(agentId string) ([]*Environment, error) {
 	client, err := s.Config.Database.GetPGXClient(s.Context)
 	if err != nil {

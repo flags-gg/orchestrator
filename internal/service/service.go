@@ -47,6 +47,7 @@ func (s *Service) startHTTP(errChan chan error) {
 
 	// Agents
 	mux.HandleFunc("GET /agents", agent.NewSystem(s.Config).GetAgentsRequest)
+	mux.HandleFunc("GET /agents/{projectId}", agent.NewSystem(s.Config).GetProjectAgents)
 	mux.HandleFunc("POST /agent", agent.NewSystem(s.Config).CreateAgent)
 	mux.HandleFunc("GET /agent/{agentId}", agent.NewSystem(s.Config).GetAgent)
 	mux.HandleFunc("PUT /agent/{agentId}", agent.NewSystem(s.Config).UpdateAgent)

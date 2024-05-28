@@ -70,6 +70,45 @@ func (s *System) GetAgentsRequest(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func (s *System) GetProjectAgents(w http.ResponseWriter, r *http.Request) {
+	type Agents struct {
+		Agents []*Agent `json:"agents"`
+	}
+	s.Context = r.Context()
+
+	if r.Header.Get("x-user-access-token") == "" || r.Header.Get("x-user-subject") == "" {
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
+	companyId, err := s.GetCompanyId(r.Header.Get("x-user-subject"))
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	if companyId == "" {
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
+	projectId := r.PathValue("projectId")
+	agents, err := s.GetAgentsForProject(companyId, projectId)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(&Agents{
+		Agents: agents,
+	}); err != nil {
+		_ = logs.Errorf("Failed to encode response: %v", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+}
+
 func (s *System) GetAgent(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNotImplemented)
 	return
