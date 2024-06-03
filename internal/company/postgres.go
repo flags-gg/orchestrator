@@ -38,6 +38,9 @@ func (s *System) GetProjectLimits(userSubject string) (*Projects, error) {
       JOIN public.company_user ON company_user.company_id = company.id
       JOIN public.user AS u ON u.id = company_user.user_id
     WHERE u.subject = $1`, userSubject).Scan(&p.Allowed); err != nil {
+		if err.Error() == "context canceled" {
+			return nil, nil
+		}
 		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to query database: %v", err)
 	}
 
@@ -48,6 +51,9 @@ func (s *System) GetProjectLimits(userSubject string) (*Projects, error) {
       JOIN public.company_user ON company_user.company_id = company.id
       JOIN public.user AS u ON u.id = company_user.user_id
     WHERE u.subject = $1`, userSubject).Scan(&p.Used); err != nil {
+		if err.Error() == "context canceled" {
+			return nil, nil
+		}
 		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to query database: %v", err)
 	}
 
@@ -73,6 +79,9 @@ func (s *System) GetUserLimits(userSubject string) (*Users, error) {
       JOIN public.company_user ON company_user.company_id = company.id
       JOIN public.user AS u ON u.id = company_user.user_id
     WHERE u.subject = $1`, userSubject).Scan(&u.Allowed); err != nil {
+		if err.Error() == "context canceled" {
+			return nil, nil
+		}
 		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to query database: %v", err)
 	}
 
@@ -81,6 +90,9 @@ func (s *System) GetUserLimits(userSubject string) (*Users, error) {
     FROM public.company_user
       JOIN public.user AS u ON u.id = company_user.user_id
     WHERE u.subject = $1`, userSubject).Scan(&u.Activated); err != nil {
+		if err.Error() == "context canceled" {
+			return nil, nil
+		}
 		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to query database: %v", err)
 	}
 

@@ -44,6 +44,9 @@ func (s *System) GetAgentName(agentId string) (string, error) {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return "", nil
 		}
+		if err.Error() == "context canceled" {
+			return "", nil
+		}
 
 		return "", logs.Errorf("Failed to query database: %v", err)
 	}
@@ -68,6 +71,9 @@ func (s *System) GetEnvironmentName(environmentId string) (string, error) {
     FROM public.agent_environment AS env
     WHERE env_id = $1`, environmentId).Scan(&envName); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
+			return "", nil
+		}
+		if err.Error() == "context canceled" {
 			return "", nil
 		}
 

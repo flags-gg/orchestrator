@@ -1,6 +1,7 @@
 package flags
 
 import (
+	"database/sql"
 	"errors"
 	"fmt"
 	"github.com/flags-gg/orchestrator/internal/stats"
@@ -36,10 +37,10 @@ func (s *System) GetAgentFlags(projectId, agentId, environmentId string) (*Agent
 
 	var flags []Flag
 	var menuEnabled bool
-	var menuCode string
-	var menuCloseButton string
-	var menuContainer string
-	var menuButton string
+	var menuCode sql.NullString
+	var menuCloseButton sql.NullString
+	var menuContainer sql.NullString
+	var menuButton sql.NullString
 
 	rows, err := client.Query(s.Context, `
     SELECT
@@ -65,6 +66,10 @@ func (s *System) GetAgentFlags(projectId, agentId, environmentId string) (*Agent
 		}
 
 		stats.NewSystem(s.Config).AddAgentError(projectId, agentId, environmentId)
+		if err.Error() == "context canceled" {
+			return nil, nil
+		}
+
 		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to query database: %v", err)
 	}
 
@@ -97,27 +102,27 @@ func (s *System) GetAgentFlags(projectId, agentId, environmentId string) (*Agent
 
 	if menuEnabled {
 		sm := &SecretMenu{
-			Sequence: strings.Split(menuCode, ","),
+			Sequence: strings.Split(menuCode.String, ","),
 		}
 
-		if menuCloseButton != "" {
+		if menuCloseButton.String != "" {
 			sm.Styles = append(sm.Styles, SecretMenuStyle{
 				Name:  "closeButton",
-				Value: menuCloseButton,
+				Value: menuCloseButton.String,
 			})
 		}
 
-		if menuContainer != "" {
+		if menuContainer.String != "" {
 			sm.Styles = append(sm.Styles, SecretMenuStyle{
 				Name:  "container",
-				Value: menuContainer,
+				Value: menuContainer.String,
 			})
 		}
 
-		if menuButton != "" {
+		if menuButton.String != "" {
 			sm.Styles = append(sm.Styles, SecretMenuStyle{
 				Name:  "button",
-				Value: menuButton,
+				Value: menuButton.String,
 			})
 		}
 		res.SecretMenu = *sm
@@ -149,6 +154,9 @@ func (s *System) GetDetaultEnvironment(projectId, agentId string) (string, error
     ORDER BY env.id ASC
     LIMIT 1`, agentId, projectId).Scan(&envId)
 	if err != nil {
+		if err.Error() == "context canceled" {
+			return "", nil
+		}
 		return "", s.Config.Bugfixes.Logger.Errorf("Failed to query database: %v", err)
 	}
 

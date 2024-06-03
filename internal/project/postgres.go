@@ -10,6 +10,7 @@ type Project struct {
 	Name       string `json:"name"`
 	ProjectID  string `json:"project_id"`
 	AgentLimit int    `json:"agent_limit"`
+	Logo       string `json:"logo"`
 }
 
 func (s *System) GetProjectsFromDB(userId string) ([]Project, error) {
@@ -28,13 +29,17 @@ func (s *System) GetProjectsFromDB(userId string) ([]Project, error) {
       project.id,
       project.project_id,
       project.name,
-      project.allowed_agents
+      project.allowed_agents,
+      project.logo
     FROM public.project
       JOIN public.company ON company.id = project.company_id
       JOIN public.company_user ON company_user.company_id = company.id
       JOIN public.user AS u ON u.id = company_user.user_id
     WHERE u.subject = $1`, userId)
 	if err != nil {
+		if err.Error() == "context canceled" {
+			return nil, nil
+		}
 		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to query database: %v", err)
 	}
 	defer rows.Close()
@@ -42,7 +47,7 @@ func (s *System) GetProjectsFromDB(userId string) ([]Project, error) {
 	var projects []Project
 	for rows.Next() {
 		var project Project
-		if err := rows.Scan(&project.ID, &project.ProjectID, &project.Name, &project.AgentLimit); err != nil {
+		if err := rows.Scan(&project.ID, &project.ProjectID, &project.Name, &project.AgentLimit, &project.Logo); err != nil {
 			return nil, s.Config.Bugfixes.Logger.Errorf("Failed to scan database: %v", err)
 		}
 		projects = append(projects, project)
@@ -67,13 +72,14 @@ func (s *System) GetProjectFromDB(userId, projectId string) (*Project, error) {
         SELECT project.name,
                project.id,
                project.project_id,
-               project.allowed_agents
+               project.allowed_agents,
+              project.logo
         FROM public.project
           JOIN public.company ON company.id = project.company_id
           JOIN public.company_user ON company_user.company_id = company.id
           JOIN public.user AS u ON u.id = company_user.user_id
         WHERE project_id = $2
-          AND u.subject = $1`, userId, projectId).Scan(&project.Name, &project.ID, &project.ProjectID, &project.AgentLimit); err != nil {
+          AND u.subject = $1`, userId, projectId).Scan(&project.Name, &project.ID, &project.ProjectID, &project.AgentLimit, &project.Logo); err != nil {
 		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to scan database: %v", err)
 	}
 

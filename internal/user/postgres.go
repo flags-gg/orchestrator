@@ -71,6 +71,9 @@ func (s *System) RetrieveUserDetails(subject string) (*User, error) {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, nil
 		}
+		if err.Error() == "context canceled" {
+			return nil, nil
+		}
 
 		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to query database: %v", err)
 	}
@@ -102,6 +105,9 @@ func (s *System) RetrieveUserNotifications(subject string) ([]Notification, erro
     WHERE u.subject = $1
       AND deleted = false`, subject)
 	if err != nil {
+		if err.Error() == "context canceled" {
+			return nil, nil
+		}
 		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to query database: %v", err)
 	}
 	defer rows.Close()

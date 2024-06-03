@@ -8,6 +8,11 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
+type ProjectInfo struct {
+	Id   string `json:"project_id"`
+	Name string `json:"name"`
+}
+
 type Agent struct {
 	Id               string         `json:"id"`
 	Name             string         `json:"name"`
@@ -15,6 +20,8 @@ type Agent struct {
 	AgentId          string         `json:"agent_id"`
 	Environments     []*Environment `json:"environments"`
 	EnvironmentLimit int            `json:"environment_limit"`
+	Enabled          bool           `json:"enabled"`
+	ProjectInfo      *ProjectInfo   `json:"project_info"`
 }
 
 func (s *System) AddAgent(name, projectId string) (string, error) {
@@ -33,19 +40,35 @@ func (s *System) GetAgentDetails(agentId, companyId string) (*Agent, error) {
 		}
 	}()
 
-	agent := &Agent{}
+	agent := &Agent{
+		AgentId:     agentId,
+		ProjectInfo: &ProjectInfo{},
+	}
 	if err := client.QueryRow(s.Context, `
     SELECT
       agent.id,
       agent.name AS AgentName,
       agent.allowed_access_limit,
-      agent.allowed_environments
+      agent.allowed_environments,
+      agent.enabled,
+      project.name,
+      project.project_id
     FROM public.agent AS agent
       JOIN public.project ON agent.project_id = project.id
       JOIN public.company ON company.id = project.company_id
     WHERE agent.agent_id = $1
-      AND company.company_id = $2`, agentId, companyId).Scan(&agent.Id, &agent.Name, &agent.RequestLimit, &agent.EnvironmentLimit); err != nil {
+      AND company.company_id = $2`, agentId, companyId).Scan(
+		&agent.Id,
+		&agent.Name,
+		&agent.RequestLimit,
+		&agent.EnvironmentLimit,
+		&agent.Enabled,
+		&agent.ProjectInfo.Name,
+		&agent.ProjectInfo.Id); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, nil
+		}
+		if err.Error() == "context canceled" {
 			return nil, nil
 		}
 
@@ -78,6 +101,9 @@ func (s *System) GetAgents(companyId string) ([]*Agent, error) {
       JOIN public.company ON project.company_id = company.id
     WHERE company.company_id = $1`, companyId)
 	if err != nil {
+		if err.Error() == "context canceled" {
+			return nil, nil
+		}
 		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to query database: %v", err)
 	}
 	defer rows.Close()
@@ -125,6 +151,9 @@ func (s *System) GetAgentsForProject(companyId, projectId string) ([]*Agent, err
     WHERE company.company_id = $1
         AND project.project_id = $2`, companyId, projectId)
 	if err != nil {
+		if err.Error() == "context canceled" {
+			return nil, nil
+		}
 		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to query database: %v", err)
 	}
 	defer rows.Close()
@@ -163,11 +192,15 @@ func (s *System) GetAgentEnvironmentsFromDB(agentId string) ([]*Environment, err
     SELECT
       env.id,
       env.name,
-      env.env_id
+      env.env_id,
+      env.enabled
     FROM agent_environment AS env
       JOIN agent ON env.agent_id = agent.id
     WHERE agent.agent_id = $1`, agentId)
 	if err != nil {
+		if err.Error() == "context canceled" {
+			return nil, nil
+		}
 		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to query database: %v", err)
 	}
 	defer rows.Close()
@@ -175,7 +208,7 @@ func (s *System) GetAgentEnvironmentsFromDB(agentId string) ([]*Environment, err
 	var environments []*Environment
 	for rows.Next() {
 		environment := &Environment{}
-		if err := rows.Scan(&environment.Id, &environment.Name, &environment.EnvironmentId); err != nil {
+		if err := rows.Scan(&environment.Id, &environment.Name, &environment.EnvironmentId, &environment.Enabled); err != nil {
 			return nil, s.Config.Bugfixes.Logger.Errorf("Failed to scan database rows: %v", err)
 		}
 
@@ -204,6 +237,9 @@ func (s *System) GetCompanyId(userSubject string) (string, error) {
       LEFT JOIN public.company_user ON public.company_user.company_id = public.company.id
       LEFT JOIN public.user ON public.user.id = public.company_user.user_id
     WHERE public.user.subject = $1`, userSubject).Scan(&companyId); err != nil {
+		if err.Error() == "context canceled" {
+			return "", nil
+		}
 		return "", s.Config.Bugfixes.Logger.Errorf("Failed to query database: %v", err)
 	}
 
@@ -235,6 +271,9 @@ func (s *System) ValidateAgentWithEnvironment(ctx context.Context, agentId, proj
 		if errors.Is(err, pgx.ErrNoRows) {
 			return valid, nil
 		}
+		if err.Error() == "context canceled" {
+			return valid, nil
+		}
 		return valid, s.Config.Bugfixes.Logger.Errorf("Failed to query database: %v", err)
 	}
 
@@ -262,6 +301,9 @@ func (s *System) ValidateAgentWithoutEnvironment(ctx context.Context, agentId, p
     WHERE agent.agent_id = $1
       AND project.project_id = $2`, agentId, projectId).Scan(&valid); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
+			return valid, nil
+		}
+		if err.Error() == "context canceled" {
 			return valid, nil
 		}
 		return valid, s.Config.Bugfixes.Logger.Errorf("Failed to query database: %v", err)
