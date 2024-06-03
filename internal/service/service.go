@@ -47,6 +47,7 @@ func (s *Service) startHTTP(errChan chan error) {
 
 	// Agents
 	mux.HandleFunc("GET /agents", agent.NewSystem(s.Config).GetAgentsRequest)
+	mux.HandleFunc("GET /agents/{projectId}", agent.NewSystem(s.Config).GetProjectAgents)
 	mux.HandleFunc("POST /agent", agent.NewSystem(s.Config).CreateAgent)
 	mux.HandleFunc("GET /agent/{agentId}", agent.NewSystem(s.Config).GetAgent)
 	mux.HandleFunc("PUT /agent/{agentId}", agent.NewSystem(s.Config).UpdateAgent)
@@ -69,7 +70,8 @@ func (s *Service) startHTTP(errChan chan error) {
 	mux.HandleFunc("PUT /agent/{agentId}/secret-menu", agent.NewSystem(s.Config).UpdateSecretMenu)
 
 	// Stats
-	mux.HandleFunc("GET /stats/agent/environment/{agentId}", stats.NewSystem(s.Config).GetEnvironmentStats)
+	mux.HandleFunc("GET /stats/company", stats.NewSystem(s.Config).GetCompanyStats)
+	mux.HandleFunc("GET /stats/agent/{agentId}/environment/{environmentId}", stats.NewSystem(s.Config).GetEnvironmentStats)
 	mux.HandleFunc("GET /stats/agent/{agentId}", stats.NewSystem(s.Config).GetAgentStats)
 
 	// User

@@ -5,8 +5,6 @@ import (
 	"encoding/json"
 	ConfigBuilder "github.com/keloran/go-config"
 	"net/http"
-	"strconv"
-	"time"
 )
 
 type System struct {
@@ -20,87 +18,98 @@ func NewSystem(cfg *ConfigBuilder.Config) *System {
 	}
 }
 
+func (s *System) GetCompanyStats(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+	return
+}
+
 func (s *System) GetEnvironmentStats(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("x-flags-timestamp", strconv.FormatInt(time.Now().Unix(), 10))
-	if r.Header.Get("x-user-subject") == "" || r.Header.Get("x-user-access-token") == "" {
-		if err := json.NewEncoder(w).Encode(&AgentStat{}); err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-		}
-		return
-	}
+	w.WriteHeader(http.StatusNotImplemented)
+	return
 
-	agentId := r.PathValue("agentId")
-	if agentId == "" {
-		if err := json.NewEncoder(w).Encode(&AgentStat{}); err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-		}
-		return
-	}
-
-	s.Context = r.Context()
-	timePeriod := 30
-	if r.URL.Query().Get("timePeriod") != "" {
-		timePeriod, _ = strconv.Atoi(r.URL.Query().Get("timePeriod"))
-	}
-
-	data, err := s.GetAgentEnvironmentStats(agentId, timePeriod)
-	if err != nil {
-		_ = s.Config.Bugfixes.Logger.Errorf("Failed to get agent stats from influx: %v", err)
-		return
-	}
-
-	data, err = s.GetNamesForData(data)
-	if err != nil {
-		_ = s.Config.Bugfixes.Logger.Errorf("Failed to get names for agent stats: %v", err)
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-
-	if err := json.NewEncoder(w).Encode(data); err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-	}
+	//w.Header().Set("x-flags-timestamp", strconv.FormatInt(time.Now().Unix(), 10))
+	//if r.Header.Get("x-user-subject") == "" || r.Header.Get("x-user-access-token") == "" {
+	//	if err := json.NewEncoder(w).Encode(&AgentStat{}); err != nil {
+	//		w.WriteHeader(http.StatusInternalServerError)
+	//	}
+	//	return
+	//}
+	//
+	//agentId := r.PathValue("agentId")
+	//if agentId == "" {
+	//	if err := json.NewEncoder(w).Encode(&AgentStat{}); err != nil {
+	//		w.WriteHeader(http.StatusInternalServerError)
+	//	}
+	//	return
+	//}
+	//
+	//s.Context = r.Context()
+	//timePeriod := 30
+	//if r.URL.Query().Get("timePeriod") != "" {
+	//	timePeriod, _ = strconv.Atoi(r.URL.Query().Get("timePeriod"))
+	//}
+	//
+	//data, err := s.GetAgentEnvironmentStats(agentId, timePeriod)
+	//if err != nil {
+	//	_ = s.Config.Bugfixes.Logger.Errorf("Failed to get agent stats from influx: %v", err)
+	//	return
+	//}
+	//
+	//data, err = s.GetNamesForData(data)
+	//if err != nil {
+	//	_ = s.Config.Bugfixes.Logger.Errorf("Failed to get names for agent stats: %v", err)
+	//	w.WriteHeader(http.StatusInternalServerError)
+	//	return
+	//}
+	//
+	//if err := json.NewEncoder(w).Encode(data); err != nil {
+	//	w.WriteHeader(http.StatusInternalServerError)
+	//}
 }
 
 func (s *System) GetAgentStats(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("x-flags-timestamp", strconv.FormatInt(time.Now().Unix(), 10))
-	if r.Header.Get("x-user-subject") == "" || r.Header.Get("x-user-access-token") == "" {
-		if err := json.NewEncoder(w).Encode(&AgentStat{}); err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-		}
-		return
-	}
+	w.WriteHeader(http.StatusNotImplemented)
+	return
 
-	agentId := r.PathValue("agentId")
-	if agentId == "" {
-		if err := json.NewEncoder(w).Encode(&AgentStat{}); err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-		}
-		return
-	}
-
-	s.Context = r.Context()
-	timePeriod := 30
-	if r.URL.Query().Get("timePeriod") != "" {
-		timePeriod, _ = strconv.Atoi(r.URL.Query().Get("timePeriod"))
-	}
-
-	data, err := s.GetAgentEnvironmentStats(agentId, timePeriod)
-	if err != nil {
-		_ = s.Config.Bugfixes.Logger.Errorf("Failed to get agent stats from influx: %v", err)
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-
-	data, err = s.GetNamesForData(data)
-	if err != nil {
-		_ = s.Config.Bugfixes.Logger.Errorf("Failed to get names for agent stats: %v", err)
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-
-	if err := json.NewEncoder(w).Encode(data); err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-	}
+	//w.Header().Set("x-flags-timestamp", strconv.FormatInt(time.Now().Unix(), 10))
+	//if r.Header.Get("x-user-subject") == "" || r.Header.Get("x-user-access-token") == "" {
+	//	if err := json.NewEncoder(w).Encode(&AgentStat{}); err != nil {
+	//		w.WriteHeader(http.StatusInternalServerError)
+	//	}
+	//	return
+	//}
+	//
+	//agentId := r.PathValue("agentId")
+	//if agentId == "" {
+	//	if err := json.NewEncoder(w).Encode(&AgentStat{}); err != nil {
+	//		w.WriteHeader(http.StatusInternalServerError)
+	//	}
+	//	return
+	//}
+	//
+	//s.Context = r.Context()
+	//timePeriod := 30
+	//if r.URL.Query().Get("timePeriod") != "" {
+	//	timePeriod, _ = strconv.Atoi(r.URL.Query().Get("timePeriod"))
+	//}
+	//
+	//data, err := s.GetAgentEnvironmentStats(agentId, timePeriod)
+	//if err != nil {
+	//	_ = s.Config.Bugfixes.Logger.Errorf("Failed to get agent stats from influx: %v", err)
+	//	w.WriteHeader(http.StatusInternalServerError)
+	//	return
+	//}
+	//
+	//data, err = s.GetNamesForData(data)
+	//if err != nil {
+	//	_ = s.Config.Bugfixes.Logger.Errorf("Failed to get names for agent stats: %v", err)
+	//	w.WriteHeader(http.StatusInternalServerError)
+	//	return
+	//}
+	//
+	//if err := json.NewEncoder(w).Encode(data); err != nil {
+	//	w.WriteHeader(http.StatusInternalServerError)
+	//}
 }
 
 func (s *System) GetAgentsStats(w http.ResponseWriter, r *http.Request) {

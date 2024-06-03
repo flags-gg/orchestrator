@@ -82,6 +82,35 @@ func (s *System) CreateProject(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
+
+	userSubject := r.Header.Get("x-user-subject")
+
+	type ProjCreate struct {
+		Name string `json:"name"`
+	}
+	proj := ProjCreate{}
+	if err := json.NewDecoder(r.Body).Decode(&proj); err != nil {
+		_ = s.Config.Bugfixes.Logger.Errorf("Failed to decode body: %v", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	createdProject, err := s.CreateProjectInDB(userSubject, proj.Name)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	projDetails, err := s.GetProjectFromDB(userSubject, createdProject.ProjectID)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(&projDetails); err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+	}
 }
 
 func (s *System) UpdateProject(w http.ResponseWriter, r *http.Request) {
@@ -94,6 +123,8 @@ func (s *System) UpdateProject(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
+
+	w.WriteHeader(http.StatusNotImplemented)
 }
 
 func (s *System) DeleteProject(w http.ResponseWriter, r *http.Request) {
@@ -106,4 +137,6 @@ func (s *System) DeleteProject(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
+
+	w.WriteHeader(http.StatusNotImplemented)
 }

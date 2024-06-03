@@ -95,6 +95,9 @@ func (s *System) GetAgentEnvironmentStats(agentId string, timePeriod int) (*Agen
     |> yield(name: "dailyCounts")`, s.Config.Influx.Bucket, timePeriod, agentId)
 	result, err := queryAPI.Query(s.Context, query)
 	if err != nil {
+		if err.Error() == "context canceled" {
+			return nil, nil
+		}
 		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to query influx: %v", err)
 	}
 

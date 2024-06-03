@@ -12,12 +12,14 @@ type Environment struct {
 	Id            string `json:"id"`
 	Name          string `json:"name"`
 	EnvironmentId string `json:"environment_id"`
+	Enabled       bool   `json:"enabled"`
 }
 
 type AgentDetails struct {
 	Id           string        `json:"id"`
 	Name         string        `json:"name"`
 	Environments []Environment `json:"environments"`
+	Enabled      bool          `json:"enabled"`
 }
 
 type System struct {
@@ -27,7 +29,8 @@ type System struct {
 
 func NewSystem(cfg *ConfigBuilder.Config) *System {
 	return &System{
-		Config: cfg,
+		Config:  cfg,
+		Context: context.Background(),
 	}
 }
 
@@ -69,51 +72,150 @@ func (s *System) GetAgentsRequest(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func (s *System) GetProjectAgents(w http.ResponseWriter, r *http.Request) {
+	type Agents struct {
+		Agents []*Agent `json:"agents"`
+	}
+	s.Context = r.Context()
+
+	if r.Header.Get("x-user-access-token") == "" || r.Header.Get("x-user-subject") == "" {
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
+	companyId, err := s.GetCompanyId(r.Header.Get("x-user-subject"))
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	if companyId == "" {
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
+	projectId := r.PathValue("projectId")
+	agents, err := s.GetAgentsForProject(companyId, projectId)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(&Agents{
+		Agents: agents,
+	}); err != nil {
+		_ = logs.Errorf("Failed to encode response: %v", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+}
+
 func (s *System) GetAgent(w http.ResponseWriter, r *http.Request) {
-	_, _ = w.Write([]byte(`{"agent": {}}`))
-	return
+	s.Context = r.Context()
+
+	if r.Header.Get("x-user-access-token") == "" || r.Header.Get("x-user-subject") == "" {
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
+	companyId, err := s.GetCompanyId(r.Header.Get("x-user-subject"))
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	if companyId == "" {
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
+	agentId := r.PathValue("agentId")
+	details, err := s.GetAgentDetails(agentId, companyId)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(details); err != nil {
+		_ = logs.Errorf("Failed to encode response: %v", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
 }
 
 func (s *System) UpdateAgent(w http.ResponseWriter, r *http.Request) {
-	_, _ = w.Write([]byte(`{"agent": {}}`))
+	w.WriteHeader(http.StatusNotImplemented)
 	return
 }
 
 func (s *System) DeleteAgent(w http.ResponseWriter, r *http.Request) {
-	_, _ = w.Write([]byte(`{"agent": {}}`))
+	w.WriteHeader(http.StatusNotImplemented)
 	return
 }
 
 func (s *System) CreateAgent(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
 
-	_, _ = w.Write([]byte(`{"agent": {}}`))
 	return
 }
 
 func (s *System) GetSecretMenu(w http.ResponseWriter, r *http.Request) {
-
+	w.WriteHeader(http.StatusNotImplemented)
 }
 
 func (s *System) CreateSecretMenu(w http.ResponseWriter, r *http.Request) {
-
+	w.WriteHeader(http.StatusNotImplemented)
 }
 
 func (s *System) UpdateSecretMenu(w http.ResponseWriter, r *http.Request) {
-
+	w.WriteHeader(http.StatusNotImplemented)
 }
 
 func (s *System) GetAgentEnvironments(w http.ResponseWriter, r *http.Request) {
+	type Environments struct {
+		Environments []*Environment `json:"environments"`
+	}
+	s.Context = r.Context()
 
+	if r.Header.Get("x-user-access-token") == "" || r.Header.Get("x-user-subject") == "" {
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
+	companyId, err := s.GetCompanyId(r.Header.Get("x-user-subject"))
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	if companyId == "" {
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
+	agentId := r.PathValue("agentId")
+	environments, err := s.GetAgentEnvironmentsFromDB(agentId)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(&Environments{
+		Environments: environments,
+	}); err != nil {
+		_ = logs.Errorf("Failed to encode response: %v", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
 }
 
 func (s *System) CreateAgentEnvironment(w http.ResponseWriter, r *http.Request) {
-
+	w.WriteHeader(http.StatusNotImplemented)
 }
 
 func (s *System) UpdateAgentEnvironment(w http.ResponseWriter, r *http.Request) {
-
+	w.WriteHeader(http.StatusNotImplemented)
 }
 
 func (s *System) DeleteAgentEnvironment(w http.ResponseWriter, r *http.Request) {
-
+	w.WriteHeader(http.StatusNotImplemented)
 }
