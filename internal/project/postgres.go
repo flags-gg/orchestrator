@@ -2,6 +2,7 @@ package project
 
 import (
 	"github.com/flags-gg/orchestrator/internal/agent"
+	"github.com/flags-gg/orchestrator/internal/environment"
 	"github.com/google/uuid"
 )
 
@@ -130,7 +131,7 @@ func (s *System) CreateProjectInDB(userSubject, projectName string) (*Project, e
 		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to create default agent: %v", err)
 	}
 
-	_, err = agent.NewSystem(s.Config).CreateEnvironmentInDB("Default Env", agentDetails.AgentId, userSubject)
+	_, err = environment.NewSystem(s.Config).CreateEnvironmentInDB("Default Env", agentDetails.AgentId, userSubject)
 	if err != nil {
 		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to create default environment: %v", err)
 	}

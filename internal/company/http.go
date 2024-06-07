@@ -25,6 +25,11 @@ func NewSystem(cfg *ConfigBuilder.Config) *System {
 	}
 }
 
+func (s *System) SetContext(ctx context.Context) *System {
+	s.Context = ctx
+	return s
+}
+
 func (s *System) GetCompany(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("x-flags-timestamp", strconv.FormatInt(time.Now().Unix(), 10))
 	s.Context = r.Context()

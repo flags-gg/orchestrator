@@ -98,3 +98,31 @@ func (s *System) GetUserLimits(userSubject string) (*Users, error) {
 
 	return u, nil
 }
+
+func (s *System) GetCompanyId(userSubject string) (string, error) {
+	client, err := s.Config.Database.GetPGXClient(s.Context)
+	if err != nil {
+		return "", s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
+	}
+	defer func() {
+		if err := client.Close(s.Context); err != nil {
+			s.Config.Bugfixes.Logger.Fatalf("Failed to close database connection: %v", err)
+		}
+	}()
+
+	var companyId string
+	if err := client.QueryRow(s.Context, `
+    SELECT
+      public.company.company_id
+    FROM public.company
+      LEFT JOIN public.company_user ON public.company_user.company_id = public.company.id
+      LEFT JOIN public.user ON public.user.id = public.company_user.user_id
+    WHERE public.user.subject = $1`, userSubject).Scan(&companyId); err != nil {
+		if err.Error() == "context canceled" {
+			return "", nil
+		}
+		return "", s.Config.Bugfixes.Logger.Errorf("Failed to query database: %v", err)
+	}
+
+	return companyId, nil
+}

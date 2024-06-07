@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"github.com/bugfixes/go-bugfixes/logs"
+	"github.com/flags-gg/orchestrator/internal/environment"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 )
@@ -14,14 +15,14 @@ type ProjectInfo struct {
 }
 
 type Agent struct {
-	Id               string         `json:"id"`
-	Name             string         `json:"name"`
-	RequestLimit     int            `json:"request_limit"`
-	AgentId          string         `json:"agent_id"`
-	Environments     []*Environment `json:"environments"`
-	EnvironmentLimit int            `json:"environment_limit"`
-	Enabled          bool           `json:"enabled"`
-	ProjectInfo      *ProjectInfo   `json:"project_info"`
+	Id               string                     `json:"id"`
+	Name             string                     `json:"name"`
+	RequestLimit     int                        `json:"request_limit"`
+	AgentId          string                     `json:"agent_id"`
+	Environments     []*environment.Environment `json:"environments"`
+	EnvironmentLimit int                        `json:"environment_limit"`
+	Enabled          bool                       `json:"enabled"`
+	ProjectInfo      *ProjectInfo               `json:"project_info"`
 }
 
 func (s *System) AddAgent(name, projectId string) (string, error) {
@@ -115,7 +116,7 @@ func (s *System) GetAgents(companyId string) ([]*Agent, error) {
 			return nil, s.Config.Bugfixes.Logger.Errorf("Failed to scan database rows: %v", err)
 		}
 
-		envs, err := s.GetAgentEnvironmentsFromDB(agent.AgentId)
+		envs, err := environment.NewSystem(s.Config).SetContext(s.Context).GetAgentEnvironmentsFromDB(agent.AgentId)
 		if err != nil {
 			return nil, s.Config.Bugfixes.Logger.Errorf("Failed to get agent environments: %v", err)
 		}
@@ -165,7 +166,7 @@ func (s *System) GetAgentsForProject(companyId, projectId string) ([]*Agent, err
 			return nil, s.Config.Bugfixes.Logger.Errorf("Failed to scan database rows: %v", err)
 		}
 
-		envs, err := s.GetAgentEnvironmentsFromDB(agent.AgentId)
+		envs, err := environment.NewSystem(s.Config).SetContext(s.Context).GetAgentEnvironmentsFromDB(agent.AgentId)
 		if err != nil {
 			return nil, s.Config.Bugfixes.Logger.Errorf("Failed to get agent environments: %v", err)
 		}
@@ -175,75 +176,6 @@ func (s *System) GetAgentsForProject(companyId, projectId string) ([]*Agent, err
 	}
 
 	return agents, nil
-}
-
-func (s *System) GetAgentEnvironmentsFromDB(agentId string) ([]*Environment, error) {
-	client, err := s.Config.Database.GetPGXClient(s.Context)
-	if err != nil {
-		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
-	}
-	defer func() {
-		if err := client.Close(s.Context); err != nil {
-			s.Config.Bugfixes.Logger.Fatalf("Failed to close database connection: %v", err)
-		}
-	}()
-
-	rows, err := client.Query(s.Context, `
-    SELECT
-      env.id,
-      env.name,
-      env.env_id,
-      env.enabled
-    FROM agent_environment AS env
-      JOIN agent ON env.agent_id = agent.id
-    WHERE agent.agent_id = $1`, agentId)
-	if err != nil {
-		if err.Error() == "context canceled" {
-			return nil, nil
-		}
-		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to query database: %v", err)
-	}
-	defer rows.Close()
-
-	var environments []*Environment
-	for rows.Next() {
-		environment := &Environment{}
-		if err := rows.Scan(&environment.Id, &environment.Name, &environment.EnvironmentId, &environment.Enabled); err != nil {
-			return nil, s.Config.Bugfixes.Logger.Errorf("Failed to scan database rows: %v", err)
-		}
-
-		environments = append(environments, environment)
-	}
-
-	return environments, nil
-}
-
-func (s *System) GetCompanyId(userSubject string) (string, error) {
-	client, err := s.Config.Database.GetPGXClient(s.Context)
-	if err != nil {
-		return "", s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
-	}
-	defer func() {
-		if err := client.Close(s.Context); err != nil {
-			s.Config.Bugfixes.Logger.Fatalf("Failed to close database connection: %v", err)
-		}
-	}()
-
-	var companyId string
-	if err := client.QueryRow(s.Context, `
-    SELECT
-      public.company.company_id
-    FROM public.company
-      LEFT JOIN public.company_user ON public.company_user.company_id = public.company.id
-      LEFT JOIN public.user ON public.user.id = public.company_user.user_id
-    WHERE public.user.subject = $1`, userSubject).Scan(&companyId); err != nil {
-		if err.Error() == "context canceled" {
-			return "", nil
-		}
-		return "", s.Config.Bugfixes.Logger.Errorf("Failed to query database: %v", err)
-	}
-
-	return companyId, nil
 }
 
 func (s *System) ValidateAgentWithEnvironment(ctx context.Context, agentId, projectId, environmentId string) (bool, error) {
@@ -358,40 +290,5 @@ func (s *System) CreateAgentInDB(name, projectId, userSubject string) (*Agent, e
 		Id:      insertedAgentId,
 		AgentId: agentId,
 		Name:    "Default Agent",
-	}, nil
-}
-
-func (s *System) CreateEnvironmentInDB(name, agentId, userSubject string) (*Environment, error) {
-	client, err := s.Config.Database.GetPGXClient(s.Context)
-	if err != nil {
-		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
-	}
-	defer func() {
-		if err := client.Close(s.Context); err != nil {
-			s.Config.Bugfixes.Logger.Fatalf("Failed to close database connection: %v", err)
-		}
-	}()
-
-	envId := uuid.New().String()
-	var insertedEnvId string
-
-	if err := client.QueryRow(s.Context, `
-      INSERT INTO public.agent_environment (
-          agent_id,
-          env_id,
-          name
-      ) VALUES ((
-        SELECT agent.id
-        FROM public.agent
-        WHERE agent.agent_id = $1
-      ), $2, $3)
-      RETURNING agent_environment.id`, agentId, envId, name).Scan(&insertedEnvId); err != nil {
-		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to insert environment into database: %v", err)
-	}
-
-	return &Environment{
-		Id:            insertedEnvId,
-		EnvironmentId: envId,
-		Name:          name,
 	}, nil
 }

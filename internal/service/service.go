@@ -3,6 +3,9 @@ package service
 import (
 	"context"
 	"fmt"
+	"github.com/flags-gg/orchestrator/internal/agent"
+	"github.com/flags-gg/orchestrator/internal/environment"
+	"github.com/flags-gg/orchestrator/internal/secretmenu"
 	ConfigBuilder "github.com/keloran/go-config"
 	"net/http"
 
@@ -11,7 +14,6 @@ import (
 	"github.com/keloran/go-healthcheck"
 	"github.com/keloran/go-probe"
 
-	"github.com/flags-gg/orchestrator/internal/agent"
 	"github.com/flags-gg/orchestrator/internal/company"
 	"github.com/flags-gg/orchestrator/internal/flags"
 	"github.com/flags-gg/orchestrator/internal/project"
@@ -40,7 +42,8 @@ func (s *Service) Start() error {
 func (s *Service) startHTTP(errChan chan error) {
 	mux := http.NewServeMux()
 	// Flags
-	mux.HandleFunc("GET /flags", flags.NewSystem(s.Config).GetFlags)
+	mux.HandleFunc("GET /flags", flags.NewSystem(s.Config).GetAgentFlags)
+	mux.HandleFunc("GET /flags/{projectId}/{agentId}/{environmentId}", flags.NewSystem(s.Config).GetClientFlags)
 	mux.HandleFunc("POST /flag", flags.NewSystem(s.Config).CreateFlags)
 	mux.HandleFunc("PUT /flag/{flagId}", flags.NewSystem(s.Config).UpdateFlags)
 	mux.HandleFunc("DELETE /flag/{flagId}", flags.NewSystem(s.Config).DeleteFlags)
@@ -52,10 +55,13 @@ func (s *Service) startHTTP(errChan chan error) {
 	mux.HandleFunc("GET /agent/{agentId}", agent.NewSystem(s.Config).GetAgent)
 	mux.HandleFunc("PUT /agent/{agentId}", agent.NewSystem(s.Config).UpdateAgent)
 	mux.HandleFunc("DELETE /agent/{agentId}", agent.NewSystem(s.Config).DeleteAgent)
-	mux.HandleFunc("GET /agent/{agentId}/environments", agent.NewSystem(s.Config).GetAgentEnvironments)
-	mux.HandleFunc("POST /agent/{agentId}/environment", agent.NewSystem(s.Config).CreateAgentEnvironment)
-	mux.HandleFunc("PUT /agent/{agentId}/environment/{environmentId}", agent.NewSystem(s.Config).UpdateAgentEnvironment)
-	mux.HandleFunc("DELETE /agent/{agentId}/environment/{environmentId}", agent.NewSystem(s.Config).DeleteAgentEnvironment)
+
+	// Environments
+	mux.HandleFunc("GET /agent/{agentId}/environments", environment.NewSystem(s.Config).GetAgentEnvironments)
+	mux.HandleFunc("POST /agent/{agentId}/environment", environment.NewSystem(s.Config).CreateAgentEnvironment)
+	mux.HandleFunc("GET /agent/{agentId}/environment/{environmentId}", environment.NewSystem(s.Config).GetEnvironment)
+	mux.HandleFunc("PUT /agent/{agentId}/environment/{environmentId}", environment.NewSystem(s.Config).UpdateAgentEnvironment)
+	mux.HandleFunc("DELETE /agent/{agentId}/environment/{environmentId}", environment.NewSystem(s.Config).DeleteAgentEnvironment)
 
 	// Projects
 	mux.HandleFunc("GET /projects", project.NewSystem(s.Config).GetProjects)
@@ -65,13 +71,14 @@ func (s *Service) startHTTP(errChan chan error) {
 	mux.HandleFunc("DELETE /project/{projectId}", project.NewSystem(s.Config).DeleteProject)
 
 	// Secret Menu
-	mux.HandleFunc("GET /agent/{agentId}/secret-menu", agent.NewSystem(s.Config).GetSecretMenu)
-	mux.HandleFunc("POST /agent/{agentId}/secret-menu", agent.NewSystem(s.Config).CreateSecretMenu)
-	mux.HandleFunc("PUT /agent/{agentId}/secret-menu", agent.NewSystem(s.Config).UpdateSecretMenu)
+	mux.HandleFunc("GET /agent/{agentId}/secret-menu", secretmenu.NewSystem(s.Config).GetSecretMenu)
+	mux.HandleFunc("POST /agent/{agentId}/secret-menu", secretmenu.NewSystem(s.Config).CreateSecretMenu)
+	mux.HandleFunc("PUT /agent/{agentId}/secret-menu", secretmenu.NewSystem(s.Config).UpdateSecretMenu)
 
 	// Stats
 	mux.HandleFunc("GET /stats/company", stats.NewSystem(s.Config).GetCompanyStats)
 	mux.HandleFunc("GET /stats/agent/{agentId}/environment/{environmentId}", stats.NewSystem(s.Config).GetEnvironmentStats)
+	mux.HandleFunc("GET /stats/project/{projectId}", stats.NewSystem(s.Config).GetProjectStats)
 	mux.HandleFunc("GET /stats/agent/{agentId}", stats.NewSystem(s.Config).GetAgentStats)
 
 	// User
