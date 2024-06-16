@@ -6,7 +6,7 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
-func (s *System) CreateEnvironmentInDB(name, agentId, userSubject string) (*Environment, error) {
+func (s *System) CreateEnvironmentInDB(name, agentId string) (*Environment, error) {
 	client, err := s.Config.Database.GetPGXClient(s.Context)
 	if err != nil {
 		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
@@ -112,4 +112,47 @@ func (s *System) GetAgentEnvironmentsFromDB(agentId string) ([]*Environment, err
 	}
 
 	return environments, nil
+}
+
+func (s *System) UpdateEnvironmentInDB(env Environment) error {
+	client, err := s.Config.Database.GetPGXClient(s.Context)
+	if err != nil {
+		return s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
+	}
+	defer func() {
+		if err := client.Close(s.Context); err != nil {
+			s.Config.Bugfixes.Logger.Fatalf("Failed to close database connection: %v", err)
+		}
+	}()
+
+	_, err = client.Exec(s.Context, `
+    UPDATE public.agent_environment
+    SET name = $1, enabled = $3
+    WHERE env_id = $2`, env.Name, env.EnvironmentId, env.Enabled)
+	if err != nil {
+		return s.Config.Bugfixes.Logger.Errorf("Failed to update environment in database: %v", err)
+	}
+
+	return nil
+}
+
+func (s *System) DeleteEnvironmentFromDB(envId string) error {
+	client, err := s.Config.Database.GetPGXClient(s.Context)
+	if err != nil {
+		return s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
+	}
+	defer func() {
+		if err := client.Close(s.Context); err != nil {
+			s.Config.Bugfixes.Logger.Fatalf("Failed to close database connection: %v", err)
+		}
+	}()
+
+	_, err = client.Exec(s.Context, `
+    DELETE FROM public.agent_environment
+    WHERE env_id = $1`, envId)
+	if err != nil {
+		return s.Config.Bugfixes.Logger.Errorf("Failed to delete environment from database: %v", err)
+	}
+
+	return nil
 }

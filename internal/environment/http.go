@@ -110,15 +110,103 @@ func (s *System) GetEnvironments(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *System) CreateAgentEnvironment(w http.ResponseWriter, r *http.Request) {
-	w.WriteHeader(http.StatusNotImplemented)
+	if r.Header.Get("x-user-access-token") == "" || r.Header.Get("x-user-subject") == "" {
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
+	companyId, err := company.NewSystem(s.Config).SetContext(s.Context).GetCompanyId(r.Header.Get("x-user-subject"))
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	if companyId == "" {
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
+	type envCreate struct {
+		Name string `json:"name"`
+	}
+
+	agentId := r.PathValue("agentId")
+	var env envCreate
+	if err := json.NewDecoder(r.Body).Decode(&env); err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	_, err = s.CreateEnvironmentInDB(env.Name, agentId)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusCreated)
 }
 
-func (s *System) UpdateAgentEnvironment(w http.ResponseWriter, r *http.Request) {
-	w.WriteHeader(http.StatusNotImplemented)
+func (s *System) UpdateEnvironment(w http.ResponseWriter, r *http.Request) {
+	s.Context = r.Context()
+
+	if r.Header.Get("x-user-access-token") == "" || r.Header.Get("x-user-subject") == "" {
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
+	companyId, err := company.NewSystem(s.Config).SetContext(s.Context).GetCompanyId(r.Header.Get("x-user-subject"))
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	if companyId == "" {
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
+	environmentId := r.PathValue("environmentId")
+	var env Environment
+	if err := json.NewDecoder(r.Body).Decode(&env); err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	if env.EnvironmentId != environmentId {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	if err := s.UpdateEnvironmentInDB(env); err != nil {
+		_ = s.Config.Bugfixes.Logger.Errorf("Failed to update environment: %v", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
 }
 
-func (s *System) DeleteAgentEnvironment(w http.ResponseWriter, r *http.Request) {
-	w.WriteHeader(http.StatusNotImplemented)
+func (s *System) DeleteEnvironment(w http.ResponseWriter, r *http.Request) {
+	s.Context = r.Context()
+
+	if r.Header.Get("x-user-access-token") == "" || r.Header.Get("x-user-subject") == "" {
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
+	companyId, err := company.NewSystem(s.Config).SetContext(s.Context).GetCompanyId(r.Header.Get("x-user-subject"))
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	if companyId == "" {
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
+	environmentId := r.PathValue("environmentId")
+	if err := s.DeleteEnvironmentFromDB(environmentId); err != nil {
+		_ = s.Config.Bugfixes.Logger.Errorf("Failed to delete environment: %v", err)
+		w.WriteHeader(http.StatusInternalServerError)
+	}
+
+	w.WriteHeader(http.StatusOK)
 }
 
 func (s *System) GetEnvironment(w http.ResponseWriter, r *http.Request) {

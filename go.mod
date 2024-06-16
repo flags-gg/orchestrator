@@ -5,7 +5,7 @@ go 1.22
 require (
 	github.com/Nerzal/gocloak/v13 v13.9.0 // indirect
 	github.com/apapsch/go-jsonmerge/v2 v2.0.0 // indirect
-	github.com/bugfixes/go-bugfixes v0.12.17 // indirect
+	github.com/bugfixes/go-bugfixes v0.12.18 // indirect
 	github.com/caarlos0/env/v8 v8.0.0 // indirect
 	github.com/cenkalti/backoff/v3 v3.2.2 // indirect
 	github.com/go-jose/go-jose/v3 v3.0.3 // indirect

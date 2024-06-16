@@ -11,7 +11,7 @@ type flagCreate struct {
 	AgentId       string `json:"agentId"`
 }
 
-func (s *System) GetClientFlagsFromDB(projectId, agentId, environmentId string) ([]Flag, error) {
+func (s *System) GetClientFlagsFromDB(environmentId string) ([]Flag, error) {
 	client, err := s.Config.Database.GetPGXClient(s.Context)
 	if err != nil {
 		return nil, s.Config.Bugfixes.Logger.Errorf("failed to connect to database: %v", err)
@@ -29,12 +29,10 @@ func (s *System) GetClientFlagsFromDB(projectId, agentId, environmentId string) 
         flags.name,
         flags.enabled
     FROM public.agent
-        LEFT JOIN public.agent_flag AS flags ON agent.id = flags.agent_id
+        LEFT JOIN public.environment_flag AS flags ON agent.id = flags.agent_id
         LEFT JOIN public.agent_environment AS env ON env.id = flags.environment_id
         LEFT JOIN public.project ON project.id = agent.project_id
-    WHERE env.env_id = $3
-        AND agent.agent_id = $2
-        AND project.project_id = $1`, projectId, agentId, environmentId)
+    WHERE env.env_id = $1`, environmentId)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return flags, nil
@@ -67,7 +65,7 @@ func (s *System) UpdateFlagInDB(flag Flag) error {
 	}()
 
 	_, err = client.Exec(s.Context, `
-    UPDATE public.agent_flag
+    UPDATE public.environment_flag
     SET
       enabled = $1,
       name=$3
@@ -90,7 +88,7 @@ func (s *System) DeleteFlagFromDB(flag Flag) error {
 		}
 	}()
 
-	_, err = client.Exec(s.Context, `DELETE FROM public.agent_flag WHERE id = $1`, flag.Details.ID)
+	_, err = client.Exec(s.Context, `DELETE FROM public.environment_flag WHERE id = $1`, flag.Details.ID)
 	if err != nil {
 		return s.Config.Bugfixes.Logger.Errorf("failed to delete flag: %v", err)
 	}
@@ -110,7 +108,7 @@ func (s *System) CreateFlagInDB(flag flagCreate) error {
 	}()
 
 	_, err = client.Exec(s.Context, `
-        INSERT INTO public.agent_flag (
+        INSERT INTO public.environment_flag (
           name,
           agent_id,
           environment_id

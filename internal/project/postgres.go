@@ -131,7 +131,7 @@ func (s *System) CreateProjectInDB(userSubject, projectName string) (*Project, e
 		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to create default agent: %v", err)
 	}
 
-	_, err = environment.NewSystem(s.Config).CreateEnvironmentInDB("Default Env", agentDetails.AgentId, userSubject)
+	_, err = environment.NewSystem(s.Config).CreateEnvironmentInDB("Default Env", agentDetails.AgentId)
 	if err != nil {
 		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to create default environment: %v", err)
 	}

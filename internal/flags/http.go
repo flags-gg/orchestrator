@@ -106,11 +106,9 @@ func (s *System) GetClientFlags(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	agentId := r.PathValue("agentId")
-	projectId := r.PathValue("projectId")
 	environmentId := r.PathValue("environmentId")
 
-	res, err := s.GetClientFlagsFromDB(projectId, agentId, environmentId)
+	res, err := s.GetClientFlagsFromDB(environmentId)
 	if err != nil {
 		s.Config.Bugfixes.Logger.Fatalf("Failed to get flags: %v", err)
 	}
