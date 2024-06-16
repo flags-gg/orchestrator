@@ -4,22 +4,17 @@ import (
 	"context"
 	"encoding/json"
 	"github.com/bugfixes/go-bugfixes/logs"
+	"github.com/flags-gg/orchestrator/internal/company"
+	"github.com/flags-gg/orchestrator/internal/environment"
 	ConfigBuilder "github.com/keloran/go-config"
 	"net/http"
 )
 
-type Environment struct {
-	Id            string `json:"id"`
-	Name          string `json:"name"`
-	EnvironmentId string `json:"environment_id"`
-	Enabled       bool   `json:"enabled"`
-}
-
 type AgentDetails struct {
-	Id           string        `json:"id"`
-	Name         string        `json:"name"`
-	Environments []Environment `json:"environments"`
-	Enabled      bool          `json:"enabled"`
+	Id           string                    `json:"id"`
+	Name         string                    `json:"name"`
+	Environments []environment.Environment `json:"environments"`
+	Enabled      bool                      `json:"enabled"`
 }
 
 type System struct {
@@ -34,6 +29,11 @@ func NewSystem(cfg *ConfigBuilder.Config) *System {
 	}
 }
 
+func (s *System) SetContext(ctx context.Context) *System {
+	s.Context = ctx
+	return s
+}
+
 func (s *System) GetAgentsRequest(w http.ResponseWriter, r *http.Request) {
 	type Agents struct {
 		Agents []*Agent `json:"agents"`
@@ -45,7 +45,7 @@ func (s *System) GetAgentsRequest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	companyId, err := s.GetCompanyId(r.Header.Get("x-user-subject"))
+	companyId, err := company.NewSystem(s.Config).SetContext(s.Context).GetCompanyId(r.Header.Get("x-user-subject"))
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -83,7 +83,7 @@ func (s *System) GetProjectAgents(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	companyId, err := s.GetCompanyId(r.Header.Get("x-user-subject"))
+	companyId, err := company.NewSystem(s.Config).SetContext(s.Context).GetCompanyId(r.Header.Get("x-user-subject"))
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -119,7 +119,7 @@ func (s *System) GetAgent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	companyId, err := s.GetCompanyId(r.Header.Get("x-user-subject"))
+	companyId, err := company.NewSystem(s.Config).SetContext(s.Context).GetCompanyId(r.Header.Get("x-user-subject"))
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -157,65 +157,4 @@ func (s *System) CreateAgent(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNotImplemented)
 
 	return
-}
-
-func (s *System) GetSecretMenu(w http.ResponseWriter, r *http.Request) {
-	w.WriteHeader(http.StatusNotImplemented)
-}
-
-func (s *System) CreateSecretMenu(w http.ResponseWriter, r *http.Request) {
-	w.WriteHeader(http.StatusNotImplemented)
-}
-
-func (s *System) UpdateSecretMenu(w http.ResponseWriter, r *http.Request) {
-	w.WriteHeader(http.StatusNotImplemented)
-}
-
-func (s *System) GetAgentEnvironments(w http.ResponseWriter, r *http.Request) {
-	type Environments struct {
-		Environments []*Environment `json:"environments"`
-	}
-	s.Context = r.Context()
-
-	if r.Header.Get("x-user-access-token") == "" || r.Header.Get("x-user-subject") == "" {
-		w.WriteHeader(http.StatusUnauthorized)
-		return
-	}
-
-	companyId, err := s.GetCompanyId(r.Header.Get("x-user-subject"))
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-	if companyId == "" {
-		w.WriteHeader(http.StatusUnauthorized)
-		return
-	}
-
-	agentId := r.PathValue("agentId")
-	environments, err := s.GetAgentEnvironmentsFromDB(agentId)
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(&Environments{
-		Environments: environments,
-	}); err != nil {
-		_ = logs.Errorf("Failed to encode response: %v", err)
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-}
-
-func (s *System) CreateAgentEnvironment(w http.ResponseWriter, r *http.Request) {
-	w.WriteHeader(http.StatusNotImplemented)
-}
-
-func (s *System) UpdateAgentEnvironment(w http.ResponseWriter, r *http.Request) {
-	w.WriteHeader(http.StatusNotImplemented)
-}
-
-func (s *System) DeleteAgentEnvironment(w http.ResponseWriter, r *http.Request) {
-	w.WriteHeader(http.StatusNotImplemented)
 }

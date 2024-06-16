@@ -20,6 +20,11 @@ func NewSystem(cfg *ConfigBuilder.Config) *System {
 	}
 }
 
+func (s *System) SetContext(ctx context.Context) *System {
+	s.Context = ctx
+	return s
+}
+
 func (s *System) ValidateUser(ctx context.Context, subject string) bool {
 	if subject == "" {
 		return false

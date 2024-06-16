@@ -10,7 +10,7 @@ import (
 	"strings"
 )
 
-func (s *System) GetAgentFlags(projectId, agentId, environmentId string) (*AgentResponse, error) {
+func (s *System) GetAgentFlagsFromDB(projectId, agentId, environmentId string) (*AgentResponse, error) {
 	res := &AgentResponse{
 		IntervalAllowed: 60,
 	}
@@ -41,6 +41,7 @@ func (s *System) GetAgentFlags(projectId, agentId, environmentId string) (*Agent
 	var menuCloseButton sql.NullString
 	var menuContainer sql.NullString
 	var menuButton sql.NullString
+	var intervalAllowed int
 
 	rows, err := client.Query(s.Context, `
     SELECT
@@ -50,12 +51,13 @@ func (s *System) GetAgentFlags(projectId, agentId, environmentId string) (*Agent
       secretMenu.code AS MenuCode,
       menuStyle.closebutton AS MenuCloseButton,
       menuStyle.container AS MenuContainer,
-      menuStyle.button AS MenuButton
+      menuStyle.button AS MenuButton,
+      agent.interval
     FROM public.agent
-      LEFT JOIN public.agent_flag AS flags ON agent.id = flags.agent_id
+      LEFT JOIN public.environment_flag AS flags ON agent.id = flags.agent_id
       LEFT JOIN public.agent_environment AS env ON env.id = flags.environment_id
       LEFT JOIN public.project ON project.id = agent.project_id
-      LEFT JOIN public.agent_secret_menu AS secretMenu ON secretMenu.agent_id = agent.id
+      LEFT JOIN public.environment_secret_menu AS secretMenu ON secretMenu.agent_id = agent.id
       LEFT JOIN public.secret_menu_style AS menuStyle ON menuStyle.secret_menu_id = secretMenu.id
     WHERE env.env_id = $1
       AND agent.agent_id = $2
@@ -85,6 +87,7 @@ func (s *System) GetAgentFlags(projectId, agentId, environmentId string) (*Agent
 			&menuCloseButton,
 			&menuContainer,
 			&menuButton,
+			&intervalAllowed,
 		); err != nil {
 			return nil, s.Config.Bugfixes.Logger.Errorf("Failed to scan row: %v", err)
 		}
@@ -99,6 +102,7 @@ func (s *System) GetAgentFlags(projectId, agentId, environmentId string) (*Agent
 		flags = append(flags, flag)
 	}
 	res.Flags = flags
+	res.IntervalAllowed = intervalAllowed
 
 	if menuEnabled {
 		sm := &SecretMenu{
@@ -151,6 +155,7 @@ func (s *System) GetDetaultEnvironment(projectId, agentId string) (string, error
       JOIN public.project ON agent.project_id = project.id
     WHERE agent.agent_id = $1
       AND project.project_id = $2
+      AND env.default = true
     ORDER BY env.id ASC
     LIMIT 1`, agentId, projectId).Scan(&envId)
 	if err != nil {
