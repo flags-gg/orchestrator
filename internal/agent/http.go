@@ -144,17 +144,119 @@ func (s *System) GetAgent(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *System) UpdateAgent(w http.ResponseWriter, r *http.Request) {
-	w.WriteHeader(http.StatusNotImplemented)
-	return
+	s.Context = r.Context()
+
+	if r.Header.Get("x-user-access-token") == "" || r.Header.Get("x-user-subject") == "" {
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
+	companyId, err := company.NewSystem(s.Config).SetContext(s.Context).GetCompanyId(r.Header.Get("x-user-subject"))
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	if companyId == "" {
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
+	agentId := r.PathValue("agentId")
+	agent := Agent{}
+	if err := json.NewDecoder(r.Body).Decode(&agent); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	if agentId != agent.AgentId {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	if err := s.UpdateAgentDetails(agent); err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
 }
 
 func (s *System) DeleteAgent(w http.ResponseWriter, r *http.Request) {
-	w.WriteHeader(http.StatusNotImplemented)
-	return
+	s.Context = r.Context()
+
+	if r.Header.Get("x-user-access-token") == "" || r.Header.Get("x-user-subject") == "" {
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
+	companyId, err := company.NewSystem(s.Config).SetContext(s.Context).GetCompanyId(r.Header.Get("x-user-subject"))
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	if companyId == "" {
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
+	agentId := r.PathValue("agentId")
+	if err := environment.NewSystem(s.Config).SetContext(s.Context).DeleteAllEnvironmentsForAgent(agentId); err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	if err := s.DeleteAgentFromDB(agentId); err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
 }
 
 func (s *System) CreateAgent(w http.ResponseWriter, r *http.Request) {
-	w.WriteHeader(http.StatusNotImplemented)
+	s.Context = r.Context()
 
-	return
+	if r.Header.Get("x-user-access-token") == "" || r.Header.Get("x-user-subject") == "" {
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
+	companyId, err := company.NewSystem(s.Config).SetContext(s.Context).GetCompanyId(r.Header.Get("x-user-subject"))
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	if companyId == "" {
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
+	projectId := r.PathValue("projectId")
+	agent := Agent{}
+	if err := json.NewDecoder(r.Body).Decode(&agent); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	agentId, err := s.CreateAgentForProject(agent.Name, projectId, r.Header.Get("x-user-subject"))
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	_, err = environment.NewSystem(s.Config).SetContext(s.Context).CreateEnvironmentInDB("Default Env", agentId)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	agent.AgentId = agentId
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(agent); err != nil {
+		_ = logs.Errorf("Failed to encode response: %v", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
 }

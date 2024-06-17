@@ -96,6 +96,30 @@ func (s *System) DeleteFlagFromDB(flag Flag) error {
 	return nil
 }
 
+func (s *System) DeleteAllFlagsForEnv(envId string) error {
+	client, err := s.Config.Database.GetPGXClient(s.Context)
+	if err != nil {
+		return s.Config.Bugfixes.Logger.Errorf("failed to connect to database: %v", err)
+	}
+	defer func() {
+		if err := client.Close(s.Context); err != nil {
+			s.Config.Bugfixes.Logger.Fatalf("failed to close database connection: %v", err)
+		}
+	}()
+
+	var envIdInt int
+	err = client.QueryRow(s.Context, `SELECT id FROM public.agent_environment WHERE env_id = $1`, envId).Scan(&envIdInt)
+	if err != nil {
+		return s.Config.Bugfixes.Logger.Errorf("failed to get environment id: %v", err)
+	}
+
+	_, err = client.Exec(s.Context, `DELETE FROM public.environment_flag WHERE environment_id = $1`, envIdInt)
+	if err != nil {
+		return s.Config.Bugfixes.Logger.Errorf("failed to delete flags: %v", err)
+	}
+	return nil
+}
+
 func (s *System) CreateFlagInDB(flag flagCreate) error {
 	client, err := s.Config.Database.GetPGXClient(s.Context)
 	if err != nil {

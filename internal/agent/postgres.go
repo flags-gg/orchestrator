@@ -25,9 +25,47 @@ type Agent struct {
 	ProjectInfo      *ProjectInfo               `json:"project_info"`
 }
 
-func (s *System) AddAgent(name, projectId string) (string, error) {
+func (s *System) CreateAgentForProject(name, projectId, userSubject string) (string, error) {
+	client, err := s.Config.Database.GetPGXClient(s.Context)
+	if err != nil {
+		return "", s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
+	}
+	defer func() {
+		if err := client.Close(s.Context); err != nil {
+			logs.Fatalf("Failed to close database connection: %v", err)
+		}
+	}()
 
-	return "bob", nil
+	agentId := uuid.New().String()
+
+	if _, err := client.Exec(s.Context, `
+    INSERT INTO public.agent (
+        project_id,
+        agent_id,
+        name,
+        allowed_environments,
+        allowed_access_limit
+    ) VALUES ((
+      SELECT project.id
+      FROM public.project
+      WHERE project.project_id = $1
+    ), $2, $3, (
+      SELECT allowed_environments_per_agent
+      FROM public.company
+          JOIN public.company_user ON company_user.company_id = company.id
+          JOIN public.user AS u ON u.id = company_user.user_id
+      WHERE u.subject = $4
+    ), (
+      SELECT allowed_access_per_environment
+      FROM public.company
+          JOIN public.company_user ON company_user.company_id = company.id
+          JOIN public.user AS u ON u.id = company_user.user_id
+      WHERE u.subject = $4
+    ))`, projectId, agentId, name, userSubject); err != nil {
+		return "", s.Config.Bugfixes.Logger.Errorf("Failed to insert agent into database: %v", err)
+	}
+
+	return agentId, nil
 }
 
 func (s *System) GetAgentDetails(agentId, companyId string) (*Agent, error) {
@@ -291,4 +329,47 @@ func (s *System) CreateAgentInDB(name, projectId, userSubject string) (*Agent, e
 		AgentId: agentId,
 		Name:    "Default Agent",
 	}, nil
+}
+
+func (s *System) UpdateAgentDetails(agent Agent) error {
+	client, err := s.Config.Database.GetPGXClient(s.Context)
+	if err != nil {
+		return s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
+	}
+	defer func() {
+		if err := client.Close(s.Context); err != nil {
+			s.Config.Bugfixes.Logger.Fatalf("Failed to close database connection: %v", err)
+		}
+	}()
+
+	_, err = client.Exec(s.Context, `
+    UPDATE public.agent
+    SET name = $1, allowed_access_limit = $2
+    WHERE agent_id = $3`, agent.Name, agent.RequestLimit, agent.AgentId)
+	if err != nil {
+		return s.Config.Bugfixes.Logger.Errorf("Failed to update agent details: %v", err)
+	}
+
+	return nil
+}
+
+func (s *System) DeleteAgentFromDB(agentId string) error {
+	client, err := s.Config.Database.GetPGXClient(s.Context)
+	if err != nil {
+		return s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
+	}
+	defer func() {
+		if err := client.Close(s.Context); err != nil {
+			s.Config.Bugfixes.Logger.Fatalf("Failed to close database connection: %v", err)
+		}
+	}()
+
+	_, err = client.Exec(s.Context, `
+    DELETE FROM public.agent
+    WHERE agent_id = $1`, agentId)
+	if err != nil {
+		return s.Config.Bugfixes.Logger.Errorf("Failed to delete agent: %v", err)
+	}
+
+	return nil
 }

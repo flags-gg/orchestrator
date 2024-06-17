@@ -2,6 +2,7 @@ package environment
 
 import (
 	"errors"
+	"github.com/flags-gg/orchestrator/internal/flags"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 )
@@ -152,6 +153,51 @@ func (s *System) DeleteEnvironmentFromDB(envId string) error {
     WHERE env_id = $1`, envId)
 	if err != nil {
 		return s.Config.Bugfixes.Logger.Errorf("Failed to delete environment from database: %v", err)
+	}
+
+	return nil
+}
+
+func (s *System) DeleteAllEnvironmentsForAgent(agentId string) error {
+	client, err := s.Config.Database.GetPGXClient(s.Context)
+	if err != nil {
+		return s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
+	}
+	defer func() {
+		if err := client.Close(s.Context); err != nil {
+			s.Config.Bugfixes.Logger.Fatalf("Failed to close database connection: %v", err)
+		}
+	}()
+
+	environmentIds := []string{}
+	rows, err := client.Query(s.Context, `
+    SELECT env_id
+    FROM public.agent_environment
+    WHERE agent_id = (
+        SELECT id
+        FROM public.agent
+        WHERE agent_id = $1
+    )`, agentId)
+	if err != nil {
+		return s.Config.Bugfixes.Logger.Errorf("Failed to get environments from database: %v", err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var envId string
+		if err := rows.Scan(&envId); err != nil {
+			return s.Config.Bugfixes.Logger.Errorf("Failed to scan database rows: %v", err)
+		}
+		environmentIds = append(environmentIds, envId)
+	}
+
+	for _, envId := range environmentIds {
+		if err := flags.NewSystem(s.Config).SetContext(s.Context).DeleteAllFlagsForEnv(envId); err != nil {
+			return s.Config.Bugfixes.Logger.Errorf("Failed to delete flags: %v", err)
+		}
+
+		if err := s.DeleteEnvironmentFromDB(envId); err != nil {
+			return s.Config.Bugfixes.Logger.Errorf("Failed to delete environment from database: %v", err)
+		}
 	}
 
 	return nil
