@@ -330,3 +330,46 @@ func (s *System) CreateAgentInDB(name, projectId, userSubject string) (*Agent, e
 		Name:    "Default Agent",
 	}, nil
 }
+
+func (s *System) UpdateAgentDetails(agent Agent) error {
+	client, err := s.Config.Database.GetPGXClient(s.Context)
+	if err != nil {
+		return s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
+	}
+	defer func() {
+		if err := client.Close(s.Context); err != nil {
+			s.Config.Bugfixes.Logger.Fatalf("Failed to close database connection: %v", err)
+		}
+	}()
+
+	_, err = client.Exec(s.Context, `
+    UPDATE public.agent
+    SET name = $1, allowed_access_limit = $2
+    WHERE agent_id = $3`, agent.Name, agent.RequestLimit, agent.AgentId)
+	if err != nil {
+		return s.Config.Bugfixes.Logger.Errorf("Failed to update agent details: %v", err)
+	}
+
+	return nil
+}
+
+func (s *System) DeleteAgentFromDB(agentId string) error {
+	client, err := s.Config.Database.GetPGXClient(s.Context)
+	if err != nil {
+		return s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
+	}
+	defer func() {
+		if err := client.Close(s.Context); err != nil {
+			s.Config.Bugfixes.Logger.Fatalf("Failed to close database connection: %v", err)
+		}
+	}()
+
+	_, err = client.Exec(s.Context, `
+    DELETE FROM public.agent
+    WHERE agent_id = $1`, agentId)
+	if err != nil {
+		return s.Config.Bugfixes.Logger.Errorf("Failed to delete agent: %v", err)
+	}
+
+	return nil
+}
