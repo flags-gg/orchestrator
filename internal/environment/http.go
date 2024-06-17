@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"github.com/bugfixes/go-bugfixes/logs"
 	"github.com/flags-gg/orchestrator/internal/company"
+	"github.com/flags-gg/orchestrator/internal/flags"
 	"github.com/flags-gg/orchestrator/internal/secretmenu"
 	ConfigBuilder "github.com/keloran/go-config"
 	"net/http"
@@ -201,6 +202,12 @@ func (s *System) DeleteEnvironment(w http.ResponseWriter, r *http.Request) {
 	}
 
 	environmentId := r.PathValue("environmentId")
+	if err := flags.NewSystem(s.Config).SetContext(r.Context()).DeleteAllFlagsForEnv(environmentId); err != nil {
+		_ = s.Config.Bugfixes.Logger.Errorf("Failed to delete flags: %v", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
 	if err := s.DeleteEnvironmentFromDB(environmentId); err != nil {
 		_ = s.Config.Bugfixes.Logger.Errorf("Failed to delete environment: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
