@@ -213,3 +213,28 @@ func (s *System) CreateSecretMenuInDB(environmentId string, secretMenu SecretMen
 
 	return menuId.String(), "", nil
 }
+
+func (s *System) DeleteSecretMenuForEnv(envId string) error {
+	client, err := s.Config.Database.GetPGXClient(s.Context)
+	if err != nil {
+		return s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
+	}
+	defer func() {
+		if err := client.Close(s.Context); err != nil {
+			logs.Fatalf("Failed to close database connection: %v", err)
+		}
+	}()
+
+	if _, err := client.Exec(s.Context, `
+    DELETE FROM public.environment_secret_menu
+           WHERE environment_id = (
+             SELECT id
+              FROM public.agent_environment
+              WHERE env_id = $1
+              LIMIT 1
+           )`, envId); err != nil {
+		return s.Config.Bugfixes.Logger.Errorf("Failed to delete from database: %v", err)
+	}
+
+	return nil
+}
