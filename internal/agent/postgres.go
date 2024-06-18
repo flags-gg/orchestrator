@@ -373,3 +373,48 @@ func (s *System) DeleteAgentFromDB(agentId string) error {
 
 	return nil
 }
+
+func (s *System) DeleteAllAgentsForProject(projectId string) error {
+	client, err := s.Config.Database.GetPGXClient(s.Context)
+	if err != nil {
+		return s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
+	}
+	defer func() {
+		if err := client.Close(s.Context); err != nil {
+			s.Config.Bugfixes.Logger.Fatalf("Failed to close database connection: %v", err)
+		}
+	}()
+
+	agents := []*Agent{}
+	rows, err := client.Query(s.Context, `
+    SELECT agent_id
+    FROM public.agent
+    WHERE project_id = (
+      SELECT id
+      FROM public.project
+      WHERE project_id = $1
+    )`, projectId)
+	if err != nil {
+		return s.Config.Bugfixes.Logger.Errorf("Failed to query database: %v", err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		agent := &Agent{}
+		if err := rows.Scan(&agent.AgentId); err != nil {
+			return s.Config.Bugfixes.Logger.Errorf("Failed to scan database rows: %v", err)
+		}
+		agents = append(agents, agent)
+	}
+
+	for _, agent := range agents {
+		if err := environment.NewSystem(s.Config).SetContext(s.Context).DeleteAllEnvironmentsForAgent(agent.AgentId); err != nil {
+			return s.Config.Bugfixes.Logger.Errorf("Failed to delete agent environments: %v", err)
+		}
+
+		if err := s.DeleteAgentFromDB(agent.AgentId); err != nil {
+			return s.Config.Bugfixes.Logger.Errorf("Failed to delete agent: %v", err)
+		}
+	}
+
+	return nil
+}

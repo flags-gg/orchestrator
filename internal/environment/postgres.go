@@ -3,6 +3,7 @@ package environment
 import (
 	"errors"
 	"github.com/flags-gg/orchestrator/internal/flags"
+	"github.com/flags-gg/orchestrator/internal/secretmenu"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 )
@@ -147,6 +148,13 @@ func (s *System) DeleteEnvironmentFromDB(envId string) error {
 			s.Config.Bugfixes.Logger.Fatalf("Failed to close database connection: %v", err)
 		}
 	}()
+
+	if err := flags.NewSystem(s.Config).SetContext(s.Context).DeleteAllFlagsForEnv(envId); err != nil {
+		return s.Config.Bugfixes.Logger.Errorf("Failed to delete flags: %v", err)
+	}
+	if err := secretmenu.NewSystem(s.Config).SetContext(s.Context).DeleteSecretMenuForEnv(envId); err != nil {
+		return s.Config.Bugfixes.Logger.Errorf("Failed to delete secret menus: %v", err)
+	}
 
 	_, err = client.Exec(s.Context, `
     DELETE FROM public.agent_environment

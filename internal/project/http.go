@@ -3,6 +3,7 @@ package project
 import (
 	"context"
 	"encoding/json"
+	"github.com/flags-gg/orchestrator/internal/agent"
 	ConfigBuilder "github.com/keloran/go-config"
 	"net/http"
 	"strconv"
@@ -129,7 +130,24 @@ func (s *System) UpdateProject(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.WriteHeader(http.StatusNotImplemented)
+	type ProjEdit struct {
+		Name      string `json:"name"`
+		ProjectID string `json:"project_id"`
+	}
+
+	proj := ProjEdit{}
+	if err := json.NewDecoder(r.Body).Decode(&proj); err != nil {
+		_ = s.Config.Bugfixes.Logger.Errorf("Failed to decode body: %v", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	if _, err := s.UpdateProjectInDB(proj.ProjectID, proj.Name); err != nil {
+		_ = s.Config.Bugfixes.Logger.Errorf("Failed to update project: %v", err)
+		w.WriteHeader(http.StatusInternalServerError)
+	}
+
+	w.WriteHeader(http.StatusOK)
 }
 
 func (s *System) DeleteProject(w http.ResponseWriter, r *http.Request) {
@@ -143,5 +161,22 @@ func (s *System) DeleteProject(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.WriteHeader(http.StatusNotImplemented)
+	type ProjEdit struct {
+		Name      string `json:"name"`
+		ProjectID string `json:"project_id"`
+	}
+
+	projectId := r.PathValue("projectId")
+
+	if err := agent.NewSystem(s.Config).SetContext(r.Context()).DeleteAllAgentsForProject(projectId); err != nil {
+		_ = s.Config.Bugfixes.Logger.Errorf("Failed to update project: %v", err)
+		w.WriteHeader(http.StatusInternalServerError)
+	}
+
+	if err := s.DeleteProjectInDB(projectId); err != nil {
+		_ = s.Config.Bugfixes.Logger.Errorf("Failed to update project: %v", err)
+		w.WriteHeader(http.StatusInternalServerError)
+	}
+
+	w.WriteHeader(http.StatusOK)
 }
