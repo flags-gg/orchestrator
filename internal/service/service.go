@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/flags-gg/orchestrator/internal/agent"
 	"github.com/flags-gg/orchestrator/internal/environment"
+	"github.com/flags-gg/orchestrator/internal/pricing"
 	"github.com/flags-gg/orchestrator/internal/project"
 	"github.com/flags-gg/orchestrator/internal/secretmenu"
 	ConfigBuilder "github.com/keloran/go-config"
@@ -97,10 +98,12 @@ func (s *Service) startHTTP(errChan chan error) {
 	mux.HandleFunc("PUT /company", company.NewSystem(s.Config).UpdateCompany)
 	mux.HandleFunc("POST /company", company.NewSystem(s.Config).CreateCompany)
 	mux.HandleFunc("GET /company/limits", company.NewSystem(s.Config).GetCompanyLimits)
+	mux.HandleFunc("GET /company/pricing", pricing.NewSystem(s.Config).GetCompanyPricing)
 
 	// General
 	mux.HandleFunc(fmt.Sprintf("%s /health", http.MethodGet), healthcheck.HTTP)
 	mux.HandleFunc(fmt.Sprintf("%s /probe", http.MethodGet), probe.HTTP)
+	mux.HandleFunc("GET /pricing", pricing.NewSystem(s.Config).GetGeneralPricing)
 
 	// middlewares
 	mw := middleware.NewMiddleware(context.Background())
