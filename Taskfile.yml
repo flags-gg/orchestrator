@@ -90,6 +90,13 @@ tasks:
         sh: cat .latest_tag
       COMMIT_HASH:
         sh: cat .commit_hash
+  deploy-latest-tag:
+    cmds:
+      - kubectl set image deployment/{{.SERVICE_NAME}} {{.SERVICE_NAME}}=containers.chewed-k8s.net/{{.NAMESPACE}}/{{.SERVICE_NAME}}:{{.LATEST_TAG}} -n {{.NAMESPACE}}
+      - kubectl rollout restart deployment/{{.SERVICE_NAME}} -n {{.NAMESPACE}}
+    vars:
+      LATEST_TAG:
+        sh: cat .latest_tag
   build:
     cmds:
       - task: build-images
