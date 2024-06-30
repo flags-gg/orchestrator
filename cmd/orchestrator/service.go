@@ -4,11 +4,12 @@ import (
 	"github.com/bugfixes/go-bugfixes/logs"
 	"github.com/caarlos0/env/v8"
 	vault_helper "github.com/keloran/vault-helper"
+	"os"
 
 	ConfigBuilder "github.com/keloran/go-config"
 	ConfigVault "github.com/keloran/go-config/vault"
 
-	"github.com/flags-gg/orchestrator/internal/service"
+	"github.com/flags-gg/orchestrator/internal/routes"
 )
 
 var (
@@ -39,22 +40,25 @@ func (pc ProjectConfig) Build(cfg *ConfigBuilder.Config) error {
 func main() {
 	logs.Logf("Starting %s version %s (build %s)", ServiceName, BuildVersion, BuildHash)
 
-	genericVaultPath := "kv/data/flags-gg/orchestrator"
+	kvPath := "kv/data/flags-gg/orchestrator"
+	if localPath, ok := os.LookupEnv("LOCAL_VAULT_PATH"); ok {
+		kvPath = localPath
+	}
 	vh := vault_helper.NewVault("", "")
 	c := ConfigBuilder.NewConfig(vh)
 	c.VaultPaths = ConfigVault.Paths{
 		Database: ConfigVault.Path{
 			Credentials: "database/creds/flags_database",
-			Details:     genericVaultPath,
+			Details:     kvPath,
 		},
 		Keycloak: ConfigVault.Path{
-			Details: genericVaultPath,
+			Details: kvPath,
 		},
 		Influx: ConfigVault.Path{
-			Details: genericVaultPath,
+			Details: kvPath,
 		},
 		BugFixes: ConfigVault.Path{
-			Details: genericVaultPath,
+			Details: kvPath,
 		},
 	}
 
@@ -70,7 +74,7 @@ func main() {
 		logs.Fatalf("Failed to build config: %v", err)
 	}
 
-	if err := service.New(c).Start(); err != nil {
+	if err := routes.New(c).Start(); err != nil {
 		logs.Fatalf("Failed to start service: %v", err)
 	}
 }

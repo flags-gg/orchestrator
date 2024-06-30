@@ -7,19 +7,25 @@ import (
 )
 
 type User struct {
-	Id      *string `json:"id"`
-	KnownAs *string `json:"known_as"`
-	Email   *string `json:"email_address"`
-	Subject *string `json:"subject"`
+	Id        *string `json:"id,omitempty"`
+	KnownAs   *string `json:"known_as,omitempty"`
+	Email     *string `json:"email_address,omitempty"`
+	Subject   *string `json:"subject,omitempty"`
+	Timezone  *string `json:"timezone,omitempty"`
+	JobTitle  *string `json:"job_title,omitempty"`
+	Location  *string `json:"location,omitempty"`
+	Avatar    *string `json:"avatar,omitempty"`
+	FirstName *string `json:"first_name,omitempty"`
+	LastName  *string `json:"last_name,omitempty"`
 }
 
 type Notification struct {
-	Id        *string    `json:"id"`
-	Subject   *string    `json:"subject"`
-	Content   *string    `json:"content"`
-	Read      *bool      `json:"read"`
-	CreatedAt *time.Time `json:"created_at"`
-	Action    *string    `json:"action"`
+	Id        *string    `json:"id,omitempty"`
+	Subject   *string    `json:"subject,omitempty"`
+	Content   *string    `json:"content,omitempty"`
+	Read      *bool      `json:"read,omitempty"`
+	CreatedAt *time.Time `json:"created_at,omitempty"`
+	Action    *string    `json:"action,omitempty"`
 }
 
 type Notifications struct {
@@ -62,12 +68,18 @@ func (s *System) RetrieveUserDetails(subject string) (*User, error) {
 	user := &User{}
 	if err := client.QueryRow(s.Context, `
     SELECT
-      id,
-      known_as,
-      email_address,
-      subject
+	      id,
+        known_as,
+        email_address,
+        subject,
+        timezone,
+        job_title,
+        location,
+        avatar,
+        first_name,
+        last_name
     FROM public.user
-    WHERE subject = $1`, subject).Scan(&user.Id, &user.KnownAs, &user.Email, &user.Subject); err != nil {
+    WHERE subject = $1`, subject).Scan(&user.Id, &user.KnownAs, &user.Email, &user.Subject, &user.Timezone, &user.JobTitle, &user.Location, &user.Avatar, &user.FirstName, &user.LastName); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, nil
 		}

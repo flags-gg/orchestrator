@@ -117,15 +117,7 @@ func (s *System) GetUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	type UserDetails struct {
-		KnownAs string `json:"knownAs"`
-		Email   string `json:"emailAddress"`
-	}
-
-	if err := json.NewEncoder(w).Encode(&UserDetails{
-		KnownAs: *user.KnownAs,
-		Email:   *user.Email,
-	}); err != nil {
+	if err := json.NewEncoder(w).Encode(user); err != nil {
 		_ = s.Config.Bugfixes.Logger.Errorf("Failed to encode user details: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
