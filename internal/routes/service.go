@@ -1,25 +1,25 @@
 package routes
 
 import (
-  "context"
-  "fmt"
-  "github.com/flags-gg/orchestrator/internal/agent"
-  "github.com/flags-gg/orchestrator/internal/environment"
-  "github.com/flags-gg/orchestrator/internal/pricing"
-  "github.com/flags-gg/orchestrator/internal/project"
-  "github.com/flags-gg/orchestrator/internal/secretmenu"
-  ConfigBuilder "github.com/keloran/go-config"
-  "net/http"
+	"context"
+	"fmt"
+	"github.com/flags-gg/orchestrator/internal/agent"
+	"github.com/flags-gg/orchestrator/internal/environment"
+	"github.com/flags-gg/orchestrator/internal/pricing"
+	"github.com/flags-gg/orchestrator/internal/project"
+	"github.com/flags-gg/orchestrator/internal/secretmenu"
+	ConfigBuilder "github.com/keloran/go-config"
+	"net/http"
 
-  "github.com/bugfixes/go-bugfixes/logs"
-  "github.com/bugfixes/go-bugfixes/middleware"
-  "github.com/keloran/go-healthcheck"
-  "github.com/keloran/go-probe"
+	"github.com/bugfixes/go-bugfixes/logs"
+	"github.com/bugfixes/go-bugfixes/middleware"
+	"github.com/keloran/go-healthcheck"
+	"github.com/keloran/go-probe"
 
-  "github.com/flags-gg/orchestrator/internal/company"
-  "github.com/flags-gg/orchestrator/internal/flags"
-  "github.com/flags-gg/orchestrator/internal/stats"
-  "github.com/flags-gg/orchestrator/internal/user"
+	"github.com/flags-gg/orchestrator/internal/company"
+	"github.com/flags-gg/orchestrator/internal/flags"
+	"github.com/flags-gg/orchestrator/internal/stats"
+	"github.com/flags-gg/orchestrator/internal/user"
 )
 
 type Service struct {
@@ -104,6 +104,7 @@ func (s *Service) startHTTP(errChan chan error) {
 	mux.HandleFunc(fmt.Sprintf("%s /health", http.MethodGet), healthcheck.HTTP)
 	mux.HandleFunc(fmt.Sprintf("%s /probe", http.MethodGet), probe.HTTP)
 	mux.HandleFunc("GET /pricing", pricing.NewSystem(s.Config).GetGeneralPricing)
+	mux.HandleFunc("/uploadthing", user.NewSystem(s.Config).UploadThing)
 
 	// middlewares
 	mw := middleware.NewMiddleware(context.Background())
