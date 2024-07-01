@@ -1,4 +1,4 @@
-package service
+package routes
 
 import (
 	"github.com/flags-gg/orchestrator/internal/agent"

@@ -57,12 +57,14 @@ func (s *System) GetGeneralPricing(w http.ResponseWriter, r *http.Request) {
 	type Pricing struct {
 		Pricing []Price `json:"prices"`
 	}
-	pricing := Pricing{}
-
-	pricing.Pricing = append(pricing.Pricing, s.GetFree())
-	pricing.Pricing = append(pricing.Pricing, s.GetStartup())
-	pricing.Pricing = append(pricing.Pricing, s.GetPro())
-	pricing.Pricing = append(pricing.Pricing, s.GetEnterprise())
+	returnedPrices, err := s.GetPrices()
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	pricing := Pricing{
+		Pricing: returnedPrices,
+	}
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(&pricing); err != nil {

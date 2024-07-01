@@ -17,6 +17,51 @@ type Price struct {
 	Extras       []Extra `json:"extras,omitempty"`
 }
 
+func (s *System) GetPrices() ([]Price, error) {
+	client, err := s.Config.Database.GetPGXClient(s.Context)
+	if err != nil {
+		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
+	}
+	defer func() {
+		if err := client.Close(s.Context); err != nil {
+			s.Config.Bugfixes.Logger.Fatalf("Failed to close database connection: %v", err)
+		}
+	}()
+
+	var prices []Price
+	rows, err := client.Query(s.Context, `
+    SELECT
+      payment_plans.name,
+      payment_plans.price,
+      payment_plans.team_members,
+      payment_plans.projects,
+      payment_plans.agents,
+      payment_plans.environments,
+      payment_plans.requests,
+      payment_plans.support_category,
+      payment_plans.popular
+    FROM public.payment_plans
+    WHERE payment_plans.custom = false
+    ORDER BY payment_plans.id ASC`)
+	if err != nil {
+		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to query database: %v", err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var price Price
+		var popular bool
+		if err := rows.Scan(&price.Title, &price.Price, &price.TeamMembers, &price.Projects, &price.Agents, &price.Environments, &price.Requests, &price.SupportType, &popular); err != nil {
+			return nil, s.Config.Bugfixes.Logger.Errorf("Failed to scan database: %v", err)
+		}
+		if popular {
+			price.SubTitle = "Most Popular"
+		}
+		prices = append(prices, price)
+	}
+
+	return prices, nil
+}
+
 func (s *System) GetFree() Price {
 	return Price{
 		Title:        "Free",
