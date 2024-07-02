@@ -1,4 +1,4 @@
-package service
+package routes
 
 import (
 	"context"
@@ -104,6 +104,7 @@ func (s *Service) startHTTP(errChan chan error) {
 	mux.HandleFunc(fmt.Sprintf("%s /health", http.MethodGet), healthcheck.HTTP)
 	mux.HandleFunc(fmt.Sprintf("%s /probe", http.MethodGet), probe.HTTP)
 	mux.HandleFunc("GET /pricing", pricing.NewSystem(s.Config).GetGeneralPricing)
+	mux.HandleFunc("/uploadthing", user.NewSystem(s.Config).UploadThing)
 
 	// middlewares
 	mw := middleware.NewMiddleware(context.Background())

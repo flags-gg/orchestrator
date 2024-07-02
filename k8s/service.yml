@@ -21,7 +21,18 @@ spec:
       labels:
         app: orchestrator
         name: orchestrator
+      annotations:
+        vault.hashicorp.com/agent-inject: "true"
+        vault.hashicorp.com/agent-inject-status: "update"
+        vault.hashicorp.com/role: "flags-gg-vault-orchestrator-sidecar"
+        vault.hashicorp.com/secret-volume-path: "/secrets"
+        vault.hashicorp.com/agent-inject-secret-orchestrator: "kv/data/flags-gg/orchestrator"
+        vault.hashicorp.com/agent-inject-template-orchestrator.json: |
+          {{ with secret "kv/data/flags-gg/orchestrator" }}
+          {{ .Data.data | toJSON }}
+          {{ end }}
     spec:
+      serviceAccountName: "vault-orchestrator-sidecar"
       hostAliases:
         - ip: "192.168.1.67"
           hostnames:
@@ -42,6 +53,8 @@ spec:
               value: "false"
             - name: VAULT_HOST
               value: "https://vault.chewed-k8s.net"
+            - name: LOCAL_VAULT_PATH
+              value: "/secrets/orchestrator.json"
             - name: VAULT_TOKEN
               valueFrom:
                 secretKeyRef:

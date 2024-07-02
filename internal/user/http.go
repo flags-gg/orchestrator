@@ -1,8 +1,10 @@
 package user
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"github.com/Nerzal/gocloak/v13"
 	"github.com/bugfixes/go-bugfixes/logs"
 	ConfigBuilder "github.com/keloran/go-config"
@@ -117,15 +119,7 @@ func (s *System) GetUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	type UserDetails struct {
-		KnownAs string `json:"knownAs"`
-		Email   string `json:"emailAddress"`
-	}
-
-	if err := json.NewEncoder(w).Encode(&UserDetails{
-		KnownAs: *user.KnownAs,
-		Email:   *user.Email,
-	}); err != nil {
+	if err := json.NewEncoder(w).Encode(user); err != nil {
 		_ = s.Config.Bugfixes.Logger.Errorf("Failed to encode user details: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -226,6 +220,83 @@ func (s *System) DeleteUserNotification(w http.ResponseWriter, r *http.Request) 
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
+
+	w.WriteHeader(http.StatusOK)
+}
+
+func (s *System) UploadThing(w http.ResponseWriter, r *http.Request) {
+	s.Context = r.Context()
+
+	type Files struct {
+		Name     string `json:"name"`
+		Size     int    `json:"size"`
+		Type     string `json:"type"`
+		CustomID string `json:"customId"`
+	}
+	type fileCreate struct {
+		Files              []Files `json:"files"`
+		ACL                string  `json:"acl"`
+		ContentDisposition string  `json:"contentDisposition"`
+	}
+
+	if err := r.ParseMultipartForm(32 << 20); err != nil {
+		_ = s.Config.Bugfixes.Logger.Errorf("Failed to parse form: %v", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	clientFiles := r.MultipartForm.File["files"]
+	files := []Files{}
+	for _, file := range clientFiles {
+		files = append(files, Files{
+			Name: file.Filename,
+			Size: int(file.Size),
+			Type: file.Header.Get("Content-Type"),
+		})
+	}
+	fc := fileCreate{
+		Files:              files,
+		ACL:                "public-read",
+		ContentDisposition: "inline",
+	}
+	buf := new(bytes.Buffer)
+	if err := json.NewEncoder(buf).Encode(fc); err != nil {
+		_ = s.Config.Bugfixes.Logger.Errorf("Failed to marshal request: %v", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	uploadThing := "https://uploadthing.com/api/uploadFiles"
+	req, err := http.NewRequest(http.MethodPost, uploadThing, buf)
+	if err != nil {
+		_ = s.Config.Bugfixes.Logger.Errorf("Failed to create request: %v", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("x-uploadthing-api-key", s.Config.Local.GetValue("UPLOADTHING_SECRET"))
+	req.Header.Set("x-uploadthing-version", "6.4.0")
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		_ = s.Config.Bugfixes.Logger.Errorf("Failed to upload thing: %v", err)
+		w.WriteHeader(http.StatusBadGateway)
+		return
+	}
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			_ = s.Config.Bugfixes.Logger.Errorf("Failed to close body: %v", err)
+		}
+	}()
+
+	var bd interface{}
+	if err := json.NewDecoder(resp.Body).Decode(&bd); err != nil {
+		_ = s.Config.Bugfixes.Logger.Errorf("Failed to decode response: %v", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	fmt.Sprintf("Response: %v", bd)
 
 	w.WriteHeader(http.StatusOK)
 }
