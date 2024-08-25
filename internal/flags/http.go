@@ -80,10 +80,10 @@ func (s *System) GetAgentFlags(w http.ResponseWriter, r *http.Request) {
 
 	if err := json.NewEncoder(w).Encode(responseObj); err != nil {
 		_, _ = w.Write([]byte(`{"error": "failed to encode response"}`))
-		stats.NewSystem(s.Config).AddAgentError(r.Header.Get("x-project-id"), r.Header.Get("x-agent-id"), r.Header.Get("x-environment-id"))
+		stats.NewSystem(s.Config).AddAgentError(projectId, agentId, environmentId)
 		_ = s.Config.Bugfixes.Logger.Errorf("Failed to encode response: %v", err)
 	}
-	stats.NewSystem(s.Config).AddAgentSuccess(r.Header.Get("x-project-id"), r.Header.Get("x-agent-id"), r.Header.Get("x-environment-id"))
+	stats.NewSystem(s.Config).AddAgentSuccess(projectId, agentId, environmentId)
 }
 
 func (s *System) GetClientFlags(w http.ResponseWriter, r *http.Request) {

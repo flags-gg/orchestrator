@@ -41,7 +41,18 @@ func (s *System) GetCompany(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.WriteHeader(http.StatusNotImplemented)
+	userSubject := r.Header.Get("x-user-subject")
+
+	company, err := s.GetCompanyInfo(userSubject)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(company); err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+	}
 }
 
 func (s *System) CreateCompany(w http.ResponseWriter, r *http.Request) {
