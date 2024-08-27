@@ -69,7 +69,7 @@ func (s *System) GetEnvironmentSecretMenu(environmentId string) (SecretMenu, err
     FROM public.environment_secret_menu
         LEFT JOIN public.secret_menu_style ON secret_menu_style.secret_menu_id = environment_secret_menu.id
         JOIN public.agent_environment ON agent_environment.id = environment_secret_menu.environment_id
-    WHERE env_id = $1`, environmentId).Scan(
+    WHERE agent_environment.env_id = $1`, environmentId).Scan(
 		&secretMenu.Id,
 		&secretMenu.Enabled,
 		&sequence,

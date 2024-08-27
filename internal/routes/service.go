@@ -69,7 +69,7 @@ func (s *Service) startHTTP(errChan chan error) {
 	mux.HandleFunc("GET /flags", flags.NewSystem(s.Config).GetAgentFlags)
 	mux.HandleFunc("GET /environment/{environmentId}/flags", flags.NewSystem(s.Config).GetClientFlags)
 	mux.HandleFunc("POST /flag", flags.NewSystem(s.Config).CreateFlags)
-	mux.HandleFunc("PUT /flag/{flagId}", flags.NewSystem(s.Config).UpdateFlags)
+	mux.HandleFunc("PATCH /flag/{flagId}", flags.NewSystem(s.Config).UpdateFlags)
 	mux.HandleFunc("DELETE /flag/{flagId}", flags.NewSystem(s.Config).DeleteFlags)
 
 	// Secret Menu
