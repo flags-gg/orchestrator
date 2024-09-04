@@ -26,18 +26,17 @@ func (s *System) GetSecretMenu(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	envId := r.PathValue("environmentId")
-
-	secretMenu, err := s.GetEnvironmentSecretMenu(envId)
+	menuId := r.PathValue("menuId")
+	secretMenu, err := s.GetSecretMenuFromDB(menuId)
 	if err != nil {
-		s.Config.Bugfixes.Logger.Fatalf("Failed to get secret menu: %v", err)
+		_ = s.Config.Bugfixes.Logger.Errorf("Failed to get secret menu: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(secretMenu); err != nil {
-		s.Config.Bugfixes.Logger.Fatalf("Failed to encode response: %v", err)
+		_ = s.Config.Bugfixes.Logger.Errorf("Failed to encode response: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -65,14 +64,14 @@ func (s *System) CreateSecretMenu(w http.ResponseWriter, r *http.Request) {
 	envId := r.PathValue("environmentId")
 	menuUpdate := SecretMenu{}
 	if err := json.NewDecoder(r.Body).Decode(&menuUpdate); err != nil {
-		s.Config.Bugfixes.Logger.Errorf("Failed to decode request: %v", err)
+		_ = s.Config.Bugfixes.Logger.Errorf("Failed to decode request: %v", err)
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
 	menuId, styleId, err := s.CreateSecretMenuInDB(envId, menuUpdate)
 	if err != nil {
-		s.Config.Bugfixes.Logger.Errorf("Failed to create secret menu: %v", err)
+		_ = s.Config.Bugfixes.Logger.Errorf("Failed to create secret menu: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -85,7 +84,7 @@ func (s *System) CreateSecretMenu(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(menuUpdate); err != nil {
-		s.Config.Bugfixes.Logger.Errorf("failed to encode menu: %v", err)
+		_ = s.Config.Bugfixes.Logger.Errorf("failed to encode menu: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 	}
 }
@@ -111,14 +110,14 @@ func (s *System) UpdateSecretMenu(w http.ResponseWriter, r *http.Request) {
 
 	menuUpdate := SecretMenu{}
 	if err := json.NewDecoder(r.Body).Decode(&menuUpdate); err != nil {
-		s.Config.Bugfixes.Logger.Fatalf("Failed to decode request: %v", err)
+		_ = s.Config.Bugfixes.Logger.Errorf("Failed to decode request: %v", err)
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
 	menuId := r.PathValue("menuId")
 	if err := s.UpdateSecretMenuInDB(menuId, menuUpdate); err != nil {
-		s.Config.Bugfixes.Logger.Fatalf("Failed to update secret menu: %v", err)
+		_ = s.Config.Bugfixes.Logger.Errorf("Failed to update secret menu: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}

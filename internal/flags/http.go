@@ -74,7 +74,7 @@ func (s *System) GetAgentFlags(w http.ResponseWriter, r *http.Request) {
 			IntervalAllowed: 600,
 			Flags:           []Flag{},
 		}
-		s.Config.Bugfixes.Logger.Fatalf("Failed to get flags: %v", err)
+		_ = s.Config.Bugfixes.Logger.Errorf("Failed to get flags: %v", err)
 	}
 	responseObj = *res
 
@@ -110,7 +110,7 @@ func (s *System) GetClientFlags(w http.ResponseWriter, r *http.Request) {
 
 	res, err := s.GetClientFlagsFromDB(environmentId)
 	if err != nil {
-		s.Config.Bugfixes.Logger.Fatalf("Failed to get flags: %v", err)
+		_ = s.Config.Bugfixes.Logger.Errorf("Failed to get flags: %v", err)
 	}
 	responseObj = res
 

@@ -114,6 +114,11 @@ func (s *System) GetAgentDetails(agentId, companyId string) (*Agent, error) {
 		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to query database: %v", err)
 	}
 
+	agent.Environments, err = environment.NewSystem(s.Config).SetContext(s.Context).GetAgentEnvironmentsFromDB(agentId)
+	if err != nil {
+		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to get agent environments: %v", err)
+	}
+
 	return agent, nil
 }
 

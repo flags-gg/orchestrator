@@ -94,6 +94,58 @@ func (s *System) GetEnvironmentSecretMenu(environmentId string) (SecretMenu, err
 	return secretMenu, nil
 }
 
+func (s *System) GetSecretMenuFromDB(menuId string) (SecretMenu, error) {
+	var secretMenu SecretMenu
+	var menuStyle MenuStyle
+
+	client, err := s.Config.Database.GetPGXClient(s.Context)
+	if err != nil {
+		return secretMenu, s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
+	}
+	defer func() {
+		if err := client.Close(s.Context); err != nil {
+			logs.Fatalf("Failed to close database connection: %v", err)
+		}
+	}()
+
+	var sequence sql.NullString
+
+	if err := client.QueryRow(s.Context, `
+    SELECT
+        menu_id,
+        enabled,
+        code,
+        closebutton,
+        container,
+        button,
+        style_id
+    FROM public.environment_secret_menu
+        LEFT JOIN public.secret_menu_style ON secret_menu_style.secret_menu_id = environment_secret_menu.id
+    WHERE environment_secret_menu.menu_id = $1`, menuId).Scan(
+		&secretMenu.Id,
+		&secretMenu.Enabled,
+		&sequence,
+		&menuStyle.CloseButton,
+		&menuStyle.Container,
+		&menuStyle.Button,
+		&menuStyle.Id); err != nil {
+		if err.Error() == "context canceled" {
+			return secretMenu, nil
+		}
+		if errors.Is(err, pgx.ErrNoRows) {
+			return secretMenu, nil
+		}
+		return secretMenu, s.Config.Bugfixes.Logger.Errorf("Failed to query database: %v", err)
+	}
+
+	if sequence.Valid {
+		secretMenu.Sequence = strings.Split(sequence.String, ",")
+	}
+	secretMenu.CustomStyle = menuStyle
+
+	return secretMenu, nil
+}
+
 func (s *System) UpdateSecretMenuInDB(menuId string, secretMenu SecretMenu) error {
 	client, err := s.Config.Database.GetPGXClient(s.Context)
 	if err != nil {

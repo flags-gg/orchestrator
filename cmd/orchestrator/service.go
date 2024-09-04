@@ -3,13 +3,12 @@ package main
 import (
 	"github.com/bugfixes/go-bugfixes/logs"
 	"github.com/caarlos0/env/v8"
+	"github.com/flags-gg/orchestrator/internal/routes"
 	vault_helper "github.com/keloran/vault-helper"
 	"os"
 
 	ConfigBuilder "github.com/keloran/go-config"
 	ConfigVault "github.com/keloran/go-config/vault"
-
-	"github.com/flags-gg/orchestrator/internal/routes"
 )
 
 var (
