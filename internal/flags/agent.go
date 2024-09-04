@@ -36,7 +36,7 @@ func (s *System) GetAgentFlagsFromDB(projectId, agentId, environmentId string) (
 	}
 
 	var flags []Flag
-	var menuEnabled bool
+	var menuEnabled sql.NullBool
 	var menuCode sql.NullString
 	var menuCloseButton sql.NullString
 	var menuContainer sql.NullString
@@ -104,7 +104,7 @@ func (s *System) GetAgentFlagsFromDB(projectId, agentId, environmentId string) (
 	res.Flags = flags
 	res.IntervalAllowed = intervalAllowed
 
-	if menuEnabled {
+	if menuEnabled.Bool {
 		sm := &SecretMenu{
 			Sequence: strings.Split(menuCode.String, ","),
 		}

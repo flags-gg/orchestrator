@@ -3,13 +3,12 @@ package main
 import (
 	"github.com/bugfixes/go-bugfixes/logs"
 	"github.com/caarlos0/env/v8"
+	"github.com/flags-gg/orchestrator/internal/routes"
 	vault_helper "github.com/keloran/vault-helper"
 	"os"
 
 	ConfigBuilder "github.com/keloran/go-config"
 	ConfigVault "github.com/keloran/go-config/vault"
-
-	"github.com/flags-gg/orchestrator/internal/routes"
 )
 
 var (
@@ -60,6 +59,9 @@ func main() {
 		BugFixes: ConfigVault.Path{
 			Details: kvPath,
 		},
+		Authentik: ConfigVault.Path{
+			Details: kvPath,
+		},
 	}
 
 	err := c.Build(
@@ -69,6 +71,7 @@ func main() {
 		ConfigBuilder.Keycloak,
 		ConfigBuilder.Influx,
 		ConfigBuilder.Bugfixes,
+		//ConfigBuilder.Authentik,
 		ConfigBuilder.WithProjectConfigurator(ProjectConfig{}))
 	if err != nil {
 		logs.Fatalf("Failed to build config: %v", err)

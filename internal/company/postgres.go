@@ -1,5 +1,10 @@
 package company
 
+import (
+	"database/sql"
+	"fmt"
+)
+
 type Agents struct {
 	Allowed int `json:"allowed"`
 	Used    int `json:"used"`
@@ -17,6 +22,13 @@ type Limits struct {
 	Agents   Agents   `json:"agents,omitempty"`
 	Projects Projects `json:"projects,omitempty"`
 	Users    Users    `json:"users,omitempty"`
+}
+
+type Details struct {
+	Company     *Company       `json:"company,omitempty"`
+	Avatar      sql.NullString `json:"avatar,omitempty"`
+	PaymentPlan sql.NullString `json:"paymentPlan,omitempty"`
+	Timezone    sql.NullString `json:"timezone,omitempty"`
 }
 
 func (s *System) GetProjectLimits(userSubject string) (*Projects, error) {
@@ -125,4 +137,15 @@ func (s *System) GetCompanyId(userSubject string) (string, error) {
 	}
 
 	return companyId, nil
+}
+
+func (s *System) GetCompanyInfo(userSubject string) (*Details, error) {
+	companyId, err := s.GetCompanyId(userSubject)
+	if err != nil {
+		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to get company id: %v", err)
+	}
+
+	fmt.Sprintf("Company ID: %s", companyId)
+
+	return nil, nil
 }
