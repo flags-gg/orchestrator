@@ -48,6 +48,7 @@ func (s *Service) startHTTP(errChan chan error) {
 	mux.HandleFunc("POST /project", project.NewSystem(s.Config).CreateProject)
 	mux.HandleFunc("GET /project/{projectId}", project.NewSystem(s.Config).GetProject)
 	mux.HandleFunc("PUT /project/{projectId}", project.NewSystem(s.Config).UpdateProject)
+	mux.HandleFunc("PUT /project/{projectId}/image", project.NewSystem(s.Config).UpdateProjectImage)
 	mux.HandleFunc("DELETE /project/{projectId}", project.NewSystem(s.Config).DeleteProject)
 
 	// Agents
@@ -126,6 +127,8 @@ func (s *Service) startHTTP(errChan chan error) {
 	if s.Config.Local.Development {
 		mw.AddAllowedOrigins("http://localhost:3000", "http://localhost:5173", "*")
 	}
+
+	logs.Logf("Mux: %+v", mux)
 
 	logs.Logf("Starting HTTP on %d", s.Config.Local.HTTPPort)
 	errChan <- http.ListenAndServe(fmt.Sprintf(":%d", s.Config.Local.HTTPPort), mw.Handler(mux))
