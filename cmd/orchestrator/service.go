@@ -1,14 +1,14 @@
 package main
 
 import (
-	"github.com/bugfixes/go-bugfixes/logs"
-	"github.com/caarlos0/env/v8"
-	"github.com/flags-gg/orchestrator/internal/routes"
-	vault_helper "github.com/keloran/vault-helper"
-	"os"
+  "github.com/bugfixes/go-bugfixes/logs"
+  "github.com/caarlos0/env/v8"
+  "github.com/flags-gg/orchestrator/internal"
+  vault_helper "github.com/keloran/vault-helper"
+  "os"
 
-	ConfigBuilder "github.com/keloran/go-config"
-	ConfigVault "github.com/keloran/go-config/vault"
+  ConfigBuilder "github.com/keloran/go-config"
+  ConfigVault "github.com/keloran/go-config/vault"
 )
 
 var (
@@ -77,7 +77,7 @@ func main() {
 		logs.Fatalf("Failed to build config: %v", err)
 	}
 
-	if err := routes.New(c).Start(); err != nil {
+	if err := internal.New(c).Start(); err != nil {
 		logs.Fatalf("Failed to start service: %v", err)
 	}
 }
