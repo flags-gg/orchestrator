@@ -3,6 +3,7 @@ package project
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"github.com/flags-gg/orchestrator/internal/agent"
 	ConfigBuilder "github.com/keloran/go-config"
 	"net/http"
@@ -130,9 +131,10 @@ func (s *System) UpdateProject(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	projectId := r.PathValue("projectId")
+
 	type ProjEdit struct {
-		Name      string `json:"name"`
-		ProjectID string `json:"project_id"`
+		Name string `json:"name"`
 	}
 
 	proj := ProjEdit{}
@@ -142,7 +144,7 @@ func (s *System) UpdateProject(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if _, err := s.UpdateProjectInDB(proj.ProjectID, proj.Name); err != nil {
+	if _, err := s.UpdateProjectInDB(projectId, proj.Name); err != nil {
 		_ = s.Config.Bugfixes.Logger.Errorf("Failed to update project: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 	}
@@ -179,4 +181,20 @@ func (s *System) DeleteProject(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusOK)
+}
+
+func (s *System) UpdateProjectImage(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("x-flags-timestamp", strconv.FormatInt(time.Now().Unix(), 10))
+	s.Context = r.Context()
+
+	if r.Header.Get("x-user-subject") == "" || r.Header.Get("x-user-access-token") == "" {
+		if err := json.NewEncoder(w).Encode(&Project{}); err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+		}
+		return
+	}
+	projectId := r.PathValue("projectId")
+	fmt.Sprintf("Project ID: %v", projectId)
+
+	w.WriteHeader(http.StatusNotImplemented)
 }
