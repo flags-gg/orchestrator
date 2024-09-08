@@ -87,7 +87,7 @@ func (s *System) GetAgentFlags(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *System) GetClientFlags(w http.ResponseWriter, r *http.Request) {
-	responseObj := []Flag{}
+	var responseObj []Flag
 	s.Context = r.Context()
 
 	if r.Header.Get("x-user-access-token") == "" || r.Header.Get("x-user-subject") == "" {

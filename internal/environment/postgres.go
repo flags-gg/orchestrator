@@ -177,7 +177,7 @@ func (s *System) DeleteAllEnvironmentsForAgent(agentId string) error {
 		}
 	}()
 
-	environmentIds := []string{}
+	var environmentIds []string
 	rows, err := client.Query(s.Context, `
     SELECT env_id
     FROM public.agent_environment
