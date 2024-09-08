@@ -203,3 +203,24 @@ func (s *System) DeleteProjectInDB(projectId string) error {
 
 	return nil
 }
+
+func (s *System) UpdateProjectImageInDB(projectId, logo string) error {
+	client, err := s.Config.Database.GetPGXClient(s.Context)
+	if err != nil {
+		return s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
+	}
+	defer func() {
+		if err := client.Close(s.Context); err != nil {
+			s.Config.Bugfixes.Logger.Fatalf("Failed to close database connection: %v", err)
+		}
+	}()
+
+	if _, err := client.Exec(s.Context, `
+      UPDATE public.project
+      SET logo = $1
+      WHERE project_id = $2`, logo, projectId); err != nil {
+		return s.Config.Bugfixes.Logger.Errorf("Failed to update project in database: %v", err)
+	}
+
+	return nil
+}

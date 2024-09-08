@@ -1,5 +1,10 @@
 package pricing
 
+import (
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
+)
+
 type Extra struct {
 	Title    string `json:"title,omitempty"`
 	Launched bool   `json:"launched,omitempty"`
@@ -62,71 +67,86 @@ func (s *System) GetPrices() ([]Price, error) {
 	return prices, nil
 }
 
-func (s *System) GetFree() Price {
-	return Price{
-		Title:        "Free",
-		Price:        0,
-		TeamMembers:  1,
-		Projects:     1,
-		Agents:       1,
-		Environments: 2,
-		Requests:     50000,
-		SupportType:  "Community",
+func (s *System) GetPrice(title string) (Price, error) {
+	client, err := s.Config.Database.GetPGXClient(s.Context)
+	if err != nil {
+		return Price{}, s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
 	}
+	defer func() {
+		if err := client.Close(s.Context); err != nil {
+			s.Config.Bugfixes.Logger.Fatalf("Failed to close database connection: %v", err)
+		}
+	}()
+
+	var price Price
+	row := client.QueryRow(s.Context, `
+    SELECT
+      payment_plans.name,
+      payment_plans.price,
+      payment_plans.team_members,
+      payment_plans.projects,
+      payment_plans.agents,
+      payment_plans.environments,
+      payment_plans.requests,
+      payment_plans.support_category
+    FROM public.payment_plans
+    WHERE payment_plans.name = $1`, title)
+	if err := row.Scan(&price.Title, &price.Price, &price.TeamMembers, &price.Projects, &price.Agents, &price.Environments, &price.Requests, &price.SupportType); err != nil {
+		return Price{}, s.Config.Bugfixes.Logger.Errorf("Failed to scan database: %v", err)
+	}
+
+	return price, nil
+}
+
+func (s *System) GetFree() Price {
+	price, err := s.GetPrice("free")
+	if err != nil {
+		_ = s.Config.Bugfixes.Logger.Errorf("Failed to get free price: %v", err)
+		return Price{}
+	}
+	price.Title = cases.Title(language.English).String(price.Title)
+	return price
 }
 
 func (s *System) GetStartup() Price {
-	return Price{
-		Title:        "Startup",
-		SubTitle:     "Most Popular",
-		Price:        15,
-		TeamMembers:  20,
-		Projects:     5,
-		Agents:       2,
-		Environments: 2,
-		Requests:     1000000,
-		SupportType:  "Community",
-		Extras: []Extra{
-			{
-				Title:    "A/B traffic testing",
-				Launched: false,
-			},
-		},
+	price, err := s.GetPrice("startup")
+	if err != nil {
+		_ = s.Config.Bugfixes.Logger.Errorf("Failed to get startup price: %v", err)
+		return Price{}
 	}
+	price.Title = cases.Title(language.English).String(price.Title)
+	price.SubTitle = "Most Popular"
+	price.Extras = append(price.Extras, Extra{
+		Title:    "A/B traffic testing",
+		Launched: false,
+	})
+	return price
 }
 
 func (s *System) GetPro() Price {
-	return Price{
-		Title:        "Pro",
-		Price:        50,
-		TeamMembers:  50,
-		Projects:     10,
-		Agents:       2,
-		Environments: 3,
-		Requests:     5000000,
-		SupportType:  "Extended",
-		Extras: []Extra{
-			{
-				Title:    "A/B traffic testing",
-				Launched: false,
-			},
-		},
+	price, err := s.GetPrice("pro")
+	if err != nil {
+		_ = s.Config.Bugfixes.Logger.Errorf("Failed to get startup price: %v", err)
+		return Price{}
 	}
+	price.Title = cases.Title(language.English).String(price.Title)
+	price.Extras = append(price.Extras, Extra{
+		Title:    "A/B traffic testing",
+		Launched: false,
+	})
+	return price
 }
 
 func (s *System) GetEnterprise() Price {
-	return Price{
-		Title:        "Enterprise",
-		Price:        200,
-		Agents:       5,
-		Environments: 5,
-		Requests:     20000000,
-		SupportType:  "Priority",
-		Extras: []Extra{
-			{
-				Title:    "A/B traffic testing",
-				Launched: false,
-			},
-		},
+	price, err := s.GetPrice("enterprise")
+	if err != nil {
+		_ = s.Config.Bugfixes.Logger.Errorf("Failed to get startup price: %v", err)
+		return Price{}
 	}
+	price.Title = cases.Title(language.English).String(price.Title)
+	price.Extras = append(price.Extras, Extra{
+		Title:    "A/B traffic testing",
+		Launched: false,
+	})
+	return price
 }

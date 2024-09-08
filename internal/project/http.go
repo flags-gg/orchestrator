@@ -3,7 +3,6 @@ package project
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"github.com/flags-gg/orchestrator/internal/agent"
 	ConfigBuilder "github.com/keloran/go-config"
 	"net/http"
@@ -194,7 +193,20 @@ func (s *System) UpdateProjectImage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	projectId := r.PathValue("projectId")
-	fmt.Sprintf("Project ID: %v", projectId)
 
-	w.WriteHeader(http.StatusNotImplemented)
+	imageChange := struct {
+		Image string `json:"image"`
+	}{}
+	if err := json.NewDecoder(r.Body).Decode(&imageChange); err != nil {
+		_ = s.Config.Bugfixes.Logger.Errorf("Failed to decode body: %v", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	if err := s.UpdateProjectImageInDB(projectId, imageChange.Image); err != nil {
+		_ = s.Config.Bugfixes.Logger.Errorf("Failed to update project: %v", err)
+		w.WriteHeader(http.StatusInternalServerError)
+	}
+
+	w.WriteHeader(http.StatusOK)
 }
