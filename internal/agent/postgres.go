@@ -390,7 +390,7 @@ func (s *System) DeleteAllAgentsForProject(projectId string) error {
 		}
 	}()
 
-	agents := []*Agent{}
+	var agents []*Agent
 	rows, err := client.Query(s.Context, `
     SELECT agent_id
     FROM public.agent

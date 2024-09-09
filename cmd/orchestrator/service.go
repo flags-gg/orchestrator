@@ -1,14 +1,14 @@
 package main
 
 import (
-  "github.com/bugfixes/go-bugfixes/logs"
-  "github.com/caarlos0/env/v8"
-  "github.com/flags-gg/orchestrator/internal"
-  vault_helper "github.com/keloran/vault-helper"
-  "os"
+	"github.com/bugfixes/go-bugfixes/logs"
+	"github.com/caarlos0/env/v8"
+	"github.com/flags-gg/orchestrator/internal"
+	vaulthelper "github.com/keloran/vault-helper"
+	"os"
 
-  ConfigBuilder "github.com/keloran/go-config"
-  ConfigVault "github.com/keloran/go-config/vault"
+	ConfigBuilder "github.com/keloran/go-config"
+	ConfigVault "github.com/keloran/go-config/vault"
 )
 
 var (
@@ -43,7 +43,7 @@ func main() {
 	if localPath, ok := os.LookupEnv("LOCAL_VAULT_PATH"); ok {
 		kvPath = localPath
 	}
-	vh := vault_helper.NewVault("", "")
+	vh := vaulthelper.NewVault("", "")
 	c := ConfigBuilder.NewConfig(vh)
 	c.VaultPaths = ConfigVault.Paths{
 		Database: ConfigVault.Path{

@@ -245,7 +245,7 @@ func (s *System) UploadThing(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	clientFiles := r.MultipartForm.File["files"]
-	files := []Files{}
+	var files []Files
 	for _, file := range clientFiles {
 		files = append(files, Files{
 			Name: file.Filename,
@@ -296,7 +296,7 @@ func (s *System) UploadThing(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-	fmt.Sprintf("Response: %v", bd)
+	_ = fmt.Sprintf("Response: %v", bd)
 
 	w.WriteHeader(http.StatusOK)
 }

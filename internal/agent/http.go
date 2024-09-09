@@ -10,7 +10,7 @@ import (
 	"net/http"
 )
 
-type AgentDetails struct {
+type Details struct {
 	Id           string                    `json:"id"`
 	Name         string                    `json:"name"`
 	Environments []environment.Environment `json:"environments"`

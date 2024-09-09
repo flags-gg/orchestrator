@@ -22,7 +22,7 @@ func (s *System) GetClientFlagsFromDB(environmentId string) ([]Flag, error) {
 		}
 	}()
 
-	flags := []Flag{}
+	var flags []Flag
 	rows, err := client.Query(s.Context, `
     SELECT
 	      flags.id,

@@ -10,11 +10,11 @@ type System struct {
 	Context context.Context
 }
 
-func NewSystem(cfg *ConfigBuilder.Config) *System {
-	return &System{
-		Config: cfg,
-	}
-}
+//func NewSystem(cfg *ConfigBuilder.Config) *System {
+//	return &System{
+//		Config: cfg,
+//	}
+//}
 
 func (s *System) SetContext(ctx context.Context) *System {
 	s.Context = ctx

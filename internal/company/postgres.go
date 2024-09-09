@@ -145,7 +145,7 @@ func (s *System) GetCompanyInfo(userSubject string) (*Details, error) {
 		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to get company id: %v", err)
 	}
 
-	fmt.Sprintf("Company ID: %s", companyId)
+	_ = fmt.Sprintf("Company ID: %s", companyId)
 
 	return nil, nil
 }

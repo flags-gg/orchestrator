@@ -7,6 +7,7 @@ import (
 )
 
 func (s *Service) ValidateUser(w http.ResponseWriter, r *http.Request) bool {
+	_ = w
 	userSubject := r.Header.Get("x-user-subject")
 	userAccessToken := r.Header.Get("x-user-access-token")
 
@@ -26,6 +27,7 @@ func (s *Service) ValidateUser(w http.ResponseWriter, r *http.Request) bool {
 }
 
 func (s *Service) ValidateAgent(w http.ResponseWriter, r *http.Request) bool {
+	_ = w
 	agentId := r.Header.Get("x-agent-id")
 	projectId := r.Header.Get("x-project-id")
 	environmentId := r.Header.Get("x-environment-id")

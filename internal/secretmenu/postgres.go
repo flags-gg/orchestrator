@@ -219,9 +219,9 @@ func (s *System) CreateSecretMenuInDB(environmentId string, secretMenu SecretMen
 		return "", "", s.Config.Bugfixes.Logger.Errorf("Failed to generate UUID: %v", err)
 	}
 
-	var env_id int
-	var agent_id int
-	if err := client.QueryRow(s.Context, `SELECT agent_id, id FROM public.agent_environment WHERE env_id = $1`, environmentId).Scan(&agent_id, &env_id); err != nil {
+	var envId int
+	var agentId int
+	if err := client.QueryRow(s.Context, `SELECT agent_id, id FROM public.agent_environment WHERE env_id = $1`, environmentId).Scan(&agentId, &envId); err != nil {
 		if err.Error() == "context canceled" {
 			return "", "", nil
 		}
@@ -232,7 +232,7 @@ func (s *System) CreateSecretMenuInDB(environmentId string, secretMenu SecretMen
 		return "", "", s.Config.Bugfixes.Logger.Errorf("Failed to query database: %v", err)
 	}
 
-	if _, err := client.Exec(s.Context, `INSERT INTO public.environment_secret_menu (menu_id, environment_id, enabled, code, agent_id) VALUES ($1, $2, $3, $4, $5)`, menuId.String(), env_id, secretMenu.Enabled, sequence, agent_id); err != nil {
+	if _, err := client.Exec(s.Context, `INSERT INTO public.environment_secret_menu (menu_id, environment_id, enabled, code, agent_id) VALUES ($1, $2, $3, $4, $5)`, menuId.String(), envId, secretMenu.Enabled, sequence, agentId); err != nil {
 		return "", "", s.Config.Bugfixes.Logger.Errorf("Failed to insert into database: %v", err)
 	}
 
