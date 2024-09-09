@@ -8,11 +8,12 @@ require (
 	github.com/caarlos0/env/v8 v8.0.0
 	github.com/google/uuid v1.6.0
 	github.com/influxdata/influxdb-client-go/v2 v2.14.0
-	github.com/jackc/pgx/v5 v5.6.0
+	github.com/jackc/pgx/v5 v5.7.0
 	github.com/keloran/go-config v1.3.0
 	github.com/keloran/go-healthcheck v1.2.2
 	github.com/keloran/go-probe v1.0.0
 	github.com/keloran/vault-helper v1.1.0
+	golang.org/x/text v0.15.0
 )
 
 require (
@@ -37,7 +38,7 @@ require (
 	github.com/hashicorp/vault/api v1.14.0 // indirect
 	github.com/influxdata/line-protocol v0.0.0-20200327222509-2487e7298839 // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect
-	github.com/jackc/pgservicefile v0.0.0-20221227161230-091c0ba34f0a // indirect
+	github.com/jackc/pgservicefile v0.0.0-20240606120523-5a60cdf6a761 // indirect
 	github.com/klauspost/compress v1.17.8 // indirect
 	github.com/mitchellh/go-homedir v1.1.0 // indirect
 	github.com/mitchellh/mapstructure v1.5.0 // indirect
@@ -59,7 +60,6 @@ require (
 	golang.org/x/oauth2 v0.0.0-20210218202405-ba52d332ba99 // indirect
 	golang.org/x/sync v0.7.0 // indirect
 	golang.org/x/sys v0.20.0 // indirect
-	golang.org/x/text v0.15.0 // indirect
 	golang.org/x/time v0.5.0 // indirect
 	google.golang.org/appengine v1.6.6 // indirect
 	google.golang.org/protobuf v1.33.0 // indirect
