@@ -8,7 +8,7 @@ require (
 	github.com/caarlos0/env/v8 v8.0.0
 	github.com/google/uuid v1.6.0
 	github.com/influxdata/influxdb-client-go/v2 v2.14.0
-	github.com/jackc/pgx/v5 v5.7.0
+	github.com/jackc/pgx/v5 v5.7.1
 	github.com/keloran/go-config v1.3.0
 	github.com/keloran/go-healthcheck v1.2.2
 	github.com/keloran/go-probe v1.0.0
@@ -55,11 +55,11 @@ require (
 	go.mongodb.org/mongo-driver v1.16.0 // indirect
 	go.uber.org/mock v0.4.0 // indirect
 	goauthentik.io/api/v3 v3.2024060.6 // indirect
-	golang.org/x/crypto v0.23.0 // indirect
+	golang.org/x/crypto v0.27.0 // indirect
 	golang.org/x/net v0.25.0 // indirect
 	golang.org/x/oauth2 v0.0.0-20210218202405-ba52d332ba99 // indirect
 	golang.org/x/sync v0.8.0 // indirect
-	golang.org/x/sys v0.20.0 // indirect
+	golang.org/x/sys v0.25.0 // indirect
 	golang.org/x/time v0.5.0 // indirect
 	google.golang.org/appengine v1.6.6 // indirect
 	google.golang.org/protobuf v1.33.0 // indirect
