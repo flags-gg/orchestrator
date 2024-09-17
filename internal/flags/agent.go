@@ -49,7 +49,7 @@ func (s *System) GetAgentFlagsFromDB(projectId, agentId, environmentId string) (
       flags.enabled AS FlagEnabled,
       secretMenu.enabled AS MenuEnabled,
       secretMenu.code AS MenuCode,
-      menuStyle.closebutton AS MenuCloseButton,
+      menuStyle.close_button AS MenuCloseButton,
       menuStyle.container AS MenuContainer,
       menuStyle.button AS MenuButton,
       agent.interval
@@ -156,7 +156,6 @@ func (s *System) GetDetaultEnvironment(projectId, agentId string) (string, error
     WHERE agent.agent_id = $1
       AND project.project_id = $2
       AND env.default = true
-    ORDER BY env.id ASC
     LIMIT 1`, agentId, projectId).Scan(&envId)
 	if err != nil {
 		if err.Error() == "context canceled" {

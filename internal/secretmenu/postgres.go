@@ -24,10 +24,16 @@ type MenuStyle struct {
 }
 
 type SecretMenu struct {
-	Id          string    `json:"menu_id"`
-	Enabled     bool      `json:"enabled"`
-	Sequence    []string  `json:"sequence,omitempty"`
-	CustomStyle MenuStyle `json:"custom_style,omitempty"`
+	Id          string             `json:"menu_id"`
+	Enabled     bool               `json:"enabled"`
+	EnvDetails  EnvironmentDetails `json:"environment_details,omitempty"`
+	Sequence    []string           `json:"sequence,omitempty"`
+	CustomStyle MenuStyle          `json:"custom_style,omitempty"`
+}
+
+type EnvironmentDetails struct {
+	EnvironmentID string `json:"environment_id"`
+	Name          string `json:"name"`
 }
 
 func NewSystem(cfg *ConfigBuilder.Config) *System {
@@ -62,7 +68,7 @@ func (s *System) GetEnvironmentSecretMenu(environmentId string) (SecretMenu, err
         menu_id,
         environment_secret_menu.enabled,
         code,
-        closebutton,
+        close_button,
         container,
         button,
         style_id
@@ -97,6 +103,7 @@ func (s *System) GetEnvironmentSecretMenu(environmentId string) (SecretMenu, err
 func (s *System) GetSecretMenuFromDB(menuId string) (SecretMenu, error) {
 	var secretMenu SecretMenu
 	var menuStyle MenuStyle
+	var envDetails EnvironmentDetails
 
 	client, err := s.Config.Database.GetPGXClient(s.Context)
 	if err != nil {
@@ -113,22 +120,27 @@ func (s *System) GetSecretMenuFromDB(menuId string) (SecretMenu, error) {
 	if err := client.QueryRow(s.Context, `
     SELECT
         menu_id,
-        enabled,
+        secret_menu.enabled,
         code,
-        closebutton,
+        close_button,
         container,
         button,
-        style_id
-    FROM public.environment_secret_menu
-        LEFT JOIN public.secret_menu_style ON secret_menu_style.secret_menu_id = environment_secret_menu.id
-    WHERE environment_secret_menu.menu_id = $1`, menuId).Scan(
+        style_id,
+        agent_environment.env_id,
+        agent_environment.name
+    FROM public.environment_secret_menu AS secret_menu
+        LEFT JOIN public.secret_menu_style ON secret_menu_style.secret_menu_id = secret_menu.id
+        LEFT JOIN public.agent_environment ON agent_environment.id = secret_menu.environment_id
+    WHERE secret_menu.menu_id = $1`, menuId).Scan(
 		&secretMenu.Id,
 		&secretMenu.Enabled,
 		&sequence,
 		&menuStyle.CloseButton,
 		&menuStyle.Container,
 		&menuStyle.Button,
-		&menuStyle.Id); err != nil {
+		&menuStyle.Id,
+		&envDetails.EnvironmentID,
+		&envDetails.Name); err != nil {
 		if err.Error() == "context canceled" {
 			return secretMenu, nil
 		}
@@ -142,11 +154,12 @@ func (s *System) GetSecretMenuFromDB(menuId string) (SecretMenu, error) {
 		secretMenu.Sequence = strings.Split(sequence.String, ",")
 	}
 	secretMenu.CustomStyle = menuStyle
+	secretMenu.EnvDetails = envDetails
 
 	return secretMenu, nil
 }
 
-func (s *System) UpdateSecretMenuInDB(menuId string, secretMenu SecretMenu) error {
+func (s *System) UpdateSecretMenuSequenceInDB(menuId string, secretMenu SecretMenu) error {
 	client, err := s.Config.Database.GetPGXClient(s.Context)
 	if err != nil {
 		return s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
@@ -160,10 +173,45 @@ func (s *System) UpdateSecretMenuInDB(menuId string, secretMenu SecretMenu) erro
 	sequence := strings.Join(secretMenu.Sequence, ",")
 	if _, err := client.Exec(s.Context, `
     UPDATE public.environment_secret_menu
-    SET enabled = $1, code = $2
-    WHERE menu_id = $3`, secretMenu.Enabled, sequence, menuId); err != nil {
+    SET code = $1
+    WHERE menu_id = $2`, sequence, menuId); err != nil {
 		return s.Config.Bugfixes.Logger.Errorf("Failed to update database: %v", err)
 	}
+
+	return nil
+}
+
+func (s *System) UpdateSecretMenuStateInDB(menuId string, secretMenu SecretMenu) error {
+	client, err := s.Config.Database.GetPGXClient(s.Context)
+	if err != nil {
+		return s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
+	}
+	defer func() {
+		if err := client.Close(s.Context); err != nil {
+			logs.Fatalf("Failed to close database connection: %v", err)
+		}
+	}()
+
+	if _, err := client.Exec(s.Context, `
+    UPDATE public.environment_secret_menu
+    SET enabled = $1
+    WHERE menu_id = $2`, secretMenu.Enabled, menuId); err != nil {
+		return s.Config.Bugfixes.Logger.Errorf("Failed to update database: %v", err)
+	}
+
+	return nil
+}
+
+func (s *System) UpdateSecretMenuStyleInDB(menuId string, secretMenu SecretMenu) error {
+	client, err := s.Config.Database.GetPGXClient(s.Context)
+	if err != nil {
+		return s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
+	}
+	defer func() {
+		if err := client.Close(s.Context); err != nil {
+			logs.Fatalf("Failed to close database connection: %v", err)
+		}
+	}()
 
 	if secretMenu.CustomStyle.Id.String == "" {
 		uu, err := uuid.NewRandom()
@@ -185,7 +233,7 @@ func (s *System) UpdateSecretMenuInDB(menuId string, secretMenu SecretMenu) erro
 		}
 
 		if _, err := client.Exec(s.Context, `
-      INSERT INTO public.secret_menu_style (secret_menu_id, closebutton, container, button, style_id)
+      INSERT INTO public.secret_menu_style (secret_menu_id, close_button, container, button, style_id)
       VALUES ($1, $2, $3, $4, $5)`, secretMenuId, secretMenu.CustomStyle.CloseButton, secretMenu.CustomStyle.Container, secretMenu.CustomStyle.Button, styleId); err != nil {
 			return s.Config.Bugfixes.Logger.Errorf("Failed to insert into database: %v", err)
 		}
@@ -194,7 +242,7 @@ func (s *System) UpdateSecretMenuInDB(menuId string, secretMenu SecretMenu) erro
 
 	if _, err := client.Exec(s.Context, `
     UPDATE public.secret_menu_style
-    SET closebutton = $1, container = $2, button = $3
+    SET close_button = $1, container = $2, button = $3
     WHERE style_id = $4`, secretMenu.CustomStyle.CloseButton, secretMenu.CustomStyle.Container, secretMenu.CustomStyle.Button, secretMenu.CustomStyle.Id); err != nil {
 		return s.Config.Bugfixes.Logger.Errorf("Failed to update database: %v", err)
 	}
@@ -256,7 +304,7 @@ func (s *System) CreateSecretMenuInDB(environmentId string, secretMenu SecretMen
 		}
 
 		if _, err := client.Exec(s.Context, `
-      INSERT INTO public.secret_menu_style (secret_menu_id, closebutton, container, button, style_id)
+      INSERT INTO public.secret_menu_style (secret_menu_id, close_button, container, button, style_id)
       VALUES ($1, $2, $3, $4, $5)`, secretMenuId, secretMenu.CustomStyle.CloseButton, secretMenu.CustomStyle.Container, secretMenu.CustomStyle.Button, styleId); err != nil {
 			return "", "", s.Config.Bugfixes.Logger.Errorf("Failed to insert into database: %v", err)
 		}
