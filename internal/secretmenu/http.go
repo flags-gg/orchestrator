@@ -89,7 +89,7 @@ func (s *System) CreateSecretMenu(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (s *System) UpdateSecretMenu(w http.ResponseWriter, r *http.Request) {
+func (s *System) UpdateSecretMenuState(w http.ResponseWriter, r *http.Request) {
 	s.Context = r.Context()
 
 	if r.Header.Get("x-user-access-token") == "" || r.Header.Get("x-user-subject") == "" {
@@ -116,11 +116,95 @@ func (s *System) UpdateSecretMenu(w http.ResponseWriter, r *http.Request) {
 	}
 
 	menuId := r.PathValue("menuId")
-	if err := s.UpdateSecretMenuInDB(menuId, menuUpdate); err != nil {
+	if err := s.UpdateSecretMenuStateInDB(menuId, menuUpdate); err != nil {
 		_ = s.Config.Bugfixes.Logger.Errorf("Failed to update secret menu: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
-	w.WriteHeader(http.StatusOK)
+	if err := json.NewEncoder(w).Encode(menuUpdate); err != nil {
+		_ = s.Config.Bugfixes.Logger.Errorf("Failed to encode response: %v", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+}
+
+func (s *System) UpdateSecretMenuSequence(w http.ResponseWriter, r *http.Request) {
+	s.Context = r.Context()
+
+	if r.Header.Get("x-user-access-token") == "" || r.Header.Get("x-user-subject") == "" {
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
+	companyId, err := company.NewSystem(s.Config).SetContext(s.Context).GetCompanyId(r.Header.Get("x-user-subject"))
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	if companyId == "" {
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
+	menuUpdate := SecretMenu{}
+	if err := json.NewDecoder(r.Body).Decode(&menuUpdate); err != nil {
+		_ = s.Config.Bugfixes.Logger.Errorf("Failed to decode request: %v", err)
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	menuId := r.PathValue("menuId")
+	if err := s.UpdateSecretMenuSequenceInDB(menuId, menuUpdate); err != nil {
+		_ = s.Config.Bugfixes.Logger.Errorf("Failed to update secret menu: %v", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	if err := json.NewEncoder(w).Encode(menuUpdate); err != nil {
+		_ = s.Config.Bugfixes.Logger.Errorf("Failed to encode response: %v", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+}
+
+func (s *System) UpdateSecretMenuStyle(w http.ResponseWriter, r *http.Request) {
+	s.Context = r.Context()
+
+	if r.Header.Get("x-user-access-token") == "" || r.Header.Get("x-user-subject") == "" {
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
+	companyId, err := company.NewSystem(s.Config).SetContext(s.Context).GetCompanyId(r.Header.Get("x-user-subject"))
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	if companyId == "" {
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
+	menuUpdate := SecretMenu{}
+	if err := json.NewDecoder(r.Body).Decode(&menuUpdate); err != nil {
+		_ = s.Config.Bugfixes.Logger.Errorf("Failed to decode request: %v", err)
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	menuId := r.PathValue("menuId")
+	if err := s.UpdateSecretMenuStyleInDB(menuId, menuUpdate); err != nil {
+		_ = s.Config.Bugfixes.Logger.Errorf("Failed to update secret menu: %v", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	if err := json.NewEncoder(w).Encode(menuUpdate); err != nil {
+		_ = s.Config.Bugfixes.Logger.Errorf("Failed to encode response: %v", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
 }
