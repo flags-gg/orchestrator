@@ -18,6 +18,8 @@ type Environment struct {
 	Enabled       bool                  `json:"enabled"`
 	SecretMenu    secretmenu.SecretMenu `json:"secret_menu,omitempty"`
 	Flags         []flags.Flag          `json:"flags,omitempty"`
+	ProjectName   string                `json:"project_name,omitempty"`
+	AgentName     string                `json:"agent_name,omitempty"`
 }
 
 type System struct {

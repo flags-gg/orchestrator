@@ -2,7 +2,7 @@ package main
 
 import (
 	"github.com/bugfixes/go-bugfixes/logs"
-	"github.com/caarlos0/env/v8"
+	env "github.com/caarlos0/env/v8"
 	"github.com/flags-gg/orchestrator/internal"
 	vaulthelper "github.com/keloran/vault-helper"
 	"os"
@@ -71,7 +71,6 @@ func main() {
 		ConfigBuilder.Keycloak,
 		ConfigBuilder.Influx,
 		ConfigBuilder.Bugfixes,
-		//ConfigBuilder.Authentik,
 		ConfigBuilder.WithProjectConfigurator(ProjectConfig{}))
 	if err != nil {
 		logs.Fatalf("Failed to build config: %v", err)

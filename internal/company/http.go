@@ -108,10 +108,22 @@ func (s *System) GetCompanyLimits(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	agentLimits, err := s.GetAgentLimits(userSubject)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	if userLimits == nil || projectLimits == nil {
+		w.WriteHeader(http.StatusNotFound)
+		return
+	}
+
 	// This is a dummy response
 	limits := Limits{
 		Projects: *projectLimits,
 		Users:    *userLimits,
+		Agents:   *agentLimits,
 	}
 
 	w.Header().Set("Content-Type", "application/json")
