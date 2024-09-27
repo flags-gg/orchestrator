@@ -6,8 +6,12 @@ import (
 )
 
 type Agents struct {
-	Allowed int `json:"allowed"`
-	Used    int `json:"used"`
+	Allowed int          `json:"allowed"`
+	Used    []AgentsUsed `json:"used,omitempty"`
+}
+type AgentsUsed struct {
+	ProjectID  string
+	AgentsUsed int
 }
 type Projects struct {
 	Allowed int `json:"allowed"`
@@ -45,24 +49,22 @@ func (s *System) GetProjectLimits(userSubject string) (*Projects, error) {
 	}()
 
 	if err := client.QueryRow(s.Context, `
-    SELECT allowed_projects
-    FROM public.company
-      JOIN public.company_user ON company_user.company_id = company.id
-      JOIN public.user AS u ON u.id = company_user.user_id
-    WHERE u.subject = $1`, userSubject).Scan(&p.Allowed); err != nil {
-		if err.Error() == "context canceled" {
-			return nil, nil
-		}
-		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to query database: %v", err)
-	}
-
-	if err := client.QueryRow(s.Context, `
-    SELECT COUNT(*)
-    FROM public.project
-      JOIN public.company ON company.id = project.company_id
-      JOIN public.company_user ON company_user.company_id = company.id
-      JOIN public.user AS u ON u.id = company_user.user_id
-    WHERE u.subject = $1`, userSubject).Scan(&p.Used); err != nil {
+    WITH user_company AS (
+        SELECT c.id AS company_id, c.allowed_projects
+        FROM public.company c
+        JOIN public.company_user cu ON cu.company_id = c.id
+        JOIN public.user u ON u.id = cu.user_id
+        WHERE u.subject = $1
+        LIMIT 1
+    )
+    SELECT
+        uc.allowed_projects,
+        (SELECT COUNT(*)
+         FROM public.project p
+         WHERE p.company_id = uc.company_id
+        ) AS used_projects
+    FROM user_company uc
+    `, userSubject).Scan(&p.Allowed, &p.Used); err != nil {
 		if err.Error() == "context canceled" {
 			return nil, nil
 		}
@@ -73,7 +75,10 @@ func (s *System) GetProjectLimits(userSubject string) (*Projects, error) {
 }
 
 func (s *System) GetUserLimits(userSubject string) (*Users, error) {
-	u := &Users{}
+	u := &Users{
+		Allowed:   1,
+		Activated: 1,
+	}
 
 	client, err := s.Config.Database.GetPGXClient(s.Context)
 	if err != nil {
@@ -86,29 +91,95 @@ func (s *System) GetUserLimits(userSubject string) (*Users, error) {
 	}()
 
 	if err := client.QueryRow(s.Context, `
-    SELECT allowed_members
-    FROM public.company
-      JOIN public.company_user ON company_user.company_id = company.id
-      JOIN public.user AS u ON u.id = company_user.user_id
-    WHERE u.subject = $1`, userSubject).Scan(&u.Allowed); err != nil {
+    WITH user_company AS (
+        SELECT c.id AS company_id, c.allowed_members
+        FROM public.company c
+        JOIN public.company_user cu ON cu.company_id = c.id
+        JOIN public.user u ON u.id = cu.user_id
+        WHERE u.subject = $1
+        LIMIT 1
+    )
+    SELECT
+        uc.allowed_members,
+        (SELECT COUNT(*)
+         FROM public.company_user cu2
+         WHERE cu2.company_id = uc.company_id
+        ) AS activated_count
+    FROM user_company uc
+    `, userSubject).Scan(&u.Allowed, &u.Activated); err != nil {
 		if err.Error() == "context canceled" {
-			return nil, nil
-		}
-		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to query database: %v", err)
-	}
-
-	if err := client.QueryRow(s.Context, `
-    SELECT COUNT(*)
-    FROM public.company_user
-      JOIN public.user AS u ON u.id = company_user.user_id
-    WHERE u.subject = $1`, userSubject).Scan(&u.Activated); err != nil {
-		if err.Error() == "context canceled" {
-			return nil, nil
+			return u, nil
 		}
 		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to query database: %v", err)
 	}
 
 	return u, nil
+}
+
+func (s *System) GetAgentLimits(userSubject string) (*Agents, error) {
+	a := &Agents{}
+
+	client, err := s.Config.Database.GetPGXClient(s.Context)
+	if err != nil {
+		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
+	}
+	defer func() {
+		if err := client.Close(s.Context); err != nil {
+			s.Config.Bugfixes.Logger.Fatalf("Failed to close database connection: %v", err)
+		}
+	}()
+
+	// Prepare the query
+	rows, err := client.Query(s.Context, `
+    WITH user_company AS (
+        SELECT c.id AS company_id, c.allowed_agents_per_project
+        FROM public.company c
+        JOIN public.company_user cu ON cu.company_id = c.id
+        JOIN public.user u ON u.id = cu.user_id
+        WHERE u.subject = $1
+        LIMIT 1
+    )
+    SELECT
+        uc.allowed_agents_per_project,
+        p.project_id AS project_id,
+        COUNT(a.id) AS agents_used
+    FROM user_company uc
+    JOIN public.project p ON p.company_id = uc.company_id
+    LEFT JOIN public.agent a ON a.project_id = p.id
+    GROUP BY uc.allowed_agents_per_project, p.id
+    `, userSubject)
+	if err != nil {
+		if err.Error() == "context canceled" {
+			return nil, nil
+		}
+		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to query database: %v", err)
+	}
+	defer rows.Close()
+	a.Used = []AgentsUsed{}
+
+	// Iterate over the result set
+	for rows.Next() {
+		var projectID string // Adjust the type if necessary
+		var agentsUsed int
+		// Since allowed_agents_per_project is the same for all rows, we can capture it once
+		if err := rows.Scan(&a.Allowed, &projectID, &agentsUsed); err != nil {
+			return nil, s.Config.Bugfixes.Logger.Errorf("Failed to scan row: %v", err)
+		}
+		// Append the project data to the Projects slice
+		a.Used = append(a.Used, AgentsUsed{
+			ProjectID:  projectID,
+			AgentsUsed: agentsUsed,
+		})
+	}
+
+	if err := rows.Err(); err != nil {
+		if err.Error() == "context canceled" {
+			return a, nil
+		}
+		return nil, s.Config.Bugfixes.Logger.Errorf("Row iteration error: %v", err)
+	}
+
+	return a, nil
 }
 
 func (s *System) GetCompanyId(userSubject string) (string, error) {

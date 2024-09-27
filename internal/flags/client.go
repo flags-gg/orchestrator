@@ -25,7 +25,7 @@ func (s *System) GetClientFlagsFromDB(environmentId string) ([]Flag, error) {
 	var flags []Flag
 	rows, err := client.Query(s.Context, `
     SELECT
-	      flags.id,
+	    flags.id,
         flags.name,
         flags.enabled
     FROM public.agent

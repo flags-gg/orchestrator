@@ -60,9 +60,13 @@ func (s *System) GetEnvironmentFromDB(envId string) (*Environment, error) {
       env.id,
       env.name,
       env.env_id,
-      env.enabled
+      env.enabled,
+      agent.name as AgentName,
+      project.name as ProjectName
     FROM public.agent_environment AS env
-    WHERE env.env_id = $1`, envId).Scan(&environment.Id, &environment.Name, &environment.EnvironmentId, &environment.Enabled); err != nil {
+    	LEFT JOIN public.agent ON agent.id = env.agent_id
+    	LEFT JOIN public.project ON project.id = agent.project_id
+    WHERE env.env_id = $1`, envId).Scan(&environment.Id, &environment.Name, &environment.EnvironmentId, &environment.Enabled, &environment.AgentName, &environment.ProjectName); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, nil
 		}
