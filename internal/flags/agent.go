@@ -40,7 +40,11 @@ func (s *System) GetAgentFlagsFromDB(projectId, agentId, environmentId string) (
 	var menuCode sql.NullString
 	var menuCloseButton sql.NullString
 	var menuContainer sql.NullString
-	var menuButton sql.NullString
+	var menuResetButton sql.NullString
+	var menuFlag sql.NullString
+	var menuButtonEnabled sql.NullString
+	var menuButtonDisabled sql.NullString
+	var menuHeader sql.NullString
 	var intervalAllowed int
 
 	rows, err := client.Query(s.Context, `
@@ -51,7 +55,11 @@ func (s *System) GetAgentFlagsFromDB(projectId, agentId, environmentId string) (
       secretMenu.code AS MenuCode,
       menuStyle.close_button AS MenuCloseButton,
       menuStyle.container AS MenuContainer,
-      menuStyle.button AS MenuButton,
+      menuStyle.reset_button AS ResetButton,
+      menuStyle.flag AS Flag,
+      menuStyle.button_enabled AS ButtonEnabled,
+      menuStyle.button_disabled AS ButtonDisabled,
+      menuStyle.header AS Header,
       agent.interval
     FROM public.agent
       LEFT JOIN public.environment_flag AS flags ON agent.id = flags.agent_id
@@ -86,7 +94,11 @@ func (s *System) GetAgentFlagsFromDB(projectId, agentId, environmentId string) (
 			&menuCode,
 			&menuCloseButton,
 			&menuContainer,
-			&menuButton,
+			&menuResetButton,
+			&menuFlag,
+			&menuButtonEnabled,
+			&menuButtonDisabled,
+			&menuHeader,
 			&intervalAllowed,
 		); err != nil {
 			return nil, s.Config.Bugfixes.Logger.Errorf("Failed to scan row: %v", err)
@@ -109,27 +121,51 @@ func (s *System) GetAgentFlagsFromDB(projectId, agentId, environmentId string) (
 			Sequence: strings.Split(menuCode.String, ","),
 		}
 
-		if menuCloseButton.String != "" {
+		if menuCloseButton.Valid {
 			sm.Styles = append(sm.Styles, SecretMenuStyle{
 				Name:  "closeButton",
 				Value: menuCloseButton.String,
 			})
 		}
-
-		if menuContainer.String != "" {
+		if menuContainer.Valid {
 			sm.Styles = append(sm.Styles, SecretMenuStyle{
 				Name:  "container",
 				Value: menuContainer.String,
 			})
 		}
-
-		if menuButton.String != "" {
+		if menuResetButton.Valid {
 			sm.Styles = append(sm.Styles, SecretMenuStyle{
-				Name:  "button",
-				Value: menuButton.String,
+				Name:  "reset_button",
+				Value: menuResetButton.String,
 			})
 		}
+		if menuFlag.Valid {
+			sm.Styles = append(sm.Styles, SecretMenuStyle{
+				Name:  "flag",
+				Value: menuFlag.String,
+			})
+		}
+		if menuButtonEnabled.Valid {
+			sm.Styles = append(sm.Styles, SecretMenuStyle{
+				Name:  "button_enabled",
+				Value: menuButtonEnabled.String,
+			})
+		}
+		if menuButtonDisabled.Valid {
+			sm.Styles = append(sm.Styles, SecretMenuStyle{
+				Name:  "button_disabled",
+				Value: menuButtonDisabled.String,
+			})
+		}
+		if menuHeader.Valid {
+			sm.Styles = append(sm.Styles, SecretMenuStyle{
+				Name:  "header",
+				Value: menuHeader.String,
+			})
+		}
+
 		res.SecretMenu = *sm
+
 	}
 
 	stats.NewSystem(s.Config).AddAgentSuccess(projectId, agentId, environmentId)
