@@ -7,6 +7,16 @@ import (
 	"net/http"
 )
 
+type SecretMenuStyle struct {
+	Name  string `json:"name"`
+	Value string `json:"value"`
+}
+
+type StyleMenu struct {
+	Id     string            `json:"style_id"`
+	Styles []SecretMenuStyle `json:"styles"`
+}
+
 func (s *System) GetSecretMenu(w http.ResponseWriter, r *http.Request) {
 	s.Context = r.Context()
 
@@ -78,8 +88,7 @@ func (s *System) CreateSecretMenu(w http.ResponseWriter, r *http.Request) {
 
 	menuUpdate.Id = menuId
 	if styleId != "" {
-		sid := sql.NullString{String: styleId, Valid: true}
-		menuUpdate.CustomStyle.Id = sid
+		menuUpdate.CustomStyle.SQLId = sql.NullString{String: styleId, Valid: true}
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -299,7 +308,7 @@ func (s *System) GetSecretMenuStyle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if !secretMenu.SQLResetButton.Valid {
+	if secretMenu.Id == "" {
 		w.WriteHeader(http.StatusNotFound)
 		return
 	}

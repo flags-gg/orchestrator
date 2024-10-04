@@ -72,7 +72,8 @@ type Flag struct {
 }
 
 type MenuStyle struct {
-	Id sql.NullString `json:"style_id,omitempty"`
+	Id    string `json:"style_id,omitempty"`
+	SQLId sql.NullString
 
 	CloseButton    CloseButton `json:"close_button,omitempty"`
 	SQLCloseButton sql.NullString
@@ -163,7 +164,7 @@ func (s *System) GetEnvironmentSecretMenu(environmentId string) (SecretMenu, err
 		&menuStyle.SQLButtonEnabled,
 		&menuStyle.SQLButtonDisabled,
 		&menuStyle.SQLHeader,
-		&menuStyle.Id); err != nil {
+		&menuStyle.SQLId); err != nil {
 		if err.Error() == "context canceled" {
 			return secretMenu, nil
 		}
@@ -227,7 +228,7 @@ func (s *System) GetSecretMenuFromDB(menuId string) (SecretMenu, error) {
 		&menuStyle.SQLButtonEnabled,
 		&menuStyle.SQLButtonDisabled,
 		&menuStyle.SQLHeader,
-		&menuStyle.Id,
+		&menuStyle.SQLId,
 		&envDetails.EnvironmentID,
 		&envDetails.Name); err != nil {
 		if err.Error() == "context canceled" {
@@ -302,7 +303,7 @@ func (s *System) UpdateSecretMenuStyleInDB(menuId string, secretMenu SecretMenu)
 		}
 	}()
 
-	if secretMenu.CustomStyle.Id.String == "" {
+	if secretMenu.CustomStyle.Id == "" {
 		uu, err := uuid.NewRandom()
 		if err != nil {
 			return s.Config.Bugfixes.Logger.Errorf("Failed to generate UUID: %v", err)
@@ -340,7 +341,15 @@ func (s *System) UpdateSecretMenuStyleInDB(menuId string, secretMenu SecretMenu)
 	if _, err := client.Exec(s.Context, `
     	UPDATE public.secret_menu_style
     	SET close_button = $1, container = $2, reset_button = $3, flag = $4, button_enabled = $5, button_disabled = $6, header = $7
-    	WHERE style_id = $8`, secretMenu.CustomStyle.CloseButton, secretMenu.CustomStyle.Container, secretMenu.CustomStyle.ResetButton, secretMenu.CustomStyle.Flag, secretMenu.CustomStyle.ButtonEnabled, secretMenu.CustomStyle.ButtonDisabled, secretMenu.CustomStyle.Header, secretMenu.CustomStyle.Id); err != nil {
+    	WHERE style_id = $8`,
+		secretMenu.CustomStyle.SQLCloseButton,
+		secretMenu.CustomStyle.SQLContainer,
+		secretMenu.CustomStyle.SQLResetButton,
+		secretMenu.CustomStyle.SQLFlag,
+		secretMenu.CustomStyle.SQLButtonEnabled,
+		secretMenu.CustomStyle.SQLButtonDisabled,
+		secretMenu.CustomStyle.SQLHeader,
+		secretMenu.CustomStyle.Id); err != nil {
 		return s.Config.Bugfixes.Logger.Errorf("Failed to update database: %v", err)
 	}
 
@@ -381,7 +390,7 @@ func (s *System) CreateSecretMenuInDB(environmentId string, secretMenu SecretMen
 		return "", "", s.Config.Bugfixes.Logger.Errorf("Failed to insert into database: %v", err)
 	}
 
-	if secretMenu.CustomStyle.Id.String == "" {
+	if secretMenu.CustomStyle.Id == "" {
 		uu, err := uuid.NewRandom()
 		if err != nil {
 			return "", "", s.Config.Bugfixes.Logger.Errorf("Failed to generate UUID: %v", err)
@@ -444,12 +453,14 @@ func (s *System) DeleteSecretMenuForEnv(envId string) error {
 	return nil
 }
 
-func (s *System) GetSecretMenuStyleFromDB(menuId string) (MenuStyle, error) {
+func (s *System) GetSecretMenuStyleFromDB(menuId string) (StyleMenu, error) {
 	var menuStyle MenuStyle
+	var styleMenu StyleMenu
+	var styleId sql.NullString
 
 	client, err := s.Config.Database.GetPGXClient(s.Context)
 	if err != nil {
-		return menuStyle, s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
+		return styleMenu, s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
 	}
 	defer func() {
 		if err := client.Close(s.Context); err != nil {
@@ -459,6 +470,7 @@ func (s *System) GetSecretMenuStyleFromDB(menuId string) (MenuStyle, error) {
 
 	if err := client.QueryRow(s.Context, `
     SELECT
+        style_id,
         close_button,
         container,
         reset_button,
@@ -471,6 +483,7 @@ func (s *System) GetSecretMenuStyleFromDB(menuId string) (MenuStyle, error) {
         LEFT JOIN public.secret_menu_style ON secret_menu_style.secret_menu_id = environment_secret_menu.id
         JOIN public.agent_environment ON agent_environment.id = environment_secret_menu.environment_id
     WHERE environment_secret_menu.menu_id = $1`, menuId).Scan(
+		&styleId,
 		&menuStyle.SQLCloseButton,
 		&menuStyle.SQLContainer,
 		&menuStyle.SQLResetButton,
@@ -478,15 +491,64 @@ func (s *System) GetSecretMenuStyleFromDB(menuId string) (MenuStyle, error) {
 		&menuStyle.SQLButtonEnabled,
 		&menuStyle.SQLButtonDisabled,
 		&menuStyle.SQLHeader,
-		&menuStyle.Id); err != nil {
+		&menuStyle.SQLId); err != nil {
 		if err.Error() == "context canceled" {
-			return menuStyle, nil
+			return styleMenu, nil
 		}
 		if errors.Is(err, pgx.ErrNoRows) {
-			return menuStyle, nil
+			return styleMenu, nil
 		}
-		return menuStyle, s.Config.Bugfixes.Logger.Errorf("Failed to query database: %v", err)
+		return styleMenu, s.Config.Bugfixes.Logger.Errorf("Failed to query database: %v", err)
 	}
 
-	return menuStyle, nil
+	if styleId.Valid {
+		styleMenu.Id = styleId.String
+	}
+	if menuStyle.SQLCloseButton.Valid {
+		style := SecretMenuStyle{}
+		style.Name = "closeButton"
+		style.Value = menuStyle.SQLCloseButton.String
+		styleMenu.Styles = append(styleMenu.Styles, style)
+	}
+	if menuStyle.SQLContainer.Valid {
+		style := SecretMenuStyle{}
+		style.Name = "container"
+		style.Value = menuStyle.SQLContainer.String
+		styleMenu.Styles = append(styleMenu.Styles, style)
+	}
+	if menuStyle.SQLResetButton.Valid {
+		style := SecretMenuStyle{}
+		style.Name = "resetButton"
+		style.Value = menuStyle.SQLResetButton.String
+		styleMenu.Styles = append(styleMenu.Styles, style)
+	}
+	if menuStyle.SQLFlag.Valid {
+		style := SecretMenuStyle{}
+		style.Name = "flag"
+		style.Value = menuStyle.SQLFlag.String
+		styleMenu.Styles = append(styleMenu.Styles, style)
+	}
+	if menuStyle.SQLButtonEnabled.Valid {
+		style := SecretMenuStyle{}
+		style.Name = "buttonEnabled"
+		style.Value = menuStyle.SQLButtonEnabled.String
+		styleMenu.Styles = append(styleMenu.Styles, style)
+	}
+	if menuStyle.SQLButtonDisabled.Valid {
+		style := SecretMenuStyle{}
+		style.Name = "buttonDisabled"
+		style.Value = menuStyle.SQLButtonDisabled.String
+		styleMenu.Styles = append(styleMenu.Styles, style)
+	}
+	if menuStyle.SQLHeader.Valid {
+		style := SecretMenuStyle{}
+		style.Name = "header"
+		style.Value = menuStyle.SQLHeader.String
+		styleMenu.Styles = append(styleMenu.Styles, style)
+	}
+	if menuStyle.SQLId.Valid {
+		styleMenu.Id = menuStyle.SQLId.String
+	}
+
+	return styleMenu, nil
 }
