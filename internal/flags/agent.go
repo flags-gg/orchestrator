@@ -28,7 +28,7 @@ func (s *System) GetAgentFlagsFromDB(projectId, agentId, environmentId string) (
 	}()
 
 	if environmentId == "" {
-		envId, err := s.GetDetaultEnvironment(projectId, agentId)
+		envId, err := s.GetDefaultEnvironment(projectId, agentId)
 		if err != nil {
 			return nil, s.Config.Bugfixes.Logger.Errorf("Failed to get default environment: %v", err)
 		}
@@ -135,7 +135,7 @@ func (s *System) GetAgentFlagsFromDB(projectId, agentId, environmentId string) (
 		}
 		if menuResetButton.Valid {
 			sm.Styles = append(sm.Styles, SecretMenuStyle{
-				Name:  "reset_button",
+				Name:  "resetButton",
 				Value: menuResetButton.String,
 			})
 		}
@@ -147,13 +147,13 @@ func (s *System) GetAgentFlagsFromDB(projectId, agentId, environmentId string) (
 		}
 		if menuButtonEnabled.Valid {
 			sm.Styles = append(sm.Styles, SecretMenuStyle{
-				Name:  "button_enabled",
+				Name:  "buttonEnabled",
 				Value: menuButtonEnabled.String,
 			})
 		}
 		if menuButtonDisabled.Valid {
 			sm.Styles = append(sm.Styles, SecretMenuStyle{
-				Name:  "button_disabled",
+				Name:  "buttonDisabled",
 				Value: menuButtonDisabled.String,
 			})
 		}
@@ -172,7 +172,7 @@ func (s *System) GetAgentFlagsFromDB(projectId, agentId, environmentId string) (
 	return res, nil
 }
 
-func (s *System) GetDetaultEnvironment(projectId, agentId string) (string, error) {
+func (s *System) GetDefaultEnvironment(projectId, agentId string) (string, error) {
 	client, err := s.Config.Database.GetPGXClient(s.Context)
 	if err != nil {
 		return "", s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
