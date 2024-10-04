@@ -10,8 +10,8 @@ type Agents struct {
 	Used    []AgentsUsed `json:"used,omitempty"`
 }
 type AgentsUsed struct {
-	ProjectID  string
-	AgentsUsed int
+	ProjectID  string `json:"project_id"`
+	AgentsUsed int    `json:"used"`
 }
 type Projects struct {
 	Allowed int `json:"allowed"`

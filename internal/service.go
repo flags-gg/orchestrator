@@ -79,6 +79,7 @@ func (s *Service) startHTTP(errChan chan error) {
 	mux.HandleFunc("PUT /secret-menu/{menuId}/sequence", secretmenu.NewSystem(s.Config).UpdateSecretMenuSequence)
 	mux.HandleFunc("PUT /secret-menu/{menuId}/state", secretmenu.NewSystem(s.Config).UpdateSecretMenuState)
 	mux.HandleFunc("PUT /secret-menu/{menuId}/style", secretmenu.NewSystem(s.Config).UpdateSecretMenuStyle)
+	mux.HandleFunc("GET /secret-menu/{menuId}/style", secretmenu.NewSystem(s.Config).GetSecretMenuStyle)
 
 	// Stats
 	mux.HandleFunc("GET /stats/company", stats.NewSystem(s.Config).GetCompanyStats)
