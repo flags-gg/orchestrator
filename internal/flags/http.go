@@ -41,6 +41,11 @@ type System struct {
 	Context context.Context
 }
 
+type FlagNameChangeRequest struct {
+	Name string `json:"name"`
+	ID   string `json:"id"`
+}
+
 func NewSystem(cfg *ConfigBuilder.Config) *System {
 	return &System{
 		Config: cfg,
@@ -193,6 +198,44 @@ func (s *System) UpdateFlags(w http.ResponseWriter, r *http.Request) {
 		},
 	}
 	if err := s.UpdateFlagInDB(flagChange); err != nil {
+		_ = s.Config.Bugfixes.Logger.Errorf("Failed to update flag: %v", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+
+	}
+
+	w.WriteHeader(http.StatusOK)
+}
+
+func (s *System) EditFlag(w http.ResponseWriter, r *http.Request) {
+	s.Context = r.Context()
+
+	if r.Header.Get("x-user-access-token") == "" || r.Header.Get("x-user-subject") == "" {
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
+	companyId, err := company.NewSystem(s.Config).SetContext(s.Context).GetCompanyId(r.Header.Get("x-user-subject"))
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	if companyId == "" {
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
+	flagId := r.PathValue("flagId")
+	flagChange := FlagNameChangeRequest{}
+	if err := json.NewDecoder(r.Body).Decode(&flagChange); err != nil {
+		_ = s.Config.Bugfixes.Logger.Errorf("Failed to decode request: %v", err)
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	flagChange.ID = flagId
+
+	if err := s.EditFlagInDB(flagChange); err != nil {
 		_ = s.Config.Bugfixes.Logger.Errorf("Failed to update flag: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return

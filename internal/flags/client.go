@@ -77,6 +77,29 @@ func (s *System) UpdateFlagInDB(flag Flag) error {
 	return nil
 }
 
+func (s *System) EditFlagInDB(cr FlagNameChangeRequest) error {
+	client, err := s.Config.Database.GetPGXClient(s.Context)
+	if err != nil {
+		return s.Config.Bugfixes.Logger.Errorf("failed to connect to database: %v", err)
+	}
+	defer func() {
+		if err := client.Close(s.Context); err != nil {
+			s.Config.Bugfixes.Logger.Fatalf("failed to close database connection: %v", err)
+		}
+	}()
+
+	_, err = client.Exec(s.Context, `
+    UPDATE public.environment_flag
+    SET
+      name=$2
+    WHERE id = $1`, cr.ID, cr.Name)
+	if err != nil {
+		return s.Config.Bugfixes.Logger.Errorf("failed to update flag: %v", err)
+	}
+
+	return nil
+}
+
 func (s *System) DeleteFlagFromDB(flag Flag) error {
 	client, err := s.Config.Database.GetPGXClient(s.Context)
 	if err != nil {
