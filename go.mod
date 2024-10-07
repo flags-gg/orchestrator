@@ -13,7 +13,7 @@ require (
 	github.com/keloran/go-healthcheck v1.2.2
 	github.com/keloran/go-probe v1.0.0
 	github.com/keloran/vault-helper v1.1.0
-	golang.org/x/text v0.18.0
+	golang.org/x/text v0.19.0
 )
 
 require (
