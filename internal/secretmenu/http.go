@@ -7,14 +7,14 @@ import (
 	"net/http"
 )
 
-type SecretMenuStyle struct {
+type Style struct {
 	Name  string `json:"name"`
 	Value string `json:"value"`
 }
 
 type StyleMenu struct {
-	Id     string            `json:"style_id"`
-	Styles []SecretMenuStyle `json:"styles"`
+	Id     string  `json:"style_id"`
+	Styles []Style `json:"styles"`
 }
 
 func (s *System) GetSecretMenu(w http.ResponseWriter, r *http.Request) {
@@ -117,25 +117,14 @@ func (s *System) UpdateSecretMenuState(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	menuUpdate := SecretMenu{}
-	if err := json.NewDecoder(r.Body).Decode(&menuUpdate); err != nil {
-		_ = s.Config.Bugfixes.Logger.Errorf("Failed to decode request: %v", err)
-		w.WriteHeader(http.StatusBadRequest)
-		return
-	}
-
 	menuId := r.PathValue("menuId")
-	if err := s.UpdateSecretMenuStateInDB(menuId, menuUpdate); err != nil {
+	if err := s.UpdateSecretMenuStateInDB(menuId); err != nil {
 		_ = s.Config.Bugfixes.Logger.Errorf("Failed to update secret menu: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
-	if err := json.NewEncoder(w).Encode(menuUpdate); err != nil {
-		_ = s.Config.Bugfixes.Logger.Errorf("Failed to encode response: %v", err)
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
+	w.WriteHeader(http.StatusOK)
 }
 
 func (s *System) UpdateSecretMenuSequence(w http.ResponseWriter, r *http.Request) {

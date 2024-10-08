@@ -271,7 +271,7 @@ func (s *System) UpdateSecretMenuSequenceInDB(menuId string, secretMenu SecretMe
 	return nil
 }
 
-func (s *System) UpdateSecretMenuStateInDB(menuId string, secretMenu SecretMenu) error {
+func (s *System) UpdateSecretMenuStateInDB(menuId string) error {
 	client, err := s.Config.Database.GetPGXClient(s.Context)
 	if err != nil {
 		return s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
@@ -284,8 +284,8 @@ func (s *System) UpdateSecretMenuStateInDB(menuId string, secretMenu SecretMenu)
 
 	if _, err := client.Exec(s.Context, `
     UPDATE public.environment_secret_menu
-    SET enabled = $1
-    WHERE menu_id = $2`, secretMenu.Enabled, menuId); err != nil {
+    SET enabled = NOT enabled
+    WHERE menu_id = $1`, menuId); err != nil {
 		return s.Config.Bugfixes.Logger.Errorf("Failed to update database: %v", err)
 	}
 
@@ -505,43 +505,43 @@ func (s *System) GetSecretMenuStyleFromDB(menuId string) (StyleMenu, error) {
 		styleMenu.Id = styleId.String
 	}
 	if menuStyle.SQLCloseButton.Valid {
-		style := SecretMenuStyle{}
+		style := Style{}
 		style.Name = "closeButton"
 		style.Value = menuStyle.SQLCloseButton.String
 		styleMenu.Styles = append(styleMenu.Styles, style)
 	}
 	if menuStyle.SQLContainer.Valid {
-		style := SecretMenuStyle{}
+		style := Style{}
 		style.Name = "container"
 		style.Value = menuStyle.SQLContainer.String
 		styleMenu.Styles = append(styleMenu.Styles, style)
 	}
 	if menuStyle.SQLResetButton.Valid {
-		style := SecretMenuStyle{}
+		style := Style{}
 		style.Name = "resetButton"
 		style.Value = menuStyle.SQLResetButton.String
 		styleMenu.Styles = append(styleMenu.Styles, style)
 	}
 	if menuStyle.SQLFlag.Valid {
-		style := SecretMenuStyle{}
+		style := Style{}
 		style.Name = "flag"
 		style.Value = menuStyle.SQLFlag.String
 		styleMenu.Styles = append(styleMenu.Styles, style)
 	}
 	if menuStyle.SQLButtonEnabled.Valid {
-		style := SecretMenuStyle{}
+		style := Style{}
 		style.Name = "buttonEnabled"
 		style.Value = menuStyle.SQLButtonEnabled.String
 		styleMenu.Styles = append(styleMenu.Styles, style)
 	}
 	if menuStyle.SQLButtonDisabled.Valid {
-		style := SecretMenuStyle{}
+		style := Style{}
 		style.Name = "buttonDisabled"
 		style.Value = menuStyle.SQLButtonDisabled.String
 		styleMenu.Styles = append(styleMenu.Styles, style)
 	}
 	if menuStyle.SQLHeader.Valid {
-		style := SecretMenuStyle{}
+		style := Style{}
 		style.Name = "header"
 		style.Value = menuStyle.SQLHeader.String
 		styleMenu.Styles = append(styleMenu.Styles, style)
