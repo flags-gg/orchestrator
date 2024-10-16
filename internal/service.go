@@ -62,6 +62,7 @@ func (s *Service) startHTTP(errChan chan error) {
 	// Environments
 	mux.HandleFunc("GET /agent/{agentId}/environments", environment.NewSystem(s.Config).GetAgentEnvironments)
 	mux.HandleFunc("POST /agent/{agentId}/environment", environment.NewSystem(s.Config).CreateAgentEnvironment)
+	mux.HandleFunc("POST /agent/{agentId}/{environmentId}", environment.NewSystem(s.Config).CloneAgentEnvironment)
 	mux.HandleFunc("GET /environment/{environmentId}", environment.NewSystem(s.Config).GetEnvironment)
 	mux.HandleFunc("PUT /environment/{environmentId}", environment.NewSystem(s.Config).UpdateEnvironment)
 	mux.HandleFunc("DELETE /environment/{environmentId}", environment.NewSystem(s.Config).DeleteEnvironment)

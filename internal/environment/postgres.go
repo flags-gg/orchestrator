@@ -2,6 +2,7 @@ package environment
 
 import (
 	"errors"
+	"fmt"
 	"github.com/flags-gg/orchestrator/internal/flags"
 	"github.com/flags-gg/orchestrator/internal/secretmenu"
 	"github.com/google/uuid"
@@ -137,6 +138,63 @@ func (s *System) UpdateEnvironmentInDB(env Environment) error {
     WHERE env_id = $2`, env.Name, env.EnvironmentId, env.Enabled)
 	if err != nil {
 		return s.Config.Bugfixes.Logger.Errorf("Failed to update environment in database: %v", err)
+	}
+
+	return nil
+}
+
+func (s *System) CloneEnvironmentInDB(envId, newEnvId, agentId, name string) error {
+	client, err := s.Config.Database.GetPGXClient(s.Context)
+	if err != nil {
+		return s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
+	}
+	defer func() {
+		if err := client.Close(s.Context); err != nil {
+			s.Config.Bugfixes.Logger.Fatalf("Failed to close database connection: %v", err)
+		}
+	}()
+
+	flagsToClone, err := flags.NewSystem(s.Config).SetContext(s.Context).GetClientFlagsFromDB(envId)
+	if err != nil {
+		return s.Config.Bugfixes.Logger.Errorf("Failed to get flags: %v", err)
+	}
+
+	var agentIdInt int
+	if err := client.QueryRow(s.Context, `
+    SELECT id FROM public.agent WHERE agent_id = $1`, agentId).Scan(&agentIdInt); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return s.Config.Bugfixes.Logger.Errorf("Failed to get agent id: %v", err)
+		}
+		return s.Config.Bugfixes.Logger.Errorf("Failed to query database: %v", err)
+	}
+
+	var envIdInt int
+	if err := client.QueryRow(s.Context, `
+    INSERT INTO public.agent_environment (agent_id, env_id, name)
+        VALUES ($1, $2, $3)
+        RETURNING agent_environment.id`, agentIdInt, newEnvId, name).Scan(&envIdInt); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return s.Config.Bugfixes.Logger.Errorf("Failed to insert environment into database: %v", err)
+		}
+		return s.Config.Bugfixes.Logger.Errorf("Failed to query database: %v", err)
+	}
+
+	insertVars := ""
+	for _, flag := range flagsToClone {
+		bv := "false"
+		if flag.Enabled {
+			bv = "true"
+		}
+
+		insertVars += fmt.Sprintf(`('%s', %d, %d, %s),`, flag.Details.Name, agentIdInt, envIdInt, bv)
+	}
+	if insertVars != "" {
+		insertVars = insertVars[:len(insertVars)-1] // Remove last comma
+		_, err := client.Exec(s.Context, fmt.Sprintf(`INSERT INTO public.environment_flag (name, agent_id, environment_id, enabled) VALUES %s`, insertVars))
+		if err != nil {
+			return s.Config.Bugfixes.Logger.Errorf("Failed to insert flags into database: %v", err)
+		}
+		return nil
 	}
 
 	return nil
