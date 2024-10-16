@@ -66,6 +66,7 @@ func (s *System) GetAgentFlagsFromDB(projectId, agentId, environmentId string) (
       LEFT JOIN public.agent_environment AS env ON env.id = flags.environment_id
       LEFT JOIN public.project ON project.id = agent.project_id
       LEFT JOIN public.environment_secret_menu AS secretMenu ON secretMenu.agent_id = agent.id
+		AND secretMenu.environment_id = env.id
       LEFT JOIN public.secret_menu_style AS menuStyle ON menuStyle.secret_menu_id = secretMenu.id
     WHERE env.env_id = $1
       AND agent.agent_id = $2
