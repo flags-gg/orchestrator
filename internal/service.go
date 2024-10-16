@@ -68,8 +68,8 @@ func (s *Service) startHTTP(errChan chan error) {
 	mux.HandleFunc("DELETE /environment/{environmentId}", environment.NewSystem(s.Config).DeleteEnvironment)
 
 	// Flags
-	mux.HandleFunc("GET /flags", flags.NewSystem(s.Config).GetAgentFlags)
-	mux.HandleFunc("GET /environment/{environmentId}/flags", flags.NewSystem(s.Config).GetClientFlags)
+	mux.HandleFunc("GET /flags", flags.NewSystem(s.Config).GetAgentFlags)                              // used by the library
+	mux.HandleFunc("GET /environment/{environmentId}/flags", flags.NewSystem(s.Config).GetClientFlags) // used by the frontend
 	mux.HandleFunc("POST /flag", flags.NewSystem(s.Config).CreateFlags)
 	mux.HandleFunc("PATCH /flag/{flagId}", flags.NewSystem(s.Config).UpdateFlags)
 	mux.HandleFunc("PUT /flag/{flagId}", flags.NewSystem(s.Config).EditFlag)

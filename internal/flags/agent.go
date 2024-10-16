@@ -70,7 +70,10 @@ func (s *System) GetAgentFlagsFromDB(projectId, agentId, environmentId string) (
       LEFT JOIN public.secret_menu_style AS menuStyle ON menuStyle.secret_menu_id = secretMenu.id
     WHERE env.env_id = $1
       AND agent.agent_id = $2
-      AND project.project_id = $3`, environmentId, agentId, projectId)
+      AND project.project_id = $3
+      AND agent.enabled = true
+      AND agent.enabled = true
+      AND project.enabled = true`, environmentId, agentId, projectId)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, nil
