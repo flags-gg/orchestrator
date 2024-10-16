@@ -71,7 +71,9 @@ func (s *System) GetAgentFlagsFromDB(projectId, agentId, environmentId string) (
     WHERE env.env_id = $1
       AND agent.agent_id = $2
       AND project.project_id = $3
-      AND agent.enabled = true`, environmentId, agentId, projectId)
+      AND agent.enabled = true
+      AND agent.enabled = true
+      AND project.enabled = true`, environmentId, agentId, projectId)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, nil
