@@ -7,6 +7,7 @@ import (
 	"github.com/flags-gg/orchestrator/internal/company"
 	"github.com/flags-gg/orchestrator/internal/flags"
 	"github.com/flags-gg/orchestrator/internal/secretmenu"
+	"github.com/google/uuid"
 	ConfigBuilder "github.com/keloran/go-config"
 	"net/http"
 )
@@ -147,6 +148,56 @@ func (s *System) CreateAgentEnvironment(w http.ResponseWriter, r *http.Request) 
 	}
 
 	w.WriteHeader(http.StatusCreated)
+}
+
+func (s *System) CloneAgentEnvironment(w http.ResponseWriter, r *http.Request) {
+	s.Context = r.Context()
+
+	if r.Header.Get("x-user-access-token") == "" || r.Header.Get("x-user-subject") == "" {
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
+	companyId, err := company.NewSystem(s.Config).SetContext(s.Context).GetCompanyId(r.Header.Get("x-user-subject"))
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	if companyId == "" {
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
+	agentId := r.PathValue("agentId")
+	environmentId := r.PathValue("environmentId")
+
+	type clone struct {
+		Name string `json:"name"`
+	}
+	cloneRequest := clone{}
+	if err := json.NewDecoder(r.Body).Decode(&cloneRequest); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	newEnvId := uuid.New().String()
+	type returnEnvStruct struct {
+		EnvironmentId string `json:"environmentId"`
+	}
+	returnEnv := returnEnvStruct{
+		EnvironmentId: newEnvId,
+	}
+
+	if err := s.CloneEnvironmentInDB(environmentId, newEnvId, agentId, cloneRequest.Name); err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	if err := json.NewEncoder(w).Encode(returnEnv); err != nil {
+		_ = s.Config.Bugfixes.Logger.Errorf("Failed to encode response: %v", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
 }
 
 func (s *System) UpdateEnvironment(w http.ResponseWriter, r *http.Request) {
