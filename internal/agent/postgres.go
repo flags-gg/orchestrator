@@ -349,8 +349,8 @@ func (s *System) UpdateAgentDetails(agent Agent) error {
 
 	_, err = client.Exec(s.Context, `
     UPDATE public.agent
-    SET name = $1, allowed_access_limit = $2
-    WHERE agent_id = $3`, agent.Name, agent.RequestLimit, agent.AgentId)
+    SET name = $1, enabled = $2
+    WHERE agent_id = $3`, agent.Name, agent.Enabled, agent.AgentId)
 	if err != nil {
 		return s.Config.Bugfixes.Logger.Errorf("Failed to update agent details: %v", err)
 	}
