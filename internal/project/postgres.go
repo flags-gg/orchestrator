@@ -14,6 +14,7 @@ type Project struct {
 	AgentLimit int    `json:"agent_limit"`
 	AgentsUsed int    `json:"agents_used"`
 	Logo       string `json:"logo"`
+	Enabled    bool   `json:"enabled"`
 }
 
 func (s *System) GetProjectsFromDB(userId string) ([]Project, error) {
@@ -34,6 +35,7 @@ func (s *System) GetProjectsFromDB(userId string) ([]Project, error) {
       project.name,
       project.allowed_agents,
       project.logo,
+      project.enabled,
       (
         SELECT COUNT(id)
         FROM public.agent
@@ -56,7 +58,7 @@ func (s *System) GetProjectsFromDB(userId string) ([]Project, error) {
 	for rows.Next() {
 		var project Project
 		var projectLogo sql.NullString
-		if err := rows.Scan(&project.ID, &project.ProjectID, &project.Name, &project.AgentLimit, &projectLogo, &project.AgentsUsed); err != nil {
+		if err := rows.Scan(&project.ID, &project.ProjectID, &project.Name, &project.AgentLimit, &projectLogo, &project.Enabled, &project.AgentsUsed); err != nil {
 			return nil, s.Config.Bugfixes.Logger.Errorf("Failed to scan database: %v", err)
 		}
 
@@ -84,17 +86,19 @@ func (s *System) GetProjectFromDB(userId, projectId string) (*Project, error) {
 	var project Project
 	var pLogo sql.NullString
 	if err := client.QueryRow(s.Context, `
-        SELECT project.name,
-               project.id,
-               project.project_id,
-               project.allowed_agents,
-              project.logo
+        SELECT
+          project.name,
+          project.id,
+          project.project_id,
+          project.allowed_agents,
+          project.logo,
+          project.enabled
         FROM public.project
           JOIN public.company ON company.id = project.company_id
           JOIN public.company_user ON company_user.company_id = company.id
           JOIN public.user AS u ON u.id = company_user.user_id
         WHERE project_id = $2
-          AND u.subject = $1`, userId, projectId).Scan(&project.Name, &project.ID, &project.ProjectID, &project.AgentLimit, &pLogo); err != nil {
+          AND u.subject = $1`, userId, projectId).Scan(&project.Name, &project.ID, &project.ProjectID, &project.AgentLimit, &pLogo, &project.Enabled); err != nil {
 		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to scan database: %v", err)
 	}
 	if pLogo.Valid {
@@ -160,7 +164,7 @@ func (s *System) CreateProjectInDB(userSubject, projectName string) (*Project, e
 	}, nil
 }
 
-func (s *System) UpdateProjectInDB(projectId, projectName string) (*Project, error) {
+func (s *System) UpdateProjectInDB(projectId, projectName string, enabled bool) (*Project, error) {
 	client, err := s.Config.Database.GetPGXClient(s.Context)
 	if err != nil {
 		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
@@ -173,14 +177,15 @@ func (s *System) UpdateProjectInDB(projectId, projectName string) (*Project, err
 
 	if _, err := client.Exec(s.Context, `
       UPDATE public.project
-      SET name = $1
-      WHERE project_id = $2`, projectName, projectId); err != nil {
+      SET name = $1, enabled = $2
+      WHERE project_id = $3`, projectName, enabled, projectId); err != nil {
 		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to update project in database: %v", err)
 	}
 
 	return &Project{
 		ProjectID: projectId,
 		Name:      projectName,
+		Enabled:   enabled,
 	}, nil
 }
 

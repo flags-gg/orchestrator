@@ -133,7 +133,8 @@ func (s *System) UpdateProject(w http.ResponseWriter, r *http.Request) {
 	projectId := r.PathValue("projectId")
 
 	type ProjEdit struct {
-		Name string `json:"name"`
+		Name    string `json:"name"`
+		Enabled bool   `json:"enabled"`
 	}
 
 	proj := ProjEdit{}
@@ -143,7 +144,7 @@ func (s *System) UpdateProject(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if _, err := s.UpdateProjectInDB(projectId, proj.Name); err != nil {
+	if _, err := s.UpdateProjectInDB(projectId, proj.Name, proj.Enabled); err != nil {
 		_ = s.Config.Bugfixes.Logger.Errorf("Failed to update project: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 	}
