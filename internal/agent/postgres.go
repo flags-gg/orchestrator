@@ -139,7 +139,8 @@ func (s *System) GetAgents(companyId string) ([]*Agent, error) {
       agent.name AS AgentName,
       agent.allowed_access_limit,
       agent.agent_id,
-      agent.allowed_environments
+      agent.allowed_environments,
+      project.name AS ProjectName
     FROM public.agent
       JOIN public.project ON agent.project_id = project.id
       JOIN public.company ON project.company_id = company.id
@@ -155,7 +156,8 @@ func (s *System) GetAgents(companyId string) ([]*Agent, error) {
 	var agents []*Agent
 	for rows.Next() {
 		agent := &Agent{}
-		if err := rows.Scan(&agent.Id, &agent.Name, &agent.RequestLimit, &agent.AgentId, &agent.EnvironmentLimit); err != nil {
+		projectInfo := &ProjectInfo{}
+		if err := rows.Scan(&agent.Id, &agent.Name, &agent.RequestLimit, &agent.AgentId, &agent.EnvironmentLimit, &projectInfo.Name); err != nil {
 			return nil, s.Config.Bugfixes.Logger.Errorf("Failed to scan database rows: %v", err)
 		}
 
@@ -164,6 +166,7 @@ func (s *System) GetAgents(companyId string) ([]*Agent, error) {
 			return nil, s.Config.Bugfixes.Logger.Errorf("Failed to get agent environments: %v", err)
 		}
 		agent.Environments = envs
+		agent.ProjectInfo = projectInfo
 
 		agents = append(agents, agent)
 	}

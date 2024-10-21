@@ -97,9 +97,7 @@ func (s *System) GetEnvironments(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
-
-	agentId := r.PathValue("agentId")
-	environments, err := s.GetAgentEnvironmentsFromDB(agentId)
+	environments, err := s.GetEnvironmentsFromDB(companyId)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
