@@ -66,6 +66,7 @@ func (s *Service) startHTTP(errChan chan error) {
 	mux.HandleFunc("GET /environment/{environmentId}", environment.NewSystem(s.Config).GetEnvironment)
 	mux.HandleFunc("PUT /environment/{environmentId}", environment.NewSystem(s.Config).UpdateEnvironment)
 	mux.HandleFunc("DELETE /environment/{environmentId}", environment.NewSystem(s.Config).DeleteEnvironment)
+	mux.HandleFunc("GET /environments", environment.NewSystem(s.Config).GetEnvironments)
 
 	// Flags
 	mux.HandleFunc("GET /flags", flags.NewSystem(s.Config).GetAgentFlags)                              // used by the library

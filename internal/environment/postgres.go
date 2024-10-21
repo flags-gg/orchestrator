@@ -121,6 +121,49 @@ func (s *System) GetAgentEnvironmentsFromDB(agentId string) ([]*Environment, err
 	return environments, nil
 }
 
+func (s *System) GetEnvironmentsFromDB(companyId string) ([]*Environment, error) {
+	client, err := s.Config.Database.GetPGXClient(s.Context)
+	if err != nil {
+		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
+	}
+	defer func() {
+		if err := client.Close(s.Context); err != nil {
+			s.Config.Bugfixes.Logger.Fatalf("Failed to close database connection: %v", err)
+		}
+	}()
+
+	rows, err := client.Query(s.Context, `
+    SELECT
+		env.env_id AS EnvId,
+  		env.name AS EnvName,
+  		agent.name AS AgentName,
+  		project.name AS ProjectName
+	FROM agent_environment AS env
+		JOIN agent ON agent.id = env.agent_id
+  		JOIN project ON project.id = agent.project_id
+  		JOIN company ON company.id = project.company_id
+	WHERE company.company_id = $1`, companyId)
+	if err != nil {
+		if err.Error() == "context canceled" {
+			return nil, nil
+		}
+		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to query database: %v", err)
+	}
+	defer rows.Close()
+
+	var environments []*Environment
+	for rows.Next() {
+		environment := &Environment{}
+		if err := rows.Scan(&environment.EnvironmentId, &environment.Name, &environment.AgentName, &environment.ProjectName); err != nil {
+			return nil, s.Config.Bugfixes.Logger.Errorf("Failed to scan database rows: %v", err)
+		}
+
+		environments = append(environments, environment)
+	}
+
+	return environments, nil
+}
+
 func (s *System) UpdateEnvironmentInDB(env Environment) error {
 	client, err := s.Config.Database.GetPGXClient(s.Context)
 	if err != nil {
