@@ -6,6 +6,11 @@ import (
 	"time"
 )
 
+type Group struct {
+	Id   *string `json:"id,omitempty"`
+	Name *string `json:"name,omitempty"`
+}
+
 type User struct {
 	Id        *string `json:"id,omitempty"`
 	KnownAs   *string `json:"known_as,omitempty"`
@@ -17,6 +22,7 @@ type User struct {
 	Avatar    *string `json:"avatar,omitempty"`
 	FirstName *string `json:"first_name,omitempty"`
 	LastName  *string `json:"last_name,omitempty"`
+	UserGroup *Group  `json:"user_group,omitempty"`
 }
 
 type Notification struct {
@@ -66,9 +72,10 @@ func (s *System) RetrieveUserDetails(subject string) (*User, error) {
 	}()
 
 	user := &User{}
+	ug := &Group{}
 	if err := client.QueryRow(s.Context, `
     SELECT
-	      id,
+		u.id,
         known_as,
         email_address,
         subject,
@@ -77,9 +84,12 @@ func (s *System) RetrieveUserDetails(subject string) (*User, error) {
         location,
         avatar,
         first_name,
-        last_name
-    FROM public.user
-    WHERE subject = $1`, subject).Scan(&user.Id, &user.KnownAs, &user.Email, &user.Subject, &user.Timezone, &user.JobTitle, &user.Location, &user.Avatar, &user.FirstName, &user.LastName); err != nil {
+        last_name,
+        user_group_id,
+    	ug.name AS user_group_name
+    FROM public.user AS u
+    	JOIN public.user_groups AS ug ON ug.id = u.user_group_id
+    WHERE subject = $1`, subject).Scan(&user.Id, &user.KnownAs, &user.Email, &user.Subject, &user.Timezone, &user.JobTitle, &user.Location, &user.Avatar, &user.FirstName, &user.LastName, &ug.Id, &ug.Name); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, nil
 		}
@@ -89,6 +99,7 @@ func (s *System) RetrieveUserDetails(subject string) (*User, error) {
 
 		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to query database: %v", err)
 	}
+	user.UserGroup = ug
 
 	return user, nil
 }
