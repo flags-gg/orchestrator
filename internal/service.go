@@ -106,6 +106,7 @@ func (s *Service) startHTTP(errChan chan error) {
 	mux.HandleFunc("POST /company", company.NewSystem(s.Config).CreateCompany)
 	mux.HandleFunc("GET /company/limits", company.NewSystem(s.Config).GetCompanyLimits)
 	mux.HandleFunc("GET /company/pricing", pricing.NewSystem(s.Config).GetCompanyPricing)
+	mux.HandleFunc("PUT /company/user", company.NewSystem(s.Config).AttachUserToCompany)
 
 	// General
 	mux.HandleFunc(fmt.Sprintf("%s /health", http.MethodGet), healthcheck.HTTP)

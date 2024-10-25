@@ -15,8 +15,10 @@ type System struct {
 }
 
 type Company struct {
-	Name string `json:"name"`
-	ID   string `json:"id"`
+	Name       string `json:"name"`
+	ID         string `json:"id"`
+	Domain     string `json:"domain"`
+	InviteCode string `json:"invite_code"`
 }
 
 func NewSystem(cfg *ConfigBuilder.Config) *System {
@@ -42,7 +44,6 @@ func (s *System) GetCompany(w http.ResponseWriter, r *http.Request) {
 	}
 
 	userSubject := r.Header.Get("x-user-subject")
-
 	company, err := s.GetCompanyInfo(userSubject)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
@@ -130,4 +131,38 @@ func (s *System) GetCompanyLimits(w http.ResponseWriter, r *http.Request) {
 	if err := json.NewEncoder(w).Encode(&limits); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 	}
+}
+
+func (s *System) AttachUserToCompany(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("x-flags-timestamp", strconv.FormatInt(time.Now().Unix(), 10))
+	s.Context = r.Context()
+
+	if r.Header.Get("x-user-subject") == "" || r.Header.Get("x-user-access-token") == "" {
+		if err := json.NewEncoder(w).Encode(&Company{}); err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+		}
+		return
+	}
+
+	type CompanyUser struct {
+		Domain string `json:"domain"`
+	}
+	user := CompanyUser{}
+	if err := json.NewDecoder(r.Body).Decode(&user); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	company, err := s.GetCompanyBasedOnDomain(user.Domain)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	if !company {
+		w.WriteHeader(http.StatusNotFound)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
 }
