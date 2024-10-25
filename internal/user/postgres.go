@@ -38,7 +38,7 @@ type Notifications struct {
 	Notifications []Notification `json:"notifications,omitempty"`
 }
 
-func (s *System) CreateUserDetails(subject, email string) error {
+func (s *System) CreateUserDetails(subject, email, firstname, lastname string) error {
 	client, err := s.Config.Database.GetPGXClient(s.Context)
 	if err != nil {
 		return s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
@@ -52,8 +52,14 @@ func (s *System) CreateUserDetails(subject, email string) error {
 	if _, err := client.Exec(s.Context, `
     INSERT INTO public.user (
         subject,
-        email_address
-    ) VALUES ($1, $2)`, subject, email); err != nil {
+        email_address,
+        first_name,
+        last_name
+    ) VALUES ($1, $2, $3, $4)
+    ON CONFLICT (subject) DO UPDATE SET
+        email_address = $2,
+        first_name = $3,
+        last_name = $4`, subject, email, firstname, lastname); err != nil {
 		return s.Config.Bugfixes.Logger.Errorf("Failed to insert user into database: %v", err)
 	}
 
@@ -88,7 +94,7 @@ func (s *System) RetrieveUserDetails(subject string) (*User, error) {
         user_group_id,
     	ug.name AS user_group_name
     FROM public.user AS u
-    	JOIN public.user_groups AS ug ON ug.id = u.user_group_id
+    	LEFT JOIN public.user_groups AS ug ON ug.id = u.user_group_id
     WHERE subject = $1`, subject).Scan(&user.Id, &user.KnownAs, &user.Email, &user.Subject, &user.Timezone, &user.JobTitle, &user.Location, &user.Avatar, &user.FirstName, &user.LastName, &ug.Id, &ug.Name); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, nil

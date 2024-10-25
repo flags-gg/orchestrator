@@ -2,7 +2,9 @@ package company
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
+	"github.com/jackc/pgx/v5"
 )
 
 type Agents struct {
@@ -217,6 +219,64 @@ func (s *System) GetCompanyInfo(userSubject string) (*Details, error) {
 	}
 
 	_ = fmt.Sprintf("Company ID: %s", companyId)
+	details := &Details{}
+	company := &Company{}
+	client, err := s.Config.Database.GetPGXClient(s.Context)
+	if err != nil {
+		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
+	}
+	defer func() {
+		if err := client.Close(s.Context); err != nil {
+			s.Config.Bugfixes.Logger.Fatalf("Failed to close database connection: %v", err)
+		}
+	}()
 
-	return nil, nil
+	if err := client.QueryRow(s.Context, `
+    SELECT
+		company_id,
+  		name AS companyName,
+  		domain AS companyDomain,
+  		invite_code
+	FROM company
+	WHERE company_id = $1`, companyId).Scan(&company.ID, &company.Name, &company.Domain, &company.InviteCode); err != nil {
+		if err.Error() == "context canceled" {
+			return nil, nil
+		}
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to query database: %v", err)
+	}
+	details.Company = company
+
+	return details, nil
+}
+
+func (s *System) GetCompanyBasedOnDomain(domain string) (bool, error) {
+	client, err := s.Config.Database.GetPGXClient(s.Context)
+	if err != nil {
+		return false, s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
+	}
+	defer func() {
+		if err := client.Close(s.Context); err != nil {
+			s.Config.Bugfixes.Logger.Fatalf("Failed to close database connection: %v", err)
+		}
+	}()
+
+	var companyId string
+	if err := client.QueryRow(s.Context, `
+    SELECT
+		company_id
+	FROM company
+	WHERE domain = $1`, domain).Scan(&companyId); err != nil {
+		if err.Error() == "context canceled" {
+			return false, nil
+		}
+		if errors.Is(err, pgx.ErrNoRows) {
+			return false, nil
+		}
+		return false, s.Config.Bugfixes.Logger.Errorf("Failed to query database: %v", err)
+	}
+
+	return true, nil
 }

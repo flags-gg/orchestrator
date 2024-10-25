@@ -89,7 +89,7 @@ func (s *System) CreateUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Create user
-	if err := s.CreateUserDetails(userSubject, *cloakDetails.Email); err != nil {
+	if err := s.CreateUserDetails(userSubject, *cloakDetails.Email, *cloakDetails.FirstName, *cloakDetails.LastName); err != nil {
 		_ = s.Config.Bugfixes.Logger.Errorf("Failed to create user details: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 	}
