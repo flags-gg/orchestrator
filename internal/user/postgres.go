@@ -12,17 +12,18 @@ type Group struct {
 }
 
 type User struct {
-	Id        *string `json:"id,omitempty"`
-	KnownAs   *string `json:"known_as,omitempty"`
-	Email     *string `json:"email_address,omitempty"`
-	Subject   *string `json:"subject,omitempty"`
-	Timezone  *string `json:"timezone,omitempty"`
-	JobTitle  *string `json:"job_title,omitempty"`
-	Location  *string `json:"location,omitempty"`
-	Avatar    *string `json:"avatar,omitempty"`
-	FirstName *string `json:"first_name,omitempty"`
-	LastName  *string `json:"last_name,omitempty"`
-	UserGroup *Group  `json:"user_group,omitempty"`
+	Id                *string `json:"id,omitempty"`
+	KnownAs           *string `json:"known_as,omitempty"`
+	Email             *string `json:"email_address,omitempty"`
+	Subject           *string `json:"subject,omitempty"`
+	Timezone          *string `json:"timezone,omitempty"`
+	JobTitle          *string `json:"job_title,omitempty"`
+	Location          *string `json:"location,omitempty"`
+	Avatar            *string `json:"avatar,omitempty"`
+	FirstName         *string `json:"first_name,omitempty"`
+	LastName          *string `json:"last_name,omitempty"`
+	UserGroup         *Group  `json:"user_group,omitempty"`
+	CompanyInviteCode *string `json:"company_invite_code,omitempty"`
 }
 
 type Notification struct {
@@ -82,20 +83,23 @@ func (s *System) RetrieveUserDetails(subject string) (*User, error) {
 	if err := client.QueryRow(s.Context, `
     SELECT
 		u.id,
-        known_as,
-        email_address,
-        subject,
-        timezone,
-        job_title,
-        location,
-        avatar,
-        first_name,
-        last_name,
-        user_group_id,
-    	ug.name AS user_group_name
+        u.known_as,
+        u.email_address,
+        u.subject,
+        u.timezone,
+        u.job_title,
+        u.location,
+        u.avatar,
+        u.first_name,
+        u.last_name,
+        u.user_group_id,
+    	ug.name AS user_group_name,
+    	c.invite_code
     FROM public.user AS u
     	LEFT JOIN public.user_groups AS ug ON ug.id = u.user_group_id
-    WHERE subject = $1`, subject).Scan(&user.Id, &user.KnownAs, &user.Email, &user.Subject, &user.Timezone, &user.JobTitle, &user.Location, &user.Avatar, &user.FirstName, &user.LastName, &ug.Id, &ug.Name); err != nil {
+    	LEFT JOIN public.company_user AS cu ON cu.user_id = u.id
+        LEFT JOIN public.company AS c ON c.id = cu.company_id
+    WHERE subject = $1`, subject).Scan(&user.Id, &user.KnownAs, &user.Email, &user.Subject, &user.Timezone, &user.JobTitle, &user.Location, &user.Avatar, &user.FirstName, &user.LastName, &ug.Id, &ug.Name, &user.CompanyInviteCode); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, nil
 		}
