@@ -9,6 +9,7 @@ import (
 	"github.com/bugfixes/go-bugfixes/logs"
 	ConfigBuilder "github.com/keloran/go-config"
 	"net/http"
+	"strings"
 )
 
 type System struct {
@@ -34,6 +35,11 @@ func (s *System) ValidateUser(ctx context.Context, subject string) bool {
 
 	user, err := s.GetKeycloakDetails(ctx, subject)
 	if err != nil {
+		if strings.Contains(err.Error(), "ingress.local") {
+			logs.Fatalf("DNS error killing process: %v", err)
+			return false
+		}
+
 		_ = s.Config.Bugfixes.Logger.Errorf("Failed to get keycloak details: %v", err)
 		return false
 	}
