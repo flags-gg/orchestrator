@@ -94,6 +94,7 @@ func (s *Service) startHTTP(errChan chan error) {
 	mux.HandleFunc("POST /user", user.NewSystem(s.Config).CreateUser)
 	mux.HandleFunc("PUT /user", user.NewSystem(s.Config).UpdateUser)
 	mux.HandleFunc("GET /user", user.NewSystem(s.Config).GetUser)
+	mux.HandleFunc("PUT /user/image", user.NewSystem(s.Config).UpdateUserImage)
 
 	// Notifications
 	mux.HandleFunc("GET /user/notifications", user.NewSystem(s.Config).GetUserNotifications)
@@ -128,6 +129,7 @@ func (s *Service) startHTTP(errChan chan error) {
 		"x-environment-id",
 		"x-user-subject",
 		"x-user-access-token",
+		"x-flags-timestamp",
 	)
 	mw.AddAllowedMethods(http.MethodGet, http.MethodPost, http.MethodPut, http.MethodDelete, http.MethodOptions, http.MethodPatch)
 	mw.AddAllowedOrigins("https://www.flags.gg", "https://flags.gg", "*")

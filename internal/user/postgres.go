@@ -206,3 +206,23 @@ func (s *System) DeleteUserNotificationInDB(subject, notificationId string) erro
 
 	return nil
 }
+
+func (s *System) UpdateUserImageInDB(subject string, image string) error {
+	client, err := s.Config.Database.GetPGXClient(s.Context)
+	if err != nil {
+		return s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
+	}
+	defer func() {
+		if err := client.Close(s.Context); err != nil {
+			s.Config.Bugfixes.Logger.Fatalf("Failed to close database connection: %v", err)
+		}
+	}()
+
+	if _, err := client.Exec(s.Context, `UPDATE public.user
+		SET avatar = $1
+		WHERE subject = $2`, image, subject); err != nil {
+		return s.Config.Bugfixes.Logger.Errorf("Failed to update user image: %v", err)
+	}
+
+	return nil
+}

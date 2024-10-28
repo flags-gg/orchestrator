@@ -206,6 +206,9 @@ func (s *System) GetCompanyId(userSubject string) (string, error) {
 		if err.Error() == "context canceled" {
 			return "", nil
 		}
+		if err.Error() == "no rows in result set" {
+			return "", nil
+		}
 		return "", s.Config.Bugfixes.Logger.Errorf("Failed to query database: %v", err)
 	}
 
@@ -252,7 +255,7 @@ func (s *System) GetCompanyInfo(userSubject string) (*Details, error) {
 	return details, nil
 }
 
-func (s *System) GetCompanyBasedOnDomain(domain string) (bool, error) {
+func (s *System) GetCompanyBasedOnDomain(domain, inviteCode string) (bool, error) {
 	client, err := s.Config.Database.GetPGXClient(s.Context)
 	if err != nil {
 		return false, s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
@@ -268,7 +271,7 @@ func (s *System) GetCompanyBasedOnDomain(domain string) (bool, error) {
     SELECT
 		company_id
 	FROM company
-	WHERE domain = $1`, domain).Scan(&companyId); err != nil {
+	WHERE domain = $1 OR invite_code = $2`, domain, inviteCode).Scan(&companyId); err != nil {
 		if err.Error() == "context canceled" {
 			return false, nil
 		}

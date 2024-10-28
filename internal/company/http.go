@@ -145,7 +145,8 @@ func (s *System) AttachUserToCompany(w http.ResponseWriter, r *http.Request) {
 	}
 
 	type CompanyUser struct {
-		Domain string `json:"domain"`
+		Domain     string `json:"domain"`
+		InviteCode string `json:"invite_code"`
 	}
 	user := CompanyUser{}
 	if err := json.NewDecoder(r.Body).Decode(&user); err != nil {
@@ -153,7 +154,12 @@ func (s *System) AttachUserToCompany(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	company, err := s.GetCompanyBasedOnDomain(user.Domain)
+	if user.Domain == "" {
+		w.WriteHeader(http.StatusNotFound)
+		return
+	}
+
+	company, err := s.GetCompanyBasedOnDomain(user.Domain, user.InviteCode)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
