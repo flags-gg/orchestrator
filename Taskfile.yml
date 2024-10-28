@@ -60,6 +60,16 @@ tasks:
     vars:
       COMMIT_HASH:
         sh: cat .commit_hash
+  publish-hash:
+    cmds:
+      - task: get-commit-hash
+        vars:
+          COMMIT_HASH:
+            sh: cat .commit_hash
+      - nerdctl push containers.chewed-k8s.net/{{.NAMESPACE}}/{{.SERVICE_NAME}}:{{.COMMIT_HASH}} --all-platforms
+    vars:
+      COMMIT_HASH:
+        sh: cat .commit_hash
 
   # Build Commands
   build-images:
@@ -74,6 +84,18 @@ tasks:
             sh: cat .commit_hash
       - nerdctl build --platform=amd64,arm64 --tag containers.chewed-k8s.net/{{.NAMESPACE}}/{{.SERVICE_NAME}}:{{.COMMIT_HASH}} --build-arg VERSION={{.LATEST_TAG}} --build-arg BUILD={{.COMMIT_HASH}} --build-arg SERVICE_NAME={{.SERVICE_NAME}} -f ./k8s/Containerfile .
       - nerdctl tag containers.chewed-k8s.net/{{.NAMESPACE}}/{{.SERVICE_NAME}}:{{.COMMIT_HASH}} containers.chewed-k8s.net/{{.NAMESPACE}}/{{.SERVICE_NAME}}:latest
+    vars:
+      LATEST_TAG:
+        sh: cat .latest_tag
+      COMMIT_HASH:
+        sh: cat .commit_hash
+  build-hash:
+    cmds:
+      - task: get-commit-hash
+        vars:
+          COMMIT_HASH:
+            sh: cat .commit_hash
+      - nerdctl build --platform=amd64,arm64 --tag containers.chewed-k8s.net/{{.NAMESPACE}}/{{.SERVICE_NAME}}:{{.COMMIT_HASH}} --build-arg VERSION={{.LATEST_TAG}} --build-arg BUILD={{.COMMIT_HASH}} --build-arg SERVICE_NAME={{.SERVICE_NAME}} -f ./k8s/Containerfile .
     vars:
       LATEST_TAG:
         sh: cat .latest_tag
@@ -122,3 +144,9 @@ tasks:
     cmds:
       - task: build-push-latest
       - task: deploy-latest
+  build-deploy-hash:
+    cmds:
+      - task: get-commit-hash
+      - task: build-hash
+      - task: publish-hash
+      - task: deploy
