@@ -53,6 +53,11 @@ func (s *System) ValidateUser(ctx context.Context, subject string) bool {
 func (s *System) GetKeycloakDetails(ctx context.Context, subject string) (*gocloak.User, error) {
 	client, token, err := s.Config.Keycloak.GetClient(ctx)
 	if err != nil {
+		if strings.Contains(err.Error(), "ingress.local") {
+			logs.Fatalf("DNS error killing process: %v", err)
+			return nil, nil
+		}
+
 		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to get keycloak client: %v", err)
 	}
 
