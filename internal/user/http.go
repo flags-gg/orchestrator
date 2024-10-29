@@ -318,6 +318,8 @@ func (s *System) UpdateUserImage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	s.Context = r.Context()
+
 	var userId string
 	userId = r.Header.Get("x-user-subject")
 
