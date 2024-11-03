@@ -40,12 +40,27 @@ jobs:
           registry: containers.chewed-k8s.net
           username: robot$flags-gg+github
           password: ${{ secrets.CONTAINERS_KEY }}
-      - name: Build and Push
-        id: docker_build
+      - name: Build and Push x86
+        id: docker_build_x86
         uses: docker/build-push-action@v4
         with:
           context: .
-          platforms: linux/amd64,linux/arm64
+          platforms: linux/amd64
+          builder: ${{ steps.buildx.outputs.name }}
+          file: ./k8s/Containerfile
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          push: true
+          build-args: |
+            SERVICE_NAME=orchestrator
+            VERSION=${{ github.ref_name }}
+            BUILD=${{ github.sha }}
+      - name: Build and Push arm
+        id: docker_build_arm
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          platforms: linux/arm64
           builder: ${{ steps.buildx.outputs.name }}
           file: ./k8s/Containerfile
           tags: ${{ steps.meta.outputs.tags }}
