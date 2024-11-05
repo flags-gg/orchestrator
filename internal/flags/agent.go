@@ -1,12 +1,12 @@
 package flags
 
 import (
+	"crypto/rand"
 	"database/sql"
 	"errors"
-	"fmt"
 	"github.com/flags-gg/orchestrator/internal/stats"
 	"github.com/jackc/pgx/v5"
-	"math/rand"
+	"math/big"
 	"strings"
 )
 
@@ -108,11 +108,16 @@ func (s *System) GetAgentFlagsFromDB(projectId, agentId, environmentId string) (
 			return nil, s.Config.Bugfixes.Logger.Errorf("Failed to scan row: %v", err)
 		}
 
+		randId, err := rand.Int(rand.Reader, big.NewInt(1000))
+		if err != nil {
+			return nil, s.Config.Bugfixes.Logger.Errorf("Failed to generate random id: %v", err)
+		}
+
 		flag := Flag{
 			Enabled: flagEnabled,
 			Details: Details{
 				Name: flagName,
-				ID:   fmt.Sprintf("%d", rand.Intn(1000)),
+				ID:   randId.String(),
 			},
 		}
 		flags = append(flags, flag)

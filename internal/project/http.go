@@ -163,10 +163,10 @@ func (s *System) DeleteProject(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	type ProjEdit struct {
-		Name      string `json:"name"`
-		ProjectID string `json:"project_id"`
-	}
+	//type ProjEdit struct {
+	//	Name      string `json:"name"`
+	//	ProjectID string `json:"project_id"`
+	//}
 
 	projectId := r.PathValue("projectId")
 

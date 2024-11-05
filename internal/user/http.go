@@ -320,8 +320,7 @@ func (s *System) UpdateUserImage(w http.ResponseWriter, r *http.Request) {
 
 	s.Context = r.Context()
 
-	var userId string
-	userId = r.Header.Get("x-user-subject")
+	userId := r.Header.Get("x-user-subject")
 
 	imageChange := struct {
 		Image string `json:"image"`

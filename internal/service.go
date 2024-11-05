@@ -2,6 +2,7 @@ package internal
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
 	"github.com/flags-gg/orchestrator/internal/agent"
 	"github.com/flags-gg/orchestrator/internal/environment"
@@ -10,6 +11,7 @@ import (
 	"github.com/flags-gg/orchestrator/internal/secretmenu"
 	ConfigBuilder "github.com/keloran/go-config"
 	"net/http"
+	"time"
 
 	"github.com/bugfixes/go-bugfixes/logs"
 	"github.com/bugfixes/go-bugfixes/middleware"
@@ -138,5 +140,14 @@ func (s *Service) startHTTP(errChan chan error) {
 	}
 
 	logs.Logf("Starting HTTP on %d", s.Config.Local.HTTPPort)
-	errChan <- http.ListenAndServe(fmt.Sprintf(":%d", s.Config.Local.HTTPPort), mw.Handler(mux))
+	server := &http.Server{
+		Addr:              fmt.Sprintf(":%d", s.Config.Local.HTTPPort),
+		Handler:           mw.Handler(mux),
+		ReadTimeout:       10 * time.Second,
+		WriteTimeout:      10 * time.Second,
+		IdleTimeout:       10 * time.Second,
+		ReadHeaderTimeout: 10 * time.Second,
+		TLSNextProto:      make(map[string]func(*http.Server, *tls.Conn, http.Handler), 0),
+	}
+	errChan <- server.ListenAndServe()
 }

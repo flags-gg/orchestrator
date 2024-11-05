@@ -27,21 +27,18 @@ func (s *System) GetCompanyStats(w http.ResponseWriter, r *http.Request) {
 	_ = r
 
 	w.WriteHeader(http.StatusNotImplemented)
-	return
 }
 
 func (s *System) GetProjectStats(w http.ResponseWriter, r *http.Request) {
 	_ = r
 
 	w.WriteHeader(http.StatusNotImplemented)
-	return
 }
 
 func (s *System) GetEnvironmentStats(w http.ResponseWriter, r *http.Request) {
 	_ = r
 
 	w.WriteHeader(http.StatusNotImplemented)
-	return
 
 	//w.Header().Set("x-flags-timestamp", strconv.FormatInt(time.Now().Unix(), 10))
 	//if r.Header.Get("x-user-subject") == "" || r.Header.Get("x-user-access-token") == "" {
@@ -87,7 +84,6 @@ func (s *System) GetAgentStats(w http.ResponseWriter, r *http.Request) {
 	_ = r
 
 	w.WriteHeader(http.StatusNotImplemented)
-	return
 
 	//w.Header().Set("x-flags-timestamp", strconv.FormatInt(time.Now().Unix(), 10))
 	//if r.Header.Get("x-user-subject") == "" || r.Header.Get("x-user-access-token") == "" {
