@@ -67,7 +67,7 @@ func (s *System) GetAgentFlags(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	responseObj := AgentResponse{}
+	var responseObj AgentResponse
 
 	projectId := r.Header.Get("x-project-id")
 	agentId := r.Header.Get("x-agent-id")
@@ -81,7 +81,9 @@ func (s *System) GetAgentFlags(w http.ResponseWriter, r *http.Request) {
 		}
 		_ = s.Config.Bugfixes.Logger.Errorf("Failed to get flags: %v", err)
 	}
-	responseObj = *res
+	if res != nil {
+		responseObj = *res
+	}
 
 	if err := json.NewEncoder(w).Encode(responseObj); err != nil {
 		_, _ = w.Write([]byte(`{"error": "failed to encode response"}`))

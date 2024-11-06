@@ -19,7 +19,7 @@ RUN go build -ldflags "-w -s -X main.BuildVersion=${VERSION} -X main.BuildHash=$
 RUN cp ./bin/service /
 
 # Runner
-FROM containers.chewed-k8s.net/docker_hub_cache/library/alpine:3.18 AS Runner
+FROM containers.chewed-k8s.net/docker_hub_cache/library/alpine:3.18 AS runner
 RUN apk update
 RUN apk upgrade
 RUN apk add ca-certificates && update-ca-certificates
