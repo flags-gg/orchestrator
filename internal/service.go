@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/flags-gg/orchestrator/internal/agent"
 	"github.com/flags-gg/orchestrator/internal/environment"
+	"github.com/flags-gg/orchestrator/internal/general"
 	"github.com/flags-gg/orchestrator/internal/pricing"
 	"github.com/flags-gg/orchestrator/internal/project"
 	"github.com/flags-gg/orchestrator/internal/secretmenu"
@@ -117,6 +118,7 @@ func (s *Service) startHTTP(errChan chan error) {
 	mux.HandleFunc(fmt.Sprintf("%s /probe", http.MethodGet), probe.HTTP)
 	mux.HandleFunc("GET /pricing", pricing.NewSystem(s.Config).GetGeneralPricing)
 	mux.HandleFunc("/uploadthing", user.NewSystem(s.Config).UploadThing)
+	mux.HandleFunc("/events/keycloak", general.NewSystem(s.Config).KeycloakEvents)
 
 	// middlewares
 	mw := middleware.NewMiddleware(context.Background())
