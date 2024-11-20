@@ -338,3 +338,24 @@ func (s *System) UpdateUserImage(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusOK)
 }
+
+func (s *System) DeleteUser(w http.ResponseWriter, r *http.Request) {
+	s.Context = r.Context()
+
+	subject := r.Header.Get("x-user-subject")
+	if subject == "" {
+		_ = s.Config.Bugfixes.Logger.Errorf("No subject provided")
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	logs.Logf("Deleting user: %s", subject)
+
+	//if err := s.DeleteUserInDB(subject); err != nil {
+	//	_ = s.Config.Bugfixes.Logger.Errorf("Failed to delete user: %v", err)
+	//	w.WriteHeader(http.StatusInternalServerError)
+	//	return
+	//}
+
+	w.WriteHeader(http.StatusOK)
+}
