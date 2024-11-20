@@ -96,6 +96,7 @@ func (s *Service) startHTTP(errChan chan error) {
 	mux.HandleFunc("POST /user", user.NewSystem(s.Config).CreateUser)
 	mux.HandleFunc("PUT /user", user.NewSystem(s.Config).UpdateUser)
 	mux.HandleFunc("GET /user", user.NewSystem(s.Config).GetUser)
+	mux.HandleFunc("DELETE /user", user.NewSystem(s.Config).DeleteUser)
 	mux.HandleFunc("PUT /user/image", user.NewSystem(s.Config).UpdateUserImage)
 
 	// Notifications
