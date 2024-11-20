@@ -344,7 +344,7 @@ func (s *System) DeleteUser(w http.ResponseWriter, r *http.Request) {
 
 	subject := r.Header.Get("x-user-subject")
 	if subject == "" {
-		_ = s.Config.Bugfixes.Logger.Errorf("No subject provided")
+		_ = s.Config.Bugfixes.Logger.Errorf("Missing x-user-subject header")
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
