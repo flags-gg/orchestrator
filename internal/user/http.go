@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/Nerzal/gocloak/v13"
 	"github.com/bugfixes/go-bugfixes/logs"
 	ConfigBuilder "github.com/keloran/go-config"
 	"net/http"
@@ -32,8 +31,9 @@ func (s *System) ValidateUser(ctx context.Context, subject string) bool {
 	if subject == "" {
 		return false
 	}
+	s.Context = ctx
 
-	user, err := s.GetKeycloakDetails(ctx, subject)
+	user, err := s.GetKeycloakDetails(subject)
 	if err != nil {
 		if strings.Contains(err.Error(), "ingress.local") {
 			logs.Fatalf("DNS error killing process: %v", err)
@@ -50,25 +50,6 @@ func (s *System) ValidateUser(ctx context.Context, subject string) bool {
 	return true
 }
 
-func (s *System) GetKeycloakDetails(ctx context.Context, subject string) (*gocloak.User, error) {
-	client, token, err := s.Config.Keycloak.GetClient(ctx)
-	if err != nil {
-		if strings.Contains(err.Error(), "ingress.local") {
-			logs.Fatalf("DNS error killing process: %v", err)
-			return nil, nil
-		}
-
-		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to get keycloak client: %v", err)
-	}
-
-	user, err := client.GetUserByID(ctx, token.AccessToken, s.Config.Keycloak.Realm, subject)
-	if err != nil {
-		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to get user by id: %v", err)
-	}
-
-	return user, nil
-}
-
 func (s *System) CreateUser(w http.ResponseWriter, r *http.Request) {
 	s.Context = r.Context()
 
@@ -79,14 +60,14 @@ func (s *System) CreateUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	cloakDetails, err := s.GetKeycloakDetails(s.Context, userSubject)
+	cloakDetails, err := s.GetKeycloakDetails(userSubject)
 	if err != nil {
 		_ = s.Config.Bugfixes.Logger.Errorf("Failed to get keycloak details: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
-	user, err := s.RetrieveUserDetails(userSubject)
+	user, err := s.RetrieveUserDetailsDB(userSubject)
 	if err != nil {
 		_ = s.Config.Bugfixes.Logger.Errorf("Failed to retrieve user details: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -110,6 +91,7 @@ func (s *System) CreateUser(w http.ResponseWriter, r *http.Request) {
 
 func (s *System) GetUser(w http.ResponseWriter, r *http.Request) {
 	s.Context = r.Context()
+	user := &User{}
 
 	subject := r.Header.Get("x-user-subject")
 	if subject == "" {
@@ -118,16 +100,37 @@ func (s *System) GetUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, err := s.RetrieveUserDetails(subject)
+	dbuser, err := s.RetrieveUserDetailsDB(subject)
 	if err != nil {
 		_ = s.Config.Bugfixes.Logger.Errorf("Failed to retrieve user details: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
-	if user == nil {
-		w.WriteHeader(http.StatusNotFound)
-		return
+	if dbuser == nil {
+		kcuser, err := s.GetKeycloakDetails(subject)
+		if err != nil {
+			_ = s.Config.Bugfixes.Logger.Errorf("Failed to retrieve user details: %v", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+		if kcuser == nil {
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+
+		if strings.Contains(*kcuser.Username, "github.") {
+			n := strings.Replace(*kcuser.Username, "github.", "", 1)
+			user.KnownAs = &n
+		}
+
+		user.Id = kcuser.ID
+		user.Email = kcuser.Email
+		user.FirstName = kcuser.FirstName
+		user.LastName = kcuser.LastName
+	} else {
+		user = dbuser
 	}
 
 	if err := json.NewEncoder(w).Encode(user); err != nil {
