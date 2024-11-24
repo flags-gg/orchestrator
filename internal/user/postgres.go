@@ -67,7 +67,7 @@ func (s *System) CreateUserDetails(subject, email, firstname, lastname string) e
 	return nil
 }
 
-func (s *System) RetrieveUserDetails(subject string) (*User, error) {
+func (s *System) RetrieveUserDetailsDB(subject string) (*User, error) {
 	client, err := s.Config.Database.GetPGXClient(s.Context)
 	if err != nil {
 		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
