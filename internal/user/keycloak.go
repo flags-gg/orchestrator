@@ -14,11 +14,19 @@ func (s *System) GetKeycloakDetails(subject string) (*gocloak.User, error) {
 			return nil, nil
 		}
 
+		if strings.Contains(err.Error(), "context canceled") {
+			return nil, nil
+		}
+
 		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to get keycloak client: %v", err)
 	}
 
 	user, err := client.GetUserByID(s.Context, token.AccessToken, s.Config.Keycloak.Realm, subject)
 	if err != nil {
+		if strings.Contains(err.Error(), "context canceled") {
+			return nil, nil
+		}
+
 		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to get user by id: %v", err)
 	}
 

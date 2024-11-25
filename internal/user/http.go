@@ -39,6 +39,9 @@ func (s *System) ValidateUser(ctx context.Context, subject string) bool {
 			logs.Fatalf("DNS error killing process: %v", err)
 			return false
 		}
+		if strings.Contains(err.Error(), "context canceled") {
+			return false
+		}
 
 		_ = s.Config.Bugfixes.Logger.Errorf("Failed to get keycloak details: %v", err)
 		return false
@@ -138,8 +141,6 @@ func (s *System) GetUser(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-
-	w.WriteHeader(http.StatusOK)
 }
 
 func (s *System) UpdateUser(w http.ResponseWriter, r *http.Request) {
