@@ -39,7 +39,7 @@ type Notifications struct {
 	Notifications []Notification `json:"notifications,omitempty"`
 }
 
-func (s *System) CreateUserDetails(subject, email, firstname, lastname string) error {
+func (s *System) CreateUserDetails(subject, knownAs, email, firstname, lastname, location string, userGroup int) error {
 	client, err := s.Config.Database.GetPGXClient(s.Context)
 	if err != nil {
 		return s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
@@ -55,12 +55,17 @@ func (s *System) CreateUserDetails(subject, email, firstname, lastname string) e
         subject,
         email_address,
         first_name,
-        last_name
-    ) VALUES ($1, $2, $3, $4)
+        last_name,
+        known_as,
+        user_group_id,
+        location
+    ) VALUES ($1, $2, $3, $4, $5, $6, $7)
     ON CONFLICT (subject) DO UPDATE SET
         email_address = $2,
         first_name = $3,
-        last_name = $4`, subject, email, firstname, lastname); err != nil {
+        last_name = $4,
+        known_as = $5,
+        location = $7`, subject, email, firstname, lastname, knownAs, userGroup, location); err != nil {
 		return s.Config.Bugfixes.Logger.Errorf("Failed to insert user into database: %v", err)
 	}
 
@@ -222,6 +227,33 @@ func (s *System) UpdateUserImageInDB(subject string, image string) error {
 		SET avatar = $1
 		WHERE subject = $2`, image, subject); err != nil {
 		return s.Config.Bugfixes.Logger.Errorf("Failed to update user image: %v", err)
+	}
+
+	return nil
+}
+
+func (s *System) UpdateUserDetailsDB(subject, knownAs, email, firstname, lastname, location string) error {
+	client, err := s.Config.Database.GetPGXClient(s.Context)
+	if err != nil {
+		return s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
+	}
+	defer func() {
+		if err := client.Close(s.Context); err != nil {
+			s.Config.Bugfixes.Logger.Fatalf("Failed to close database connection: %v", err)
+		}
+	}()
+
+	_, err = client.Exec(s.Context, `
+    UPDATE public.user
+    SET
+      known_as = $1,
+      email_address = $2,
+      first_name = $3,
+      last_name = $4,
+      location = $6
+    WHERE subject = $5`, knownAs, email, firstname, lastname, subject, location)
+	if err != nil {
+		return s.Config.Bugfixes.Logger.Errorf("Failed to update user details: %v", err)
 	}
 
 	return nil

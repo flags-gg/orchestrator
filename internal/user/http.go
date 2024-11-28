@@ -70,21 +70,33 @@ func (s *System) CreateUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, err := s.RetrieveUserDetailsDB(userSubject)
-	if err != nil {
-		_ = s.Config.Bugfixes.Logger.Errorf("Failed to retrieve user details: %v", err)
+	type formData struct {
+		KnownAs   string `json:"knownAs"`
+		Email     string `json:"emailAddress"`
+		First     string `json:"firstName"`
+		Last      string `json:"lastName"`
+		UserGroup int    `json:"userGroup"`
+		Location  string `json:"location"`
+	}
+	fd := formData{}
+	if err := json.NewDecoder(r.Body).Decode(&fd); err != nil {
+		_ = s.Config.Bugfixes.Logger.Errorf("Failed to decode form data: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
+	if fd.KnownAs == "" {
+		fd.KnownAs = *cloakDetails.Username
+		fd.First = *cloakDetails.FirstName
+		fd.Last = *cloakDetails.LastName
+		fd.Email = *cloakDetails.Email
+	}
 
-	// User already exists
-	if user != nil {
-		w.WriteHeader(http.StatusOK)
-		return
+	if fd.Location == "" {
+		fd.Location = "Unknown"
 	}
 
 	// Create user
-	if err := s.CreateUserDetails(userSubject, *cloakDetails.Email, *cloakDetails.FirstName, *cloakDetails.LastName); err != nil {
+	if err := s.CreateUserDetails(userSubject, fd.KnownAs, fd.Email, fd.First, fd.Last, fd.Location, 1); err != nil {
 		_ = s.Config.Bugfixes.Logger.Errorf("Failed to create user details: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 	}
@@ -148,8 +160,12 @@ func (s *System) UpdateUser(w http.ResponseWriter, r *http.Request) {
 
 	subject := r.Header.Get("x-user-subject")
 	type formData struct {
-		KnownAs string `json:"knownAs"`
-		Email   string `json:"emailAddress"`
+		KnownAs   string `json:"knownAs"`
+		Email     string `json:"emailAddress"`
+		First     string `json:"firstName"`
+		Last      string `json:"lastName"`
+		UserGroup int    `json:"userGroup"`
+		Location  string `json:"location"`
 	}
 	fd := formData{}
 	if err := json.NewDecoder(r.Body).Decode(&fd); err != nil {
@@ -158,7 +174,13 @@ func (s *System) UpdateUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	logs.Logf("knownAs: %s, email: %s, subject: %s", fd.KnownAs, fd.Email, subject)
+	if err := s.UpdateUserDetailsDB(subject, fd.KnownAs, fd.Email, fd.First, fd.Last, fd.Location); err != nil {
+		_ = s.Config.Bugfixes.Logger.Errorf("Failed to update user details: %v", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
 }
 
 func (s *System) GetUserNotifications(w http.ResponseWriter, r *http.Request) {
