@@ -375,13 +375,29 @@ func (s *System) DeleteUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	logs.Logf("Deleting user: %s", subject)
+	user, err := s.GetKeycloakDetails(subject)
+	if err != nil {
+		_ = s.Config.Bugfixes.Logger.Errorf("Failed to get keycloak details: %v", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
 
-	//if err := s.DeleteUserInDB(subject); err != nil {
-	//	_ = s.Config.Bugfixes.Logger.Errorf("Failed to delete user: %v", err)
-	//	w.WriteHeader(http.StatusInternalServerError)
-	//	return
-	//}
+	if user == nil {
+		w.WriteHeader(http.StatusNotFound)
+		return
+	}
+
+	if err := s.DeleteUserInDB(subject); err != nil {
+		_ = s.Config.Bugfixes.Logger.Errorf("Failed to delete user: %v", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	if err := s.DeleteUserInKeycloak(subject); err != nil {
+		_ = s.Config.Bugfixes.Logger.Errorf("Failed to delete user: %v", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
 
 	w.WriteHeader(http.StatusOK)
 }
