@@ -258,3 +258,21 @@ func (s *System) UpdateUserDetailsDB(subject, knownAs, email, firstname, lastnam
 
 	return nil
 }
+
+func (s *System) DeleteUserInDB(subject string) error {
+	client, err := s.Config.Database.GetPGXClient(s.Context)
+	if err != nil {
+		return s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
+	}
+	defer func() {
+		if err := client.Close(s.Context); err != nil {
+			s.Config.Bugfixes.Logger.Fatalf("Failed to close database connection: %v", err)
+		}
+	}()
+
+	if _, err := client.Exec(s.Context, `DELETE FROM public.user WHERE subject = $1`, subject); err != nil {
+		return s.Config.Bugfixes.Logger.Errorf("Failed to delete user: %v", err)
+	}
+
+	return nil
+}
