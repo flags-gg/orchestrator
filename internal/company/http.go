@@ -10,8 +10,9 @@ import (
 )
 
 type System struct {
-	Config  *ConfigBuilder.Config
-	Context context.Context
+	Config    *ConfigBuilder.Config
+	Context   context.Context
+	CompanyID string
 }
 
 type Company struct {
@@ -154,11 +155,6 @@ func (s *System) AttachUserToCompany(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if user.Domain == "" {
-		w.WriteHeader(http.StatusNotFound)
-		return
-	}
-
 	company, err := s.GetCompanyBasedOnDomain(user.Domain, user.InviteCode)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
@@ -167,6 +163,12 @@ func (s *System) AttachUserToCompany(w http.ResponseWriter, r *http.Request) {
 
 	if !company {
 		w.WriteHeader(http.StatusNotFound)
+		return
+	}
+
+	userSubject := r.Header.Get("x-user-subject")
+	if err := s.AttachUserToCompanyDB(userSubject); err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 

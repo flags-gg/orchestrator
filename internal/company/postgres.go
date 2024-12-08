@@ -268,8 +268,7 @@ func (s *System) GetCompanyBasedOnDomain(domain, inviteCode string) (bool, error
 
 	var companyId string
 	if err := client.QueryRow(s.Context, `
-    SELECT
-		company_id
+    SELECT company_id
 	FROM company
 	WHERE domain = $1 OR invite_code = $2`, domain, inviteCode).Scan(&companyId); err != nil {
 		if err.Error() == "context canceled" {
@@ -280,6 +279,41 @@ func (s *System) GetCompanyBasedOnDomain(domain, inviteCode string) (bool, error
 		}
 		return false, s.Config.Bugfixes.Logger.Errorf("Failed to query database: %v", err)
 	}
+	s.CompanyID = companyId
 
 	return true, nil
+}
+
+func (s *System) AttachUserToCompanyDB(userSubject string) error {
+	client, err := s.Config.Database.GetPGXClient(s.Context)
+	if err != nil {
+		return s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
+	}
+	defer func() {
+		if err := client.Close(s.Context); err != nil {
+			s.Config.Bugfixes.Logger.Fatalf("Failed to close database connection: %v", err)
+		}
+	}()
+
+	_, err = client.Exec(s.Context, `
+    INSERT INTO public.company_user (
+        company_id,
+        user_id
+    ) VALUES (
+        (SELECT id FROM company WHERE company_id = $1),
+        (SELECT id FROM public.user WHERE subject = $2)
+    )`, s.CompanyID, userSubject)
+	if err != nil {
+		return s.Config.Bugfixes.Logger.Errorf("Failed to insert user into database: %v", err)
+	}
+
+	_, err = client.Exec(s.Context, `
+		UPDATE public.user
+		SET onboarded = true
+		WHERE subject = $1`, userSubject)
+	if err != nil {
+		return s.Config.Bugfixes.Logger.Errorf("Failed to update user onboarded status: %v", err)
+	}
+
+	return nil
 }

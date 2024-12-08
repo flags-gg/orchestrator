@@ -131,6 +131,7 @@ func (s *System) GetUser(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if kcuser == nil {
+			logs.Logf("User not found in keycloak: %v", subject)
 			w.WriteHeader(http.StatusNotFound)
 			return
 		}
