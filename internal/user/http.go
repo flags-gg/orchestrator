@@ -147,6 +147,7 @@ func (s *System) GetUser(w http.ResponseWriter, r *http.Request) {
 		user.LastName = kcuser.LastName
 	} else {
 		user = dbuser
+		user.Created = true
 	}
 
 	if err := json.NewEncoder(w).Encode(user); err != nil {

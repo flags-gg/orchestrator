@@ -24,6 +24,7 @@ type User struct {
 	LastName  *string `json:"last_name,omitempty"`
 	UserGroup *Group  `json:"user_group,omitempty"`
 	Onboarded *bool   `json:"onboarded,omitempty"`
+	Created   bool    `json:"created,omitempty"`
 }
 
 type Notification struct {
@@ -269,8 +270,15 @@ func (s *System) DeleteUserInDB(subject string) error {
 		}
 	}()
 
-	if _, err := client.Exec(s.Context, `DELETE FROM public.user WHERE subject = $1`, subject); err != nil {
-		return s.Config.Bugfixes.Logger.Errorf("Failed to delete user: %v", err)
+	if _, err := client.Exec(s.Context, `
+	WITH deleted_user AS (
+        DELETE FROM public.user 
+        WHERE subject = $1
+        RETURNING id
+    )
+    DELETE FROM public.company_user 
+    WHERE user_id IN (SELECT id FROM deleted_user)`, subject); err != nil {
+		return s.Config.Bugfixes.Logger.Errorf("Failed to delete user from company_user: %v", err)
 	}
 
 	return nil
