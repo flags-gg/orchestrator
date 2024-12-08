@@ -10,8 +10,9 @@ import (
 )
 
 type System struct {
-	Config  *ConfigBuilder.Config
-	Context context.Context
+	Config    *ConfigBuilder.Config
+	Context   context.Context
+	CompanyID string
 }
 
 type Company struct {
@@ -61,13 +62,31 @@ func (s *System) CreateCompany(w http.ResponseWriter, r *http.Request) {
 	s.Context = r.Context()
 
 	if r.Header.Get("x-user-subject") == "" || r.Header.Get("x-user-access-token") == "" {
-		if err := json.NewEncoder(w).Encode(&Company{}); err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-		}
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+	userSubject := r.Header.Get("x-user-subject")
+
+	type C struct {
+		Name   string `json:"name"`
+		Domain string `json:"domain"`
+	}
+	c := C{}
+	if err := json.NewDecoder(r.Body).Decode(&c); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
-	w.WriteHeader(http.StatusNotImplemented)
+	if c.Name == "" || c.Domain == "" {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	if err := s.CreateCompanyDB(c.Name, c.Domain, userSubject); err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
 }
 
 func (s *System) UpdateCompany(w http.ResponseWriter, r *http.Request) {
@@ -154,11 +173,6 @@ func (s *System) AttachUserToCompany(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if user.Domain == "" {
-		w.WriteHeader(http.StatusNotFound)
-		return
-	}
-
 	company, err := s.GetCompanyBasedOnDomain(user.Domain, user.InviteCode)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
@@ -167,6 +181,12 @@ func (s *System) AttachUserToCompany(w http.ResponseWriter, r *http.Request) {
 
 	if !company {
 		w.WriteHeader(http.StatusNotFound)
+		return
+	}
+
+	userSubject := r.Header.Get("x-user-subject")
+	if err := s.AttachUserToCompanyDB(userSubject); err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 

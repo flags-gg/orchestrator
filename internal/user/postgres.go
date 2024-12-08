@@ -12,18 +12,19 @@ type Group struct {
 }
 
 type User struct {
-	Id                *string `json:"id,omitempty"`
-	KnownAs           *string `json:"known_as,omitempty"`
-	Email             *string `json:"email_address,omitempty"`
-	Subject           *string `json:"subject,omitempty"`
-	Timezone          *string `json:"timezone,omitempty"`
-	JobTitle          *string `json:"job_title,omitempty"`
-	Location          *string `json:"location,omitempty"`
-	Avatar            *string `json:"avatar,omitempty"`
-	FirstName         *string `json:"first_name,omitempty"`
-	LastName          *string `json:"last_name,omitempty"`
-	UserGroup         *Group  `json:"user_group,omitempty"`
-	CompanyInviteCode *string `json:"company_invite_code,omitempty"`
+	Id        *string `json:"id,omitempty"`
+	KnownAs   *string `json:"known_as,omitempty"`
+	Email     *string `json:"email_address,omitempty"`
+	Subject   *string `json:"subject,omitempty"`
+	Timezone  *string `json:"timezone,omitempty"`
+	JobTitle  *string `json:"job_title,omitempty"`
+	Location  *string `json:"location,omitempty"`
+	Avatar    *string `json:"avatar,omitempty"`
+	FirstName *string `json:"first_name,omitempty"`
+	LastName  *string `json:"last_name,omitempty"`
+	UserGroup *Group  `json:"user_group,omitempty"`
+	Onboarded *bool   `json:"onboarded,omitempty"`
+	Created   bool    `json:"created,omitempty"`
 }
 
 type Notification struct {
@@ -98,13 +99,12 @@ func (s *System) RetrieveUserDetailsDB(subject string) (*User, error) {
         u.first_name,
         u.last_name,
         u.user_group_id,
-    	ug.name AS user_group_name,
-    	c.invite_code
+        u.onboarded,
+    	ug.name AS user_group_name
     FROM public.user AS u
     	LEFT JOIN public.user_groups AS ug ON ug.id = u.user_group_id
     	LEFT JOIN public.company_user AS cu ON cu.user_id = u.id
-        LEFT JOIN public.company AS c ON c.id = cu.company_id
-    WHERE subject = $1`, subject).Scan(&user.Id, &user.KnownAs, &user.Email, &user.Subject, &user.Timezone, &user.JobTitle, &user.Location, &user.Avatar, &user.FirstName, &user.LastName, &ug.Id, &ug.Name, &user.CompanyInviteCode); err != nil {
+    WHERE subject = $1`, subject).Scan(&user.Id, &user.KnownAs, &user.Email, &user.Subject, &user.Timezone, &user.JobTitle, &user.Location, &user.Avatar, &user.FirstName, &user.LastName, &ug.Id, &user.Onboarded, &ug.Name); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, nil
 		}
@@ -270,8 +270,15 @@ func (s *System) DeleteUserInDB(subject string) error {
 		}
 	}()
 
-	if _, err := client.Exec(s.Context, `DELETE FROM public.user WHERE subject = $1`, subject); err != nil {
-		return s.Config.Bugfixes.Logger.Errorf("Failed to delete user: %v", err)
+	if _, err := client.Exec(s.Context, `
+	WITH deleted_user AS (
+        DELETE FROM public.user 
+        WHERE subject = $1
+        RETURNING id
+    )
+    DELETE FROM public.company_user 
+    WHERE user_id IN (SELECT id FROM deleted_user)`, subject); err != nil {
+		return s.Config.Bugfixes.Logger.Errorf("Failed to delete user from company_user: %v", err)
 	}
 
 	return nil

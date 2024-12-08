@@ -131,6 +131,7 @@ func (s *System) GetUser(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if kcuser == nil {
+			logs.Logf("User not found in keycloak: %v", subject)
 			w.WriteHeader(http.StatusNotFound)
 			return
 		}
@@ -146,6 +147,7 @@ func (s *System) GetUser(w http.ResponseWriter, r *http.Request) {
 		user.LastName = kcuser.LastName
 	} else {
 		user = dbuser
+		user.Created = true
 	}
 
 	if err := json.NewEncoder(w).Encode(user); err != nil {

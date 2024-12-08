@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 )
 
@@ -268,8 +269,7 @@ func (s *System) GetCompanyBasedOnDomain(domain, inviteCode string) (bool, error
 
 	var companyId string
 	if err := client.QueryRow(s.Context, `
-    SELECT
-		company_id
+    SELECT company_id
 	FROM company
 	WHERE domain = $1 OR invite_code = $2`, domain, inviteCode).Scan(&companyId); err != nil {
 		if err.Error() == "context canceled" {
@@ -280,6 +280,90 @@ func (s *System) GetCompanyBasedOnDomain(domain, inviteCode string) (bool, error
 		}
 		return false, s.Config.Bugfixes.Logger.Errorf("Failed to query database: %v", err)
 	}
+	s.CompanyID = companyId
 
 	return true, nil
+}
+
+func (s *System) AttachUserToCompanyDB(userSubject string) error {
+	client, err := s.Config.Database.GetPGXClient(s.Context)
+	if err != nil {
+		return s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
+	}
+	defer func() {
+		if err := client.Close(s.Context); err != nil {
+			s.Config.Bugfixes.Logger.Fatalf("Failed to close database connection: %v", err)
+		}
+	}()
+
+	_, err = client.Exec(s.Context, `
+    INSERT INTO public.company_user (
+        company_id,
+        user_id
+    ) VALUES (
+        (SELECT id FROM company WHERE company_id = $1),
+        (SELECT id FROM public.user WHERE subject = $2)
+    )`, s.CompanyID, userSubject)
+	if err != nil {
+		return s.Config.Bugfixes.Logger.Errorf("Failed to insert user into database: %v", err)
+	}
+
+	_, err = client.Exec(s.Context, `
+		UPDATE public.user
+		SET onboarded = true
+		WHERE subject = $1`, userSubject)
+	if err != nil {
+		return s.Config.Bugfixes.Logger.Errorf("Failed to update user onboarded status: %v", err)
+	}
+
+	return nil
+}
+
+func (s *System) CreateCompanyDB(name, domain, userSubject string) error {
+	client, err := s.Config.Database.GetPGXClient(s.Context)
+	if err != nil {
+		return s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
+	}
+	defer func() {
+		if err := client.Close(s.Context); err != nil {
+			s.Config.Bugfixes.Logger.Fatalf("Failed to close database connection: %v", err)
+		}
+	}()
+
+	companyId := uuid.New().String()
+	inviteCode := uuid.New().String()
+	apiKey := uuid.New().String()
+	apiSecret := uuid.New().String()
+
+	if _, err := client.Exec(s.Context, `
+    INSERT INTO public.company (
+        name,
+        domain,
+        company_id,
+        invite_code,
+        api_key,
+        api_secret
+    ) VALUES (
+        $1,
+        $2,
+        $3,
+        $4,
+        $5,
+        $6
+    )`, name, domain, companyId, inviteCode, apiKey, apiSecret); err != nil {
+		return s.Config.Bugfixes.Logger.Errorf("Failed to insert company into database: %v", err)
+	}
+
+	if _, err := client.Exec(s.Context, `
+    INSERT INTO public.company_user (
+        company_id,
+        user_id
+    ) VALUES (
+        (SELECT id FROM company WHERE company_id = $1),
+        (SELECT id FROM public.user WHERE subject = $2)
+    )`, companyId, userSubject); err != nil {
+		return s.Config.Bugfixes.Logger.Errorf("Failed to insert user into company_user: %v", err)
+	}
+
+	return nil
 }
