@@ -62,13 +62,31 @@ func (s *System) CreateCompany(w http.ResponseWriter, r *http.Request) {
 	s.Context = r.Context()
 
 	if r.Header.Get("x-user-subject") == "" || r.Header.Get("x-user-access-token") == "" {
-		if err := json.NewEncoder(w).Encode(&Company{}); err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-		}
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+	userSubject := r.Header.Get("x-user-subject")
+
+	type C struct {
+		Name   string `json:"name"`
+		Domain string `json:"domain"`
+	}
+	c := C{}
+	if err := json.NewDecoder(r.Body).Decode(&c); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
-	w.WriteHeader(http.StatusNotImplemented)
+	if c.Name == "" || c.Domain == "" {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	if err := s.CreateCompanyDB(c.Name, c.Domain, userSubject); err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
 }
 
 func (s *System) UpdateCompany(w http.ResponseWriter, r *http.Request) {
