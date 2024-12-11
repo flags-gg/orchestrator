@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"github.com/bugfixes/go-bugfixes/logs"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 )
@@ -366,4 +367,56 @@ func (s *System) CreateCompanyDB(name, domain, userSubject string) error {
 	}
 
 	return nil
+}
+
+type User struct {
+	Subject   string `json:"subject"`
+	FirstName string `json:"first_name"`
+	LastName  string `json:"last_name"`
+	KnownAs   string `json:"known_as"`
+}
+
+func (s *System) GetCompanyUsersFromDB(companyId string) ([]User, error) {
+	var users []User
+
+	client, err := s.Config.Database.GetPGXClient(s.Context)
+	if err != nil {
+		return users, s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
+	}
+	defer func() {
+		if err := client.Close(s.Context); err != nil {
+			logs.Fatalf("Failed to close database connection: %v", err)
+		}
+	}()
+
+	rows, err := client.Query(s.Context, `
+    SELECT
+        u.subject,
+        u.first_name,
+        u.last_name,
+        u.known_as
+    FROM public.user AS u
+        JOIN public.company_user AS cu ON u.id = cu.user_id
+        JOIN public.company AS c ON c.id = cu.company_id
+    WHERE c.company_id = $1`, companyId)
+	if err != nil {
+		if err.Error() == "context canceled" {
+			return users, nil
+		}
+		if errors.Is(err, pgx.ErrNoRows) {
+			return users, nil
+		}
+		return users, s.Config.Bugfixes.Logger.Errorf("Failed to query database: %v", err)
+	}
+
+	for rows.Next() {
+		var user User
+		err := rows.Scan(&user.Subject, &user.FirstName, &user.LastName, &user.KnownAs)
+		if err != nil {
+			return users, s.Config.Bugfixes.Logger.Errorf("Failed to scan row: %v", err)
+		}
+		users = append(users, user)
+	}
+
+	return users, nil
 }
