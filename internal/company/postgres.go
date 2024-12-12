@@ -27,9 +27,17 @@ type Users struct {
 }
 
 type Limits struct {
-	Agents   Agents   `json:"agents,omitempty"`
-	Projects Projects `json:"projects,omitempty"`
-	Users    Users    `json:"users,omitempty"`
+	Details      PlanDetails `json:"details,omitempty"`
+	Agents       Agents      `json:"agents,omitempty"`
+	Environments int         `json:"environments,omitempty"`
+	Projects     Projects    `json:"projects,omitempty"`
+	Users        Users       `json:"users,omitempty"`
+}
+
+type PlanDetails struct {
+	Price  sql.NullString `json:"price"`
+	Name   sql.NullString `json:"name"`
+	Custom sql.NullBool   `json:"custom"`
 }
 
 type Details struct {
@@ -37,6 +45,7 @@ type Details struct {
 	Avatar      sql.NullString `json:"avatar,omitempty"`
 	PaymentPlan sql.NullString `json:"paymentPlan,omitempty"`
 	Timezone    sql.NullString `json:"timezone,omitempty"`
+	Custom      sql.NullString `json:"custom,omitempty"`
 }
 
 func (s *System) GetProjectLimits(userSubject string) (*Projects, error) {
@@ -419,4 +428,58 @@ func (s *System) GetCompanyUsersFromDB(companyId string) ([]User, error) {
 	}
 
 	return users, nil
+}
+
+func (s *System) GetLimits(companyId string) (Limits, error) {
+	var limits Limits
+
+	client, err := s.Config.Database.GetPGXClient(s.Context)
+	if err != nil {
+		return limits, s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
+	}
+	defer func() {
+		if err := client.Close(s.Context); err != nil {
+			s.Config.Bugfixes.Logger.Fatalf("Failed to close database connection: %v", err)
+		}
+	}()
+
+	if err := client.QueryRow(s.Context, `
+    SELECT
+		pp.price,
+		pp.name,
+		pp.custom,
+		pp.team_members,
+		pp.projects,
+		pp.agents,
+		pp.environments,
+		(
+	    	SELECT COUNT(p.id)
+			FROM public.project p
+			WHERE p.company_id = c.id
+		) AS projects_used,
+		(
+    		SELECT COUNT(*)
+			FROM public.user u
+				JOIN public.company_user cu ON cu.user_id = u.id
+			WHERE cu.company_id = c.id
+		) AS users_used
+	FROM public.payment_plans AS pp
+		JOIN public.company AS c ON c.payment_plan_id = pp.id
+	WHERE c.company_id = $1`, companyId).Scan(
+		&limits.Details.Price,
+		&limits.Details.Name,
+		&limits.Details.Custom,
+		&limits.Agents.Allowed,
+		&limits.Projects.Allowed,
+		&limits.Agents.Allowed,
+		&limits.Environments,
+		&limits.Projects.Used,
+		&limits.Users.Activated); err != nil {
+		if err.Error() == "context canceled" {
+			return limits, nil
+		}
+		return limits, s.Config.Bugfixes.Logger.Errorf("Failed to query database: %v", err)
+	}
+
+	return limits, nil
 }
