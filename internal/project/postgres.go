@@ -229,3 +229,44 @@ func (s *System) UpdateProjectImageInDB(projectId, logo string) error {
 
 	return nil
 }
+
+type AgentLimits struct {
+	AgentsAllowed int `json:"allowed"`
+	AgentsUsed    int `json:"used"`
+}
+
+func (s *System) GetLimitsFromDB(companyId, projectId string) (AgentLimits, error) {
+	var limits AgentLimits
+
+	client, err := s.Config.Database.GetPGXClient(s.Context)
+	if err != nil {
+		return limits, s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
+	}
+	defer func() {
+		if err := client.Close(s.Context); err != nil {
+			s.Config.Bugfixes.Logger.Fatalf("Failed to close database connection: %v", err)
+		}
+	}()
+
+	if err := client.QueryRow(s.Context, `
+    SELECT
+		pp.agents,
+		(
+	    	SELECT COUNT(a.id)
+			FROM public.agent AS a
+			  JOIN public.project AS p ON p.id = a.project_id
+			WHERE p.project_id = $2
+		) AS projects_used
+	FROM public.payment_plans AS pp
+		JOIN public.company AS c ON c.payment_plan_id = pp.id
+	WHERE c.company_id = $1`, companyId, projectId).Scan(
+		&limits.AgentsAllowed,
+		&limits.AgentsUsed); err != nil {
+		if err.Error() == "context canceled" {
+			return limits, nil
+		}
+		return limits, s.Config.Bugfixes.Logger.Errorf("Failed to query database: %v", err)
+	}
+
+	return limits, nil
+}

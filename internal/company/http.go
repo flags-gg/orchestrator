@@ -115,36 +115,47 @@ func (s *System) GetCompanyLimits(w http.ResponseWriter, r *http.Request) {
 	}
 
 	userSubject := r.Header.Get("x-user-subject")
-
-	projectLimits, err := s.GetProjectLimits(userSubject)
+	companyId, err := s.GetCompanyId(userSubject)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
-	userLimits, err := s.GetUserLimits(userSubject)
+	limits, err := s.GetLimits(companyId)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
-	agentLimits, err := s.GetAgentLimits(userSubject)
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-
-	if userLimits == nil || projectLimits == nil {
-		w.WriteHeader(http.StatusNotFound)
-		return
-	}
-
-	// This is a dummy response
-	limits := Limits{
-		Projects: *projectLimits,
-		Users:    *userLimits,
-		Agents:   *agentLimits,
-	}
+	//projectLimits, err := s.GetProjectLimits(userSubject)
+	//if err != nil {
+	//	w.WriteHeader(http.StatusInternalServerError)
+	//	return
+	//}
+	//
+	//userLimits, err := s.GetUserLimits(userSubject)
+	//if err != nil {
+	//	w.WriteHeader(http.StatusInternalServerError)
+	//	return
+	//}
+	//
+	//agentLimits, err := s.GetAgentLimits(userSubject)
+	//if err != nil {
+	//	w.WriteHeader(http.StatusInternalServerError)
+	//	return
+	//}
+	//
+	//if userLimits == nil || projectLimits == nil {
+	//	w.WriteHeader(http.StatusNotFound)
+	//	return
+	//}
+	//
+	//// This is a dummy response
+	//limits := Limits{
+	//	Projects: *projectLimits,
+	//	Users:    *userLimits,
+	//	Agents:   *agentLimits,
+	//}
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(&limits); err != nil {

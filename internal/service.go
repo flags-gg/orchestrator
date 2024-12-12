@@ -52,6 +52,7 @@ func (s *Service) startHTTP(errChan chan error) {
 	mux.HandleFunc("GET /project/{projectId}", project.NewSystem(s.Config).GetProject)
 	mux.HandleFunc("PUT /project/{projectId}", project.NewSystem(s.Config).UpdateProject)
 	mux.HandleFunc("PUT /project/{projectId}/image", project.NewSystem(s.Config).UpdateProjectImage)
+	mux.HandleFunc("GET /project/{projectId}/limits", project.NewSystem(s.Config).GetLimits)
 	mux.HandleFunc("DELETE /project/{projectId}", project.NewSystem(s.Config).DeleteProject)
 
 	// Agents
