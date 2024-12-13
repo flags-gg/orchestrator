@@ -67,21 +67,19 @@ func (s *Service) ValidateAgent(w http.ResponseWriter, r *http.Request) bool {
 func (s *Service) Auth(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Validate User
-		validAuth := s.ValidateUser(w, r)
-
-		// it's not a user so check if it's an agent
-		if !validAuth {
-			if validAgent := s.ValidateAgent(w, r); !validAgent {
-				w.Header().Set("Content-Type", "application/json")
-				_, _ = w.Write([]byte(`{"intervalAllowed":900, "flags": []}`))
-				return
-			}
-
-			w.WriteHeader(http.StatusUnauthorized)
+		if s.ValidateUser(w, r) {
+			next.ServeHTTP(w, r)
 			return
 		}
 
-		// Continue to processing
-		next.ServeHTTP(w, r)
+		// it's not a user so check if it's an agent
+		if s.ValidateAgent(w, r) {
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"intervalAllowed":900, "flags": []}`))
+		return
 	})
 }
