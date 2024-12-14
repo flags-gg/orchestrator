@@ -3,7 +3,6 @@ package company
 import (
 	"database/sql"
 	"errors"
-	"fmt"
 	"github.com/bugfixes/go-bugfixes/logs"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -35,17 +34,18 @@ type Limits struct {
 }
 
 type PlanDetails struct {
-	Price  sql.NullString `json:"price"`
-	Name   sql.NullString `json:"name"`
-	Custom sql.NullBool   `json:"custom"`
+	Price        sql.NullString `json:"price"`
+	Name         sql.NullString `json:"name"`
+	Custom       sql.NullBool   `json:"custom"`
+	TeamMembers  int            `json:"team_members"`
+	Projects     int            `json:"projects"`
+	Agents       int            `json:"agents"`
+	Environments int            `json:"environments"`
 }
 
 type Details struct {
-	Company     *Company       `json:"company,omitempty"`
-	Avatar      sql.NullString `json:"avatar,omitempty"`
-	PaymentPlan sql.NullString `json:"paymentPlan,omitempty"`
-	Timezone    sql.NullString `json:"timezone,omitempty"`
-	Custom      sql.NullString `json:"custom,omitempty"`
+	Company     *Company    `json:"company,omitempty"`
+	PaymentPlan PlanDetails `json:"payment_plan,omitempty"`
 }
 
 func (s *System) GetProjectLimits(userSubject string) (*Projects, error) {
@@ -232,9 +232,10 @@ func (s *System) GetCompanyInfo(userSubject string) (*Details, error) {
 		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to get company id: %v", err)
 	}
 
-	_ = fmt.Sprintf("Company ID: %s", companyId)
 	details := &Details{}
 	company := &Company{}
+	paymentPlan := &PlanDetails{}
+
 	client, err := s.Config.Database.GetPGXClient(s.Context)
 	if err != nil {
 		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
@@ -247,12 +248,33 @@ func (s *System) GetCompanyInfo(userSubject string) (*Details, error) {
 
 	if err := client.QueryRow(s.Context, `
     SELECT
-		company_id,
-  		name AS companyName,
-  		domain AS companyDomain,
-  		invite_code
-	FROM company
-	WHERE company_id = $1`, companyId).Scan(&company.ID, &company.Name, &company.Domain, &company.InviteCode); err != nil {
+		c.company_id,
+  		c.name AS companyName,
+  		c.domain AS companyDomain,
+  		c.invite_code,
+  		c.logo,
+        pp.name as paymentPlanName,
+        pp.custom as paymentPlanCustom,
+        pp.team_members as paymentPlanTeamMembers,
+        pp.projects as paymentPlanProjects,
+        pp.agents as paymentPlanAgents,
+        pp.environments as paymentPlanEnvironments,
+        pp.price as paymentPlanPrice
+	FROM company AS c
+	  JOIN payment_plans pp ON pp.id = c.payment_plan_id
+	WHERE c.company_id = $1`, companyId).Scan(
+		&company.ID,
+		&company.Name,
+		&company.Domain,
+		&company.InviteCode,
+		&company.Logo,
+		&paymentPlan.Name,
+		&paymentPlan.Custom,
+		&paymentPlan.TeamMembers,
+		&paymentPlan.Projects,
+		&paymentPlan.Agents,
+		&paymentPlan.Environments,
+		&paymentPlan.Price); err != nil {
 		if err.Error() == "context canceled" {
 			return nil, nil
 		}
@@ -262,6 +284,7 @@ func (s *System) GetCompanyInfo(userSubject string) (*Details, error) {
 		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to query database: %v", err)
 	}
 	details.Company = company
+	details.PaymentPlan = *paymentPlan
 
 	return details, nil
 }
