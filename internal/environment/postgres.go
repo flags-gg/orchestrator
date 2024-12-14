@@ -1,6 +1,7 @@
 package environment
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"github.com/flags-gg/orchestrator/internal/flags"
@@ -71,7 +72,7 @@ func (s *System) GetEnvironmentFromDB(envId string) (*Environment, error) {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, nil
 		}
-		if err.Error() == "context canceled" {
+		if err.Error() == "context canceled" || errors.Is(err, context.Canceled) {
 			return nil, nil
 		}
 		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to query database: %v", err)
@@ -101,7 +102,7 @@ func (s *System) GetAgentEnvironmentsFromDB(agentId string) ([]*Environment, err
       JOIN agent ON env.agent_id = agent.id
     WHERE agent.agent_id = $1`, agentId)
 	if err != nil {
-		if err.Error() == "context canceled" {
+		if err.Error() == "context canceled" || errors.Is(err, context.Canceled) {
 			return nil, nil
 		}
 		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to query database: %v", err)
@@ -144,7 +145,7 @@ func (s *System) GetEnvironmentsFromDB(companyId string) ([]*Environment, error)
   		JOIN company ON company.id = project.company_id
 	WHERE company.company_id = $1`, companyId)
 	if err != nil {
-		if err.Error() == "context canceled" {
+		if err.Error() == "context canceled" || errors.Is(err, context.Canceled) {
 			return nil, nil
 		}
 		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to query database: %v", err)

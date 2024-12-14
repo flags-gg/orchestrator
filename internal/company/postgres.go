@@ -1,6 +1,7 @@
 package company
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"github.com/bugfixes/go-bugfixes/logs"
@@ -78,7 +79,7 @@ func (s *System) GetProjectLimits(userSubject string) (*Projects, error) {
         ) AS used_projects
     FROM user_company uc
     `, userSubject).Scan(&p.Allowed, &p.Used); err != nil {
-		if err.Error() == "context canceled" {
+		if err.Error() == "context canceled" || errors.Is(err, context.Canceled) {
 			return nil, nil
 		}
 		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to query database: %v", err)
@@ -120,8 +121,8 @@ func (s *System) GetUserLimits(userSubject string) (*Users, error) {
         ) AS activated_count
     FROM user_company uc
     `, userSubject).Scan(&u.Allowed, &u.Activated); err != nil {
-		if err.Error() == "context canceled" {
-			return u, nil
+		if err.Error() == "context canceled" || errors.Is(err, context.Canceled) {
+			return nil, nil
 		}
 		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to query database: %v", err)
 	}
@@ -162,7 +163,7 @@ func (s *System) GetAgentLimits(userSubject string) (*Agents, error) {
     GROUP BY uc.allowed_agents_per_project, p.id
     `, userSubject)
 	if err != nil {
-		if err.Error() == "context canceled" {
+		if err.Error() == "context canceled" || errors.Is(err, context.Canceled) {
 			return nil, nil
 		}
 		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to query database: %v", err)
@@ -186,7 +187,7 @@ func (s *System) GetAgentLimits(userSubject string) (*Agents, error) {
 	}
 
 	if err := rows.Err(); err != nil {
-		if err.Error() == "context canceled" {
+		if err.Error() == "context canceled" || errors.Is(err, context.Canceled) {
 			return a, nil
 		}
 		return nil, s.Config.Bugfixes.Logger.Errorf("Row iteration error: %v", err)
@@ -214,7 +215,7 @@ func (s *System) GetCompanyId(userSubject string) (string, error) {
       LEFT JOIN public.company_user ON public.company_user.company_id = public.company.id
       LEFT JOIN public.user ON public.user.id = public.company_user.user_id
     WHERE public.user.subject = $1`, userSubject).Scan(&companyId); err != nil {
-		if err.Error() == "context canceled" {
+		if err.Error() == "context canceled" || errors.Is(err, context.Canceled) {
 			return "", nil
 		}
 		if err.Error() == "no rows in result set" {
@@ -275,7 +276,7 @@ func (s *System) GetCompanyInfo(userSubject string) (*Details, error) {
 		&paymentPlan.Agents,
 		&paymentPlan.Environments,
 		&paymentPlan.Price); err != nil {
-		if err.Error() == "context canceled" {
+		if err.Error() == "context canceled" || errors.Is(err, context.Canceled) {
 			return nil, nil
 		}
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -305,7 +306,7 @@ func (s *System) GetCompanyBasedOnDomain(domain, inviteCode string) (bool, error
     SELECT company_id
 	FROM company
 	WHERE domain = $1 OR invite_code = $2`, domain, inviteCode).Scan(&companyId); err != nil {
-		if err.Error() == "context canceled" {
+		if err.Error() == "context canceled" || errors.Is(err, context.Canceled) {
 			return false, nil
 		}
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -432,7 +433,7 @@ func (s *System) GetCompanyUsersFromDB(companyId string) ([]User, error) {
         JOIN public.company AS c ON c.id = cu.company_id
     WHERE c.company_id = $1`, companyId)
 	if err != nil {
-		if err.Error() == "context canceled" {
+		if err.Error() == "context canceled" || errors.Is(err, context.Canceled) {
 			return users, nil
 		}
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -498,7 +499,7 @@ func (s *System) GetLimits(companyId string) (Limits, error) {
 		&limits.Environments,
 		&limits.Projects.Used,
 		&limits.Users.Activated); err != nil {
-		if err.Error() == "context canceled" {
+		if err.Error() == "context canceled" || errors.Is(err, context.Canceled) {
 			return limits, nil
 		}
 		return limits, s.Config.Bugfixes.Logger.Errorf("Failed to query database: %v", err)

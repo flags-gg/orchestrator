@@ -1,6 +1,7 @@
 package flags
 
 import (
+	"context"
 	"crypto/rand"
 	"database/sql"
 	"errors"
@@ -80,7 +81,7 @@ func (s *System) GetAgentFlagsFromDB(projectId, agentId, environmentId string) (
 		}
 
 		stats.NewSystem(s.Config).AddAgentError(projectId, agentId, environmentId)
-		if err.Error() == "context canceled" {
+		if err.Error() == "context canceled" || errors.Is(err, context.Canceled) {
 			return nil, nil
 		}
 
@@ -203,7 +204,7 @@ func (s *System) GetDefaultEnvironment(projectId, agentId string) (string, error
       AND env.default = true
     LIMIT 1`, agentId, projectId).Scan(&envId)
 	if err != nil {
-		if err.Error() == "context canceled" {
+		if err.Error() == "context canceled" || errors.Is(err, context.Canceled) {
 			return "", nil
 		}
 		return "", s.Config.Bugfixes.Logger.Errorf("Failed to query database: %v", err)

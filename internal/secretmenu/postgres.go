@@ -165,7 +165,7 @@ func (s *System) GetEnvironmentSecretMenu(environmentId string) (SecretMenu, err
 		&menuStyle.SQLButtonDisabled,
 		&menuStyle.SQLHeader,
 		&menuStyle.SQLId); err != nil {
-		if err.Error() == "context canceled" {
+		if err.Error() == "context canceled" || errors.Is(err, context.Canceled) {
 			return secretMenu, nil
 		}
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -231,7 +231,7 @@ func (s *System) GetSecretMenuFromDB(menuId string) (SecretMenu, error) {
 		&menuStyle.SQLId,
 		&envDetails.EnvironmentID,
 		&envDetails.Name); err != nil {
-		if err.Error() == "context canceled" {
+		if err.Error() == "context canceled" || errors.Is(err, context.Canceled) {
 			return secretMenu, nil
 		}
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -312,7 +312,7 @@ func (s *System) UpdateSecretMenuStyleInDB(menuId string, secretMenu SecretMenu)
 
 		var secretMenuId int
 		if err := client.QueryRow(s.Context, `SELECT id FROM public.environment_secret_menu WHERE menu_id = $1`, menuId).Scan(&secretMenuId); err != nil {
-			if err.Error() == "context canceled" {
+			if err.Error() == "context canceled" || errors.Is(err, context.Canceled) {
 				return nil
 			}
 			if errors.Is(err, pgx.ErrNoRows) {
@@ -376,7 +376,7 @@ func (s *System) CreateSecretMenuInDB(environmentId string, secretMenu SecretMen
 	var envId int
 	var agentId int
 	if err := client.QueryRow(s.Context, `SELECT agent_id, id FROM public.agent_environment WHERE env_id = $1`, environmentId).Scan(&agentId, &envId); err != nil {
-		if err.Error() == "context canceled" {
+		if err.Error() == "context canceled" || errors.Is(err, context.Canceled) {
 			return "", "", nil
 		}
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -399,7 +399,7 @@ func (s *System) CreateSecretMenuInDB(environmentId string, secretMenu SecretMen
 
 		var secretMenuId int
 		if err := client.QueryRow(s.Context, `SELECT id FROM public.environment_secret_menu WHERE menu_id = $1`, menuId.String()).Scan(&secretMenuId); err != nil {
-			if err.Error() == "context canceled" {
+			if err.Error() == "context canceled" || errors.Is(err, context.Canceled) {
 				return "", "", nil
 			}
 			if errors.Is(err, pgx.ErrNoRows) {
@@ -492,7 +492,7 @@ func (s *System) GetSecretMenuStyleFromDB(menuId string) (StyleMenu, error) {
 		&menuStyle.SQLButtonDisabled,
 		&menuStyle.SQLHeader,
 		&menuStyle.SQLId); err != nil {
-		if err.Error() == "context canceled" {
+		if err.Error() == "context canceled" || errors.Is(err, context.Canceled) {
 			return styleMenu, nil
 		}
 		if errors.Is(err, pgx.ErrNoRows) {

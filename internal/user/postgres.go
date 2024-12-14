@@ -1,6 +1,7 @@
 package user
 
 import (
+	"context"
 	"errors"
 	"github.com/jackc/pgx/v5"
 	"time"
@@ -108,7 +109,7 @@ func (s *System) RetrieveUserDetailsDB(subject string) (*User, error) {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, nil
 		}
-		if err.Error() == "context canceled" {
+		if err.Error() == "context canceled" || errors.Is(err, context.Canceled) {
 			return nil, nil
 		}
 
