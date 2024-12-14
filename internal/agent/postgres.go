@@ -107,7 +107,7 @@ func (s *System) GetAgentDetails(agentId, companyId string) (*Agent, error) {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, nil
 		}
-		if err.Error() == "context canceled" {
+		if err.Error() == "context canceled" || errors.Is(err, context.Canceled) {
 			return nil, nil
 		}
 
@@ -146,7 +146,7 @@ func (s *System) GetAgents(companyId string) ([]*Agent, error) {
       JOIN public.company ON project.company_id = company.id
     WHERE company.company_id = $1`, companyId)
 	if err != nil {
-		if err.Error() == "context canceled" {
+		if err.Error() == "context canceled" || errors.Is(err, context.Canceled) {
 			return nil, nil
 		}
 		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to query database: %v", err)
@@ -198,7 +198,7 @@ func (s *System) GetAgentsForProject(companyId, projectId string) ([]*Agent, err
     WHERE company.company_id = $1
         AND project.project_id = $2`, companyId, projectId)
 	if err != nil {
-		if err.Error() == "context canceled" {
+		if err.Error() == "context canceled" || errors.Is(err, context.Canceled) {
 			return nil, nil
 		}
 		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to query database: %v", err)
@@ -249,7 +249,7 @@ func (s *System) ValidateAgentWithEnvironment(ctx context.Context, agentId, proj
 		if errors.Is(err, pgx.ErrNoRows) {
 			return valid, nil
 		}
-		if err.Error() == "context canceled" {
+		if err.Error() == "context canceled" || errors.Is(err, context.Canceled) {
 			return valid, nil
 		}
 		return valid, s.Config.Bugfixes.Logger.Errorf("Failed to query database: %v", err)
@@ -281,7 +281,7 @@ func (s *System) ValidateAgentWithoutEnvironment(ctx context.Context, agentId, p
 		if errors.Is(err, pgx.ErrNoRows) {
 			return valid, nil
 		}
-		if err.Error() == "context canceled" {
+		if err.Error() == "context canceled" || errors.Is(err, context.Canceled) {
 			return valid, nil
 		}
 		return valid, s.Config.Bugfixes.Logger.Errorf("Failed to query database: %v", err)

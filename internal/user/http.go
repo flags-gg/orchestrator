@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/bugfixes/go-bugfixes/logs"
 	ConfigBuilder "github.com/keloran/go-config"
@@ -39,7 +40,7 @@ func (s *System) ValidateUser(ctx context.Context, subject string) bool {
 			logs.Fatalf("DNS error killing process: %v", err)
 			return false
 		}
-		if strings.Contains(err.Error(), "context canceled") {
+		if err.Error() == "context canceled" || errors.Is(err, context.Canceled) {
 			return false
 		}
 

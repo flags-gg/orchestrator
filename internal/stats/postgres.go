@@ -1,6 +1,7 @@
 package stats
 
 import (
+	"context"
 	"errors"
 	"github.com/bugfixes/go-bugfixes/logs"
 	"github.com/jackc/pgx/v5"
@@ -44,7 +45,7 @@ func (s *System) GetAgentName(agentId string) (string, error) {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return "", nil
 		}
-		if err.Error() == "context canceled" {
+		if err.Error() == "context canceled" || errors.Is(err, context.Canceled) {
 			return "", nil
 		}
 
@@ -73,7 +74,7 @@ func (s *System) GetEnvironmentName(environmentId string) (string, error) {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return "", nil
 		}
-		if err.Error() == "context canceled" {
+		if err.Error() == "context canceled" || errors.Is(err, context.Canceled) {
 			return "", nil
 		}
 

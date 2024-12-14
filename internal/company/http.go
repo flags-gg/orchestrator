@@ -2,6 +2,7 @@ package company
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	ConfigBuilder "github.com/keloran/go-config"
 	"net/http"
@@ -16,10 +17,11 @@ type System struct {
 }
 
 type Company struct {
-	Name       string `json:"name"`
-	ID         string `json:"id"`
-	Domain     string `json:"domain"`
-	InviteCode string `json:"invite_code"`
+	Name       string          `json:"name"`
+	ID         string          `json:"id"`
+	Domain     string          `json:"domain"`
+	InviteCode string          `json:"invite_code"`
+	Logo       *sql.NullString `json:"logo"`
 }
 
 func NewSystem(cfg *ConfigBuilder.Config) *System {

@@ -1,7 +1,9 @@
 package project
 
 import (
+	"context"
 	"database/sql"
+	"errors"
 	"github.com/flags-gg/orchestrator/internal/agent"
 	"github.com/flags-gg/orchestrator/internal/environment"
 	"github.com/google/uuid"
@@ -47,7 +49,7 @@ func (s *System) GetProjectsFromDB(userId string) ([]Project, error) {
       JOIN public.user AS u ON u.id = company_user.user_id
     WHERE u.subject = $1`, userId)
 	if err != nil {
-		if err.Error() == "context canceled" {
+		if err.Error() == "context canceled" || errors.Is(err, context.Canceled) {
 			return nil, nil
 		}
 		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to query database: %v", err)
@@ -262,7 +264,7 @@ func (s *System) GetLimitsFromDB(companyId, projectId string) (AgentLimits, erro
 	WHERE c.company_id = $1`, companyId, projectId).Scan(
 		&limits.AgentsAllowed,
 		&limits.AgentsUsed); err != nil {
-		if err.Error() == "context canceled" {
+		if err.Error() == "context canceled" || errors.Is(err, context.Canceled) {
 			return limits, nil
 		}
 		return limits, s.Config.Bugfixes.Logger.Errorf("Failed to query database: %v", err)

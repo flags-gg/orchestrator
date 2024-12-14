@@ -1,6 +1,8 @@
 package user
 
 import (
+	"context"
+	"errors"
 	"github.com/Nerzal/gocloak/v13"
 	"github.com/bugfixes/go-bugfixes/logs"
 	"strings"
@@ -14,7 +16,7 @@ func (s *System) GetKeycloakDetails(subject string) (*gocloak.User, error) {
 			return nil, nil
 		}
 
-		if strings.Contains(err.Error(), "context canceled") {
+		if err.Error() == "context canceled" || errors.Is(err, context.Canceled) {
 			return nil, nil
 		}
 
@@ -23,7 +25,7 @@ func (s *System) GetKeycloakDetails(subject string) (*gocloak.User, error) {
 
 	user, err := client.GetUserByID(s.Context, token.AccessToken, s.Config.Keycloak.Realm, subject)
 	if err != nil {
-		if strings.Contains(err.Error(), "context canceled") {
+		if err.Error() == "context canceled" || errors.Is(err, context.Canceled) {
 			return nil, nil
 		}
 
@@ -41,7 +43,7 @@ func (s *System) DeleteUserInKeycloak(subject string) error {
 			return nil
 		}
 
-		if strings.Contains(err.Error(), "context canceled") {
+		if err.Error() == "context canceled" || errors.Is(err, context.Canceled) {
 			return nil
 		}
 
@@ -50,7 +52,7 @@ func (s *System) DeleteUserInKeycloak(subject string) error {
 
 	err = client.DeleteUser(s.Context, token.AccessToken, s.Config.Keycloak.Realm, subject)
 	if err != nil {
-		if strings.Contains(err.Error(), "context canceled") {
+		if err.Error() == "context canceled" || errors.Is(err, context.Canceled) {
 			return nil
 		}
 		return s.Config.Bugfixes.Logger.Errorf("Failed to delete user: %v", err)

@@ -1,6 +1,8 @@
 package stats
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	influxdb2 "github.com/influxdata/influxdb-client-go/v2"
 	"time"
@@ -95,7 +97,7 @@ func (s *System) GetAgentEnvironmentStats(agentId string, timePeriod int) (*Agen
     |> yield(name: "dailyCounts")`, s.Config.Influx.Bucket, timePeriod, agentId)
 	result, err := queryAPI.Query(s.Context, query)
 	if err != nil {
-		if err.Error() == "context canceled" {
+		if err.Error() == "context canceled" || errors.Is(err, context.Canceled) {
 			return nil, nil
 		}
 		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to query influx: %v", err)
