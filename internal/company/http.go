@@ -236,3 +236,39 @@ func (s *System) GetCompanyUsers(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 }
+
+func (s *System) UpdateCompanyImage(w http.ResponseWriter, r *http.Request) {
+	s.Context = r.Context()
+
+	if r.Header.Get("x-user-subject") == "" || r.Header.Get("x-user-access-token") == "" {
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
+	companyId, err := s.GetCompanyId(r.Header.Get("x-user-subject"))
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	if companyId == "" {
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
+	imageChange := struct {
+		Image string `json:"image"`
+	}{}
+	if err := json.NewDecoder(r.Body).Decode(&imageChange); err != nil {
+		_ = s.Config.Bugfixes.Logger.Errorf("Failed to decode body: %v", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	if err := s.UpdateCompanyImageInDB(companyId, imageChange.Image); err != nil {
+		_ = s.Config.Bugfixes.Logger.Errorf("Failed to update project: %v", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+}
