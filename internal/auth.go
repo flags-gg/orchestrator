@@ -17,13 +17,12 @@ func (s *Service) ValidateUser(w http.ResponseWriter, r *http.Request) bool {
 	}
 
 	if userSubject != "" && userAccessToken != "" {
-		validateUser := user.NewSystem(s.Config).ValidateUser(r.Context(), userSubject)
-		if !validateUser {
-			return false
+		if user.NewSystem(s.Config).ValidateUser(r.Context(), userSubject) {
+			return true
 		}
 	}
 
-	return true
+	return false
 }
 
 func (s *Service) ValidateAgent(w http.ResponseWriter, r *http.Request) bool {
