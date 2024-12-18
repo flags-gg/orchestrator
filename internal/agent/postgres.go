@@ -25,7 +25,7 @@ type Agent struct {
 	ProjectInfo      *ProjectInfo               `json:"project_info"`
 }
 
-func (s *System) CreateAgentForProject(name, projectId, userSubject string) (string, error) {
+func (s *System) CreateAgentForProject(name, projectId string) (string, error) {
 	client, err := s.Config.Database.GetPGXClient(s.Context)
 	if err != nil {
 		return "", s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
@@ -42,26 +42,12 @@ func (s *System) CreateAgentForProject(name, projectId, userSubject string) (str
     INSERT INTO public.agent (
         project_id,
         agent_id,
-        name,
-        allowed_environments,
-        allowed_access_limit
+        name
     ) VALUES ((
       SELECT project.id
       FROM public.project
       WHERE project.project_id = $1
-    ), $2, $3, (
-      SELECT allowed_environments_per_agent
-      FROM public.company
-          JOIN public.company_user ON company_user.company_id = company.id
-          JOIN public.user AS u ON u.id = company_user.user_id
-      WHERE u.subject = $4
-    ), (
-      SELECT allowed_access_per_environment
-      FROM public.company
-          JOIN public.company_user ON company_user.company_id = company.id
-          JOIN public.user AS u ON u.id = company_user.user_id
-      WHERE u.subject = $4
-    ))`, projectId, agentId, name, userSubject); err != nil {
+    ), $2, $3)`, projectId, agentId, name); err != nil {
 		return "", s.Config.Bugfixes.Logger.Errorf("Failed to insert agent into database: %v", err)
 	}
 
@@ -87,14 +73,15 @@ func (s *System) GetAgentDetails(agentId, companyId string) (*Agent, error) {
     SELECT
       agent.id,
       agent.name AS AgentName,
-      agent.allowed_access_limit,
-      agent.allowed_environments,
+      payment_plans.agents,
+      payment_plans.environments,
       agent.enabled,
       project.name,
       project.project_id
     FROM public.agent AS agent
       JOIN public.project ON agent.project_id = project.id
       JOIN public.company ON company.id = project.company_id
+      JOIN public.payment_plans ON payment_plans.id = company.payment_plan_id
     WHERE agent.agent_id = $1
       AND company.company_id = $2`, agentId, companyId).Scan(
 		&agent.Id,
@@ -137,13 +124,14 @@ func (s *System) GetAgents(companyId string) ([]*Agent, error) {
     SELECT
       agent.id,
       agent.name AS AgentName,
-      agent.allowed_access_limit,
+      payment_plans.agents,
       agent.agent_id,
-      agent.allowed_environments,
+      payment_plans.environments,
       project.name AS ProjectName
     FROM public.agent
       JOIN public.project ON agent.project_id = project.id
       JOIN public.company ON project.company_id = company.id
+      JOIN public.payment_plans ON payment_plans.id = company.payment_plan_id
     WHERE company.company_id = $1`, companyId)
 	if err != nil {
 		if err.Error() == "context canceled" || errors.Is(err, context.Canceled) {
@@ -189,12 +177,13 @@ func (s *System) GetAgentsForProject(companyId, projectId string) ([]*Agent, err
     SELECT
       agent.id,
       agent.name AS AgentName,
-      agent.allowed_access_limit,
+      payment_plans.requests,
       agent.agent_id,
-      agent.allowed_environments
+      payment_plans.environments
     FROM public.agent
       JOIN public.project ON agent.project_id = project.id
       JOIN public.company ON project.company_id = company.id
+      JOIN public.payment_plans ON payment_plans.id = company.payment_plan_id
     WHERE company.company_id = $1
         AND project.project_id = $2`, companyId, projectId)
 	if err != nil {
@@ -290,7 +279,7 @@ func (s *System) ValidateAgentWithoutEnvironment(ctx context.Context, agentId, p
 	return valid, nil
 }
 
-func (s *System) CreateAgentInDB(name, projectId, userSubject string) (*Agent, error) {
+func (s *System) CreateAgentInDB(name, projectId string) (*Agent, error) {
 	client, err := s.Config.Database.GetPGXClient(s.Context)
 	if err != nil {
 		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
@@ -308,27 +297,13 @@ func (s *System) CreateAgentInDB(name, projectId, userSubject string) (*Agent, e
       INSERT INTO public.agent (
           project_id,
           agent_id,
-          name,
-          allowed_environments,
-          allowed_access_limit
+          name
       ) VALUES ((
         SELECT project.id
         FROM public.project
         WHERE project.project_id = $1
-      ), $2, $3, (
-        SELECT allowed_environments_per_agent
-        FROM public.company
-            JOIN public.company_user ON company_user.company_id = company.id
-            JOIN public.user AS u ON u.id = company_user.user_id
-        WHERE u.subject = $4
-      ), (
-        SELECT allowed_access_per_environment
-        FROM public.company
-            JOIN public.company_user ON company_user.company_id = company.id
-            JOIN public.user AS u ON u.id = company_user.user_id
-        WHERE u.subject = $4
-      ))
-      RETURNING agent.id`, projectId, agentId, name, userSubject).Scan(&insertedAgentId); err != nil {
+      ), $2, $3)
+      RETURNING agent.id`, projectId, agentId, name).Scan(&insertedAgentId); err != nil {
 		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to insert agent into database: %v", err)
 	}
 

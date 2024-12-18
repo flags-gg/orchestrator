@@ -17,11 +17,12 @@ type System struct {
 }
 
 type Company struct {
-	Name       string          `json:"name"`
-	ID         string          `json:"id"`
-	Domain     string          `json:"domain"`
-	InviteCode string          `json:"invite_code"`
-	Logo       *sql.NullString `json:"logo"`
+	Name       string `json:"name"`
+	ID         string `json:"id"`
+	Domain     string `json:"domain"`
+	InviteCode string `json:"invite_code"`
+	Logo       string `json:"logo"`
+	LogoDB     *sql.NullString
 }
 
 func NewSystem(cfg *ConfigBuilder.Config) *System {

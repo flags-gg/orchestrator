@@ -240,7 +240,7 @@ func (s *System) CreateAgent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	agentId, err := s.CreateAgentForProject(agent.Name, projectId, r.Header.Get("x-user-subject"))
+	agentId, err := s.CreateAgentForProject(agent.Name, projectId)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return

@@ -43,7 +43,13 @@ func (s *System) GetProjects(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	pro, err := s.GetProjectsFromDB(r.Header.Get("x-user-subject"))
+	companyId, err := company.NewSystem(s.Config).SetContext(s.Context).GetCompanyId(r.Header.Get("x-user-subject"))
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	pro, err := s.GetProjectsFromDB(companyId)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -67,7 +73,13 @@ func (s *System) GetProject(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	proj, err := s.GetProjectFromDB(r.Header.Get("x-user-subject"), r.PathValue("projectId"))
+	companyId, err := company.NewSystem(s.Config).SetContext(s.Context).GetCompanyId(r.Header.Get("x-user-subject"))
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	proj, err := s.GetProjectFromDB(companyId, r.PathValue("projectId"))
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -90,8 +102,6 @@ func (s *System) CreateProject(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	userSubject := r.Header.Get("x-user-subject")
-
 	type ProjCreate struct {
 		Name string `json:"name"`
 	}
@@ -102,13 +112,19 @@ func (s *System) CreateProject(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	createdProject, err := s.CreateProjectInDB(userSubject, proj.Name)
+	companyId, err := company.NewSystem(s.Config).SetContext(s.Context).GetCompanyId(r.Header.Get("x-user-subject"))
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
-	projDetails, err := s.GetProjectFromDB(userSubject, createdProject.ProjectID)
+	createdProject, err := s.CreateProjectInDB(companyId, proj.Name)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	projDetails, err := s.GetProjectFromDB(companyId, createdProject.ProjectID)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return

@@ -123,7 +123,12 @@ func (s *System) GetUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if dbuser == nil {
+	if dbuser != nil {
+		user = dbuser
+		user.Created = true
+	}
+
+	if user == nil {
 		kcuser, err := s.GetKeycloakDetails(subject)
 		if err != nil {
 			_ = s.Config.Bugfixes.Logger.Errorf("Failed to retrieve user details: %v", err)
@@ -146,9 +151,6 @@ func (s *System) GetUser(w http.ResponseWriter, r *http.Request) {
 		user.Email = kcuser.Email
 		user.FirstName = kcuser.FirstName
 		user.LastName = kcuser.LastName
-	} else {
-		user = dbuser
-		user.Created = true
 	}
 
 	if err := json.NewEncoder(w).Encode(user); err != nil {
