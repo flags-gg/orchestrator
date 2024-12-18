@@ -35,13 +35,19 @@ type Limits struct {
 }
 
 type PlanDetails struct {
-	Price        sql.NullString `json:"price"`
-	Name         sql.NullString `json:"name"`
-	Custom       sql.NullBool   `json:"custom"`
-	TeamMembers  int            `json:"team_members"`
-	Projects     int            `json:"projects"`
-	Agents       int            `json:"agents"`
-	Environments int            `json:"environments"`
+	Price   string `json:"price"`
+	PriceDB *sql.NullString
+
+	Name   string `json:"name"`
+	NameDB *sql.NullString
+
+	Custom   bool `json:"custom"`
+	CustomDB *sql.NullBool
+
+	TeamMembers  int `json:"team_members"`
+	Projects     int `json:"projects"`
+	Agents       int `json:"agents"`
+	Environments int `json:"environments"`
 }
 
 type Details struct {
@@ -130,7 +136,7 @@ func (s *System) GetUserLimits(userSubject string) (*Users, error) {
 	return u, nil
 }
 
-func (s *System) GetAgentLimits(userSubject string) (*Agents, error) {
+func (s *System) GetAgentLimits(companyId string) (*Agents, error) {
 	a := &Agents{}
 
 	client, err := s.Config.Database.GetPGXClient(s.Context)
@@ -146,22 +152,24 @@ func (s *System) GetAgentLimits(userSubject string) (*Agents, error) {
 	// Prepare the query
 	rows, err := client.Query(s.Context, `
     WITH user_company AS (
-        SELECT c.id AS company_id, c.allowed_agents_per_project
-        FROM public.company c
-        JOIN public.company_user cu ON cu.company_id = c.id
-        JOIN public.user u ON u.id = cu.user_id
-        WHERE u.subject = $1
-        LIMIT 1
-    )
-    SELECT
-        uc.allowed_agents_per_project,
-        p.project_id AS project_id,
-        COUNT(a.id) AS agents_used
-    FROM user_company uc
-    JOIN public.project p ON p.company_id = uc.company_id
-    LEFT JOIN public.agent a ON a.project_id = p.id
-    GROUP BY uc.allowed_agents_per_project, p.id
-    `, userSubject)
+		SELECT 
+			c.id AS company_id, 
+			pp.agents AS agents
+	  	FROM public.company c
+			JOIN public.company_user cu ON cu.company_id = c.id
+			JOIN public.user u ON u.id = cu.user_id
+			JOIN public.payment_plans pp ON pp.id = c.payment_plan_id
+		WHERE c.company_id = $1
+		LIMIT 1
+	)
+	SELECT
+		uc.agents,
+		p.project_id AS project_id,
+		COUNT(a.id) AS agents_used
+	FROM user_company uc
+		JOIN public.project p ON p.company_id = uc.company_id
+		LEFT JOIN public.agent a ON a.project_id = p.id
+	GROUP BY uc.agents, p.id`, companyId)
 	if err != nil {
 		if err.Error() == "context canceled" || errors.Is(err, context.Canceled) {
 			return nil, nil
@@ -255,6 +263,7 @@ func (s *System) GetCompanyInfo(userSubject string) (*Details, error) {
   		c.invite_code,
   		c.logo,
         pp.name as paymentPlanName,
+        pp.price as paymentPlanPrice,
         pp.custom as paymentPlanCustom,
         pp.team_members as paymentPlanTeamMembers,
         pp.projects as paymentPlanProjects,
@@ -268,24 +277,36 @@ func (s *System) GetCompanyInfo(userSubject string) (*Details, error) {
 		&company.Name,
 		&company.Domain,
 		&company.InviteCode,
-		&company.Logo,
-		&paymentPlan.Name,
-		&paymentPlan.Custom,
+		&company.LogoDB,
+		&paymentPlan.NameDB,
+		&paymentPlan.PriceDB,
+		&paymentPlan.CustomDB,
 		&paymentPlan.TeamMembers,
 		&paymentPlan.Projects,
 		&paymentPlan.Agents,
 		&paymentPlan.Environments,
 		&paymentPlan.Price); err != nil {
-		if err.Error() == "context canceled" || errors.Is(err, context.Canceled) {
-			return nil, nil
-		}
-		if errors.Is(err, pgx.ErrNoRows) {
+		if err.Error() == "context canceled" || errors.Is(err, context.Canceled) || errors.Is(err, pgx.ErrNoRows) {
 			return nil, nil
 		}
 		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to query database: %v", err)
 	}
 	details.Company = company
 	details.PaymentPlan = *paymentPlan
+
+	// Convert the nullable strings to strings
+	if details.Company.LogoDB != nil && details.Company.LogoDB.Valid {
+		details.Company.Logo = details.Company.LogoDB.String
+	}
+	if details.PaymentPlan.NameDB != nil && details.PaymentPlan.NameDB.Valid {
+		details.PaymentPlan.Name = details.PaymentPlan.NameDB.String
+	}
+	if details.PaymentPlan.PriceDB != nil && details.PaymentPlan.PriceDB.Valid {
+		details.PaymentPlan.Price = details.PaymentPlan.PriceDB.String
+	}
+	if details.PaymentPlan.CustomDB != nil && details.PaymentPlan.CustomDB.Valid {
+		details.PaymentPlan.Custom = details.PaymentPlan.CustomDB.Bool
+	}
 
 	return details, nil
 }

@@ -19,7 +19,7 @@ type Project struct {
 	Enabled    bool   `json:"enabled"`
 }
 
-func (s *System) GetProjectsFromDB(userId string) ([]Project, error) {
+func (s *System) GetProjectsFromDB(companyId string) ([]Project, error) {
 	client, err := s.Config.Database.GetPGXClient(s.Context)
 	if err != nil {
 		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
@@ -35,9 +35,9 @@ func (s *System) GetProjectsFromDB(userId string) ([]Project, error) {
       project.id,
       project.project_id,
       project.name,
-      project.allowed_agents,
       project.logo,
       project.enabled,
+      payment_plans.agents,
       (
         SELECT COUNT(id)
         FROM public.agent
@@ -46,8 +46,8 @@ func (s *System) GetProjectsFromDB(userId string) ([]Project, error) {
     FROM public.project
       JOIN public.company ON company.id = project.company_id
       JOIN public.company_user ON company_user.company_id = company.id
-      JOIN public.user AS u ON u.id = company_user.user_id
-    WHERE u.subject = $1`, userId)
+      JOIN public.payment_plans ON payment_plans.id = company.payment_plan_id
+    WHERE company.company_id = $1`, companyId)
 	if err != nil {
 		if err.Error() == "context canceled" || errors.Is(err, context.Canceled) {
 			return nil, nil
@@ -60,7 +60,7 @@ func (s *System) GetProjectsFromDB(userId string) ([]Project, error) {
 	for rows.Next() {
 		var project Project
 		var projectLogo sql.NullString
-		if err := rows.Scan(&project.ID, &project.ProjectID, &project.Name, &project.AgentLimit, &projectLogo, &project.Enabled, &project.AgentsUsed); err != nil {
+		if err := rows.Scan(&project.ID, &project.ProjectID, &project.Name, &projectLogo, &project.Enabled, &project.AgentLimit, &project.AgentsUsed); err != nil {
 			return nil, s.Config.Bugfixes.Logger.Errorf("Failed to scan database: %v", err)
 		}
 
@@ -74,7 +74,7 @@ func (s *System) GetProjectsFromDB(userId string) ([]Project, error) {
 	return projects, nil
 }
 
-func (s *System) GetProjectFromDB(userId, projectId string) (*Project, error) {
+func (s *System) GetProjectFromDB(companyId, projectId string) (*Project, error) {
 	client, err := s.Config.Database.GetPGXClient(s.Context)
 	if err != nil {
 		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
@@ -92,15 +92,20 @@ func (s *System) GetProjectFromDB(userId, projectId string) (*Project, error) {
           project.name,
           project.id,
           project.project_id,
-          project.allowed_agents,
+          payment_plans.agents,
           project.logo,
-          project.enabled
+          project.enabled,
+          (
+              SELECT COUNT(id)
+              FROM public.agent
+              WHERE project_id = project.id
+          ) as agents_used
         FROM public.project
           JOIN public.company ON company.id = project.company_id
           JOIN public.company_user ON company_user.company_id = company.id
-          JOIN public.user AS u ON u.id = company_user.user_id
+          JOIN public.payment_plans ON payment_plans.id = company.payment_plan_id
         WHERE project_id = $2
-          AND u.subject = $1`, userId, projectId).Scan(&project.Name, &project.ID, &project.ProjectID, &project.AgentLimit, &pLogo, &project.Enabled); err != nil {
+          AND company.company_id = $1`, companyId, projectId).Scan(&project.Name, &project.ID, &project.ProjectID, &project.AgentLimit, &pLogo, &project.Enabled, &project.AgentsUsed); err != nil {
 		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to scan database: %v", err)
 	}
 	if pLogo.Valid {
@@ -110,7 +115,7 @@ func (s *System) GetProjectFromDB(userId, projectId string) (*Project, error) {
 	return &project, nil
 }
 
-func (s *System) CreateProjectInDB(userSubject, projectName string) (*Project, error) {
+func (s *System) CreateProjectInDB(companyId, projectName string) (*Project, error) {
 	client, err := s.Config.Database.GetPGXClient(s.Context)
 	if err != nil {
 		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
@@ -128,28 +133,19 @@ func (s *System) CreateProjectInDB(userSubject, projectName string) (*Project, e
       INSERT INTO public.project (
           company_id,
           project_id,
-          name,
-          allowed_agents
+          name
       ) VALUES ((
         SELECT
           company.id
         FROM public.company
-          JOIN public.company_user ON company_user.company_id = company.id
-          JOIN public.user AS u ON u.id = company_user.user_id
-        WHERE u.subject = $1
-      ), $2, $3, (
-        SELECT allowed_agents_per_project
-        FROM public.company
-            JOIN public.company_user ON company_user.company_id = company.id
-            JOIN public.user AS u ON u.id = company_user.user_id
-        WHERE u.subject = $1
-      ))
-      RETURNING project.id`, userSubject, projectId, projectName).Scan(&insertedProjectId); err != nil {
+        WHERE company.company_id = $1
+      ), $2, $3)
+      RETURNING project.id`, companyId, projectId, projectName).Scan(&insertedProjectId); err != nil {
 		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to insert project into database: %v", err)
 	}
 
 	// create the default agent
-	agentDetails, err := agent.NewSystem(s.Config).CreateAgentInDB("Default Agent", projectId, userSubject)
+	agentDetails, err := agent.NewSystem(s.Config).CreateAgentInDB("Default Agent", projectId)
 	if err != nil {
 		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to create default agent: %v", err)
 	}
