@@ -1,5 +1,5 @@
 # Build
-FROM containers.chewed-k8s.net/docker_hub_cache/library/golang:alpine3.18 AS builder
+FROM containers.chewed-k8s.net/docker_hub_cache/library/golang:alpine3.20 AS builder
 
 RUN mkdir -p /home/builder
 WORKDIR /home/builder
