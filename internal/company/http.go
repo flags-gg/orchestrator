@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"github.com/bugfixes/go-bugfixes/logs"
 	ConfigBuilder "github.com/keloran/go-config"
 	"net/http"
 	"strconv"
@@ -270,6 +271,45 @@ func (s *System) UpdateCompanyImage(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
+
+	w.WriteHeader(http.StatusOK)
+}
+
+func (s *System) InviteUserToCompany(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("x-flags-timestamp", strconv.FormatInt(time.Now().Unix(), 10))
+	s.Context = r.Context()
+
+	if r.Header.Get("x-user-subject") == "" || r.Header.Get("x-user-access-token") == "" {
+		if err := json.NewEncoder(w).Encode(&Company{}); err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+		}
+		return
+	}
+
+	type Invite struct {
+		Email string `json:"email"`
+		Name  string `json:"name"`
+	}
+	var invite Invite
+	if err := json.NewDecoder(r.Body).Decode(&invite); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	companyId, err := s.GetCompanyId(r.Header.Get("x-user-subject"))
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	inviteCode, err := s.GetInviteCodeFromDB(companyId)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	// Create the invite
+	logs.Log("Creating invite", inviteCode, s.Config.ProjectProperties["resendKey"])
 
 	w.WriteHeader(http.StatusOK)
 }

@@ -165,10 +165,7 @@ func (s *System) GetEnvironmentSecretMenu(environmentId string) (SecretMenu, err
 		&menuStyle.SQLButtonDisabled,
 		&menuStyle.SQLHeader,
 		&menuStyle.SQLId); err != nil {
-		if err.Error() == "context canceled" || errors.Is(err, context.Canceled) {
-			return secretMenu, nil
-		}
-		if errors.Is(err, pgx.ErrNoRows) {
+		if err.Error() == "context canceled" || errors.Is(err, context.Canceled) || errors.Is(err, pgx.ErrNoRows) {
 			return secretMenu, nil
 		}
 		return secretMenu, s.Config.Bugfixes.Logger.Errorf("Failed to query database: %v", err)

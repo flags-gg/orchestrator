@@ -101,7 +101,7 @@ func (s *System) GetAgentDetails(agentId, companyId string) (*Agent, error) {
 		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to query database: %v", err)
 	}
 
-	agent.Environments, err = environment.NewSystem(s.Config).SetContext(s.Context).GetAgentEnvironmentsFromDB(agentId)
+	agent.Environments, err = environment.NewSystem(s.Config).SetContext(s.Context).GetAgentEnvironmentsFromDB(agentId, companyId)
 	if err != nil {
 		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to get agent environments: %v", err)
 	}
@@ -149,7 +149,7 @@ func (s *System) GetAgents(companyId string) ([]*Agent, error) {
 			return nil, s.Config.Bugfixes.Logger.Errorf("Failed to scan database rows: %v", err)
 		}
 
-		envs, err := environment.NewSystem(s.Config).SetContext(s.Context).GetAgentEnvironmentsFromDB(agent.AgentId)
+		envs, err := environment.NewSystem(s.Config).SetContext(s.Context).GetAgentEnvironmentsFromDB(agent.AgentId, companyId)
 		if err != nil {
 			return nil, s.Config.Bugfixes.Logger.Errorf("Failed to get agent environments: %v", err)
 		}
@@ -201,7 +201,7 @@ func (s *System) GetAgentsForProject(companyId, projectId string) ([]*Agent, err
 			return nil, s.Config.Bugfixes.Logger.Errorf("Failed to scan database rows: %v", err)
 		}
 
-		envs, err := environment.NewSystem(s.Config).SetContext(s.Context).GetAgentEnvironmentsFromDB(agent.AgentId)
+		envs, err := environment.NewSystem(s.Config).SetContext(s.Context).GetAgentEnvironmentsFromDB(agent.AgentId, companyId)
 		if err != nil {
 			return nil, s.Config.Bugfixes.Logger.Errorf("Failed to get agent environments: %v", err)
 		}
