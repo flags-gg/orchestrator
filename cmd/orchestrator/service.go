@@ -33,7 +33,17 @@ func (pc ProjectConfig) Build(cfg *ConfigBuilder.Config) error {
 		cfg.ProjectProperties = make(map[string]interface{})
 	}
 	cfg.ProjectProperties["flagsService"] = p.FlagsService
-	cfg.ProjectProperties["resendKey"] = p.ResendKey
+
+	// get the resend key out of the vault
+	vh := *cfg.VaultHelper
+	if vh.Secrets() == nil {
+		return logs.Error("no secrets found")
+	}
+	secret, err := vh.GetSecret("resend_key")
+	if err != nil {
+		return logs.Errorf("failed to get resend key: %v", err)
+	}
+	cfg.ProjectProperties["resendKey"] = secret
 
 	return nil
 }
