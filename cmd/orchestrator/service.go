@@ -22,6 +22,7 @@ type ProjectConfig struct{}
 func (pc ProjectConfig) Build(cfg *ConfigBuilder.Config) error {
 	type PC struct {
 		FlagsService string `env:"FLAGS_SERVICE" envDefault:"flags-service.flags-gg:3000"`
+		ResendKey    string `env:"RESEND_KEY" envDefault:"flags-gg-resend-key"`
 	}
 	p := PC{}
 
@@ -32,6 +33,7 @@ func (pc ProjectConfig) Build(cfg *ConfigBuilder.Config) error {
 		cfg.ProjectProperties = make(map[string]interface{})
 	}
 	cfg.ProjectProperties["flagsService"] = p.FlagsService
+	cfg.ProjectProperties["resendKey"] = p.ResendKey
 
 	return nil
 }

@@ -4,7 +4,10 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"fmt"
+	"github.com/bugfixes/go-bugfixes/logs"
 	ConfigBuilder "github.com/keloran/go-config"
+	"github.com/resend/resend-go/v2"
 	"net/http"
 	"strconv"
 	"time"
@@ -267,6 +270,57 @@ func (s *System) UpdateCompanyImage(w http.ResponseWriter, r *http.Request) {
 
 	if err := s.UpdateCompanyImageInDB(companyId, imageChange.Image); err != nil {
 		_ = s.Config.Bugfixes.Logger.Errorf("Failed to update project: %v", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+}
+
+func (s *System) InviteUserToCompany(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("x-flags-timestamp", strconv.FormatInt(time.Now().Unix(), 10))
+	s.Context = r.Context()
+
+	if r.Header.Get("x-user-subject") == "" || r.Header.Get("x-user-access-token") == "" {
+		if err := json.NewEncoder(w).Encode(&Company{}); err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+		}
+		return
+	}
+
+	type Invite struct {
+		Email string `json:"email"`
+		Name  string `json:"name"`
+	}
+	var invite Invite
+	if err := json.NewDecoder(r.Body).Decode(&invite); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	companyId, err := s.GetCompanyId(r.Header.Get("x-user-subject"))
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	inviteCode, err := s.GetInviteCodeFromDB(companyId)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	// Create the invite
+	client := resend.NewClient(s.Config.ProjectProperties["resendKey"].(string))
+	params := &resend.SendEmailRequest{
+		From:    "Flags <support@flags.gg>",
+		To:      []string{invite.Email},
+		Subject: "Flags.gg Invite",
+		Html:    fmt.Sprintf("<p>Hello: %s<br />You have been invited to join <a href=\"https://flags.gg\">Flags.gg</a></p><br /><p>The invite code is <strong>%s</strong></p>", invite.Name, inviteCode),
+		ReplyTo: "support@flags.gg",
+	}
+	if _, err = client.Emails.Send(params); err != nil {
+		logs.Logf("Failed to send invite: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}

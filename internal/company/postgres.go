@@ -548,3 +548,26 @@ func (s *System) UpdateCompanyImageInDB(companyId, image string) error {
 
 	return nil
 }
+
+func (s *System) GetInviteCodeFromDB(companyId string) (string, error) {
+	client, err := s.Config.Database.GetPGXClient(s.Context)
+	if err != nil {
+		return "", s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
+	}
+	defer func() {
+		if err := client.Close(s.Context); err != nil {
+			s.Config.Bugfixes.Logger.Fatalf("Failed to close database connection: %v", err)
+		}
+	}()
+
+	var inviteCode sql.NullString
+	if err := client.QueryRow(s.Context, `
+    SELECT
+      invite_code
+    FROM public.company
+    WHERE company_id = $1`, companyId).Scan(&inviteCode); err != nil {
+		return "", s.Config.Bugfixes.Logger.Errorf("Failed to scan database: %v", err)
+	}
+
+	return inviteCode.String, nil
+}

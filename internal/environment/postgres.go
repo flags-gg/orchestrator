@@ -45,7 +45,7 @@ func (s *System) CreateEnvironmentInDB(name, agentId string) (*Environment, erro
 	}, nil
 }
 
-func (s *System) GetEnvironmentFromDB(envId string) (*Environment, error) {
+func (s *System) GetEnvironmentFromDB(envId, companyId string) (*Environment, error) {
 	client, err := s.Config.Database.GetPGXClient(s.Context)
 	if err != nil {
 		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
@@ -68,7 +68,9 @@ func (s *System) GetEnvironmentFromDB(envId string) (*Environment, error) {
     FROM public.agent_environment AS env
     	LEFT JOIN public.agent ON agent.id = env.agent_id
     	LEFT JOIN public.project ON project.id = agent.project_id
-    WHERE env.env_id = $1`, envId).Scan(&environment.Id, &environment.Name, &environment.EnvironmentId, &environment.Enabled, &environment.AgentName, &environment.ProjectName); err != nil {
+        JOIN public.company ON company.id = project.company_id
+    WHERE env.env_id = $1
+      AND company.company_id = $2`, envId, companyId).Scan(&environment.Id, &environment.Name, &environment.EnvironmentId, &environment.Enabled, &environment.AgentName, &environment.ProjectName); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, nil
 		}
@@ -81,7 +83,7 @@ func (s *System) GetEnvironmentFromDB(envId string) (*Environment, error) {
 	return environment, nil
 }
 
-func (s *System) GetAgentEnvironmentsFromDB(agentId string) ([]*Environment, error) {
+func (s *System) GetAgentEnvironmentsFromDB(agentId, companyId string) ([]*Environment, error) {
 	client, err := s.Config.Database.GetPGXClient(s.Context)
 	if err != nil {
 		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
@@ -100,7 +102,10 @@ func (s *System) GetAgentEnvironmentsFromDB(agentId string) ([]*Environment, err
       env.enabled
     FROM agent_environment AS env
       JOIN agent ON env.agent_id = agent.id
-    WHERE agent.agent_id = $1`, agentId)
+      JOIN project ON project.id = agent.project_id
+      JOIN company ON company.id = project.company_id
+    WHERE agent.agent_id = $1
+      AND company.company_id = $2`, agentId, companyId)
 	if err != nil {
 		if err.Error() == "context canceled" || errors.Is(err, context.Canceled) {
 			return nil, nil

@@ -13,14 +13,14 @@ import (
 )
 
 type Environment struct {
-	Id            string                `json:"id"`
-	Name          string                `json:"name"`
-	EnvironmentId string                `json:"environment_id"`
-	Enabled       bool                  `json:"enabled"`
-	SecretMenu    secretmenu.SecretMenu `json:"secret_menu,omitempty"`
-	Flags         []flags.Flag          `json:"flags,omitempty"`
-	ProjectName   string                `json:"project_name,omitempty"`
-	AgentName     string                `json:"agent_name,omitempty"`
+	Id            string                 `json:"id"`
+	Name          string                 `json:"name"`
+	EnvironmentId string                 `json:"environment_id"`
+	Enabled       bool                   `json:"enabled"`
+	SecretMenu    *secretmenu.SecretMenu `json:"secret_menu,omitempty"`
+	Flags         []flags.Flag           `json:"flags,omitempty"`
+	ProjectName   string                 `json:"project_name,omitempty"`
+	AgentName     string                 `json:"agent_name,omitempty"`
 }
 
 type System struct {
@@ -62,7 +62,7 @@ func (s *System) GetAgentEnvironments(w http.ResponseWriter, r *http.Request) {
 	}
 
 	agentId := r.PathValue("agentId")
-	environments, err := s.GetAgentEnvironmentsFromDB(agentId)
+	environments, err := s.GetAgentEnvironmentsFromDB(agentId, companyId)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -294,12 +294,13 @@ func (s *System) GetEnvironment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	environment, err := s.GetEnvironmentFromDB(environmentId)
+	environment, err := s.GetEnvironmentFromDB(environmentId, companyId)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-	environment.SecretMenu = sm
+
+	environment.SecretMenu = &sm
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(environment); err != nil {
 		_ = logs.Errorf("Failed to encode response: %v", err)
