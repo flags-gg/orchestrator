@@ -313,7 +313,7 @@ func (s *System) InviteUserToCompany(w http.ResponseWriter, r *http.Request) {
 	// Create the invite
 	client := resend.NewClient(s.Config.ProjectProperties["resendKey"].(string))
 	params := &resend.SendEmailRequest{
-		From:    "Flags <support@flags.gg>",
+		From:    "Flags.gg <support@flags.gg>",
 		To:      []string{invite.Email},
 		Subject: "Flags.gg Invite",
 		Html:    fmt.Sprintf("<p>Hello: %s<br />You have been invited to join <a href=\"https://flags.gg\">Flags.gg</a></p><br /><p>The invite code is <strong>%s</strong></p>", invite.Name, inviteCode),
