@@ -24,7 +24,7 @@ type User struct {
 	FirstName *string `json:"first_name,omitempty"`
 	LastName  *string `json:"last_name,omitempty"`
 	UserGroup *Group  `json:"user_group,omitempty"`
-	Onboarded *bool   `json:"onboarded,omitempty"`
+	Onboarded bool    `json:"onboarded,omitempty"`
 	Created   bool    `json:"created,omitempty"`
 }
 
@@ -85,6 +85,8 @@ func (s *System) RetrieveUserDetailsDB(subject string) (*User, error) {
 		}
 	}()
 
+	companyName := ""
+
 	user := &User{}
 	ug := &Group{}
 	if err := client.QueryRow(s.Context, `
@@ -101,11 +103,13 @@ func (s *System) RetrieveUserDetailsDB(subject string) (*User, error) {
         u.last_name,
         u.user_group_id,
         u.onboarded,
-    	ug.name AS user_group_name
+    	ug.name AS user_group_name,
+        c.name AS company_name
     FROM public.user AS u
     	LEFT JOIN public.user_groups AS ug ON ug.id = u.user_group_id
     	LEFT JOIN public.company_user AS cu ON cu.user_id = u.id
-    WHERE subject = $1`, subject).Scan(&user.Id, &user.KnownAs, &user.Email, &user.Subject, &user.Timezone, &user.JobTitle, &user.Location, &user.Avatar, &user.FirstName, &user.LastName, &ug.Id, &user.Onboarded, &ug.Name); err != nil {
+        LEFT JOIN public.company AS c ON c.id = cu.company_id
+    WHERE subject = $1`, subject).Scan(&user.Id, &user.KnownAs, &user.Email, &user.Subject, &user.Timezone, &user.JobTitle, &user.Location, &user.Avatar, &user.FirstName, &user.LastName, &ug.Id, &user.Onboarded, &ug.Name, &companyName); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, nil
 		}
@@ -116,6 +120,17 @@ func (s *System) RetrieveUserDetailsDB(subject string) (*User, error) {
 		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to query database: %v", err)
 	}
 	user.UserGroup = ug
+
+	if companyName != "" && user.Onboarded == false {
+		user.Onboarded = true
+
+		if _, err := client.Exec(s.Context, `
+    	UPDATE public.user
+    	SET onboarded = true
+    	WHERE subject = $1`, subject); err != nil {
+			return nil, s.Config.Bugfixes.Logger.Errorf("Failed to update user onboarded status: %v", err)
+		}
+	}
 
 	return user, nil
 }
