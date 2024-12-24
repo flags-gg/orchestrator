@@ -9,6 +9,10 @@ type Extra struct {
 	Title    string `json:"title,omitempty"`
 	Launched bool   `json:"launched,omitempty"`
 }
+type Stripe struct {
+	PriceID    string `json:"price_id,omitempty"`
+	DevPriceID string `json:"dev_price_id,omitempty"`
+}
 type Price struct {
 	Title        string  `json:"title,omitempty"`
 	SubTitle     string  `json:"sub_title,omitempty"`
@@ -20,6 +24,7 @@ type Price struct {
 	Requests     int     `json:"requests,omitempty"`
 	SupportType  string  `json:"support_type,omitempty"`
 	Extras       []Extra `json:"extras,omitempty"`
+	Stripe       Stripe  `json:"stripe,omitempty"`
 }
 
 func (s *System) GetPrices() ([]Price, error) {
@@ -44,6 +49,8 @@ func (s *System) GetPrices() ([]Price, error) {
       payment_plans.environments,
       payment_plans.requests,
       payment_plans.support_category,
+      paymment_plans.stripe_id,
+      payment_plans.stripe_id_dev,
       payment_plans.popular
     FROM public.payment_plans
     WHERE payment_plans.custom = false
@@ -55,12 +62,14 @@ func (s *System) GetPrices() ([]Price, error) {
 	for rows.Next() {
 		var price Price
 		var popular bool
-		if err := rows.Scan(&price.Title, &price.Price, &price.TeamMembers, &price.Projects, &price.Agents, &price.Environments, &price.Requests, &price.SupportType, &popular); err != nil {
+		var stripe Stripe
+		if err := rows.Scan(&price.Title, &price.Price, &price.TeamMembers, &price.Projects, &price.Agents, &price.Environments, &price.Requests, &price.SupportType, &stripe.PriceID, &stripe.DevPriceID, &popular); err != nil {
 			return nil, s.Config.Bugfixes.Logger.Errorf("Failed to scan database: %v", err)
 		}
 		if popular {
 			price.SubTitle = "Most Popular"
 		}
+		price.Stripe = stripe
 		prices = append(prices, price)
 	}
 
@@ -79,6 +88,7 @@ func (s *System) GetPrice(title string) (Price, error) {
 	}()
 
 	var price Price
+	var stripe Stripe
 	row := client.QueryRow(s.Context, `
     SELECT
       payment_plans.name,
@@ -88,13 +98,16 @@ func (s *System) GetPrice(title string) (Price, error) {
       payment_plans.agents,
       payment_plans.environments,
       payment_plans.requests,
-      payment_plans.support_category
+      payment_plans.support_category,
+      payment_plans.stripe_id,
+      payment_plans.stripe_id_dev
     FROM public.payment_plans
     WHERE payment_plans.name = $1`, title)
-	if err := row.Scan(&price.Title, &price.Price, &price.TeamMembers, &price.Projects, &price.Agents, &price.Environments, &price.Requests, &price.SupportType); err != nil {
+	if err := row.Scan(&price.Title, &price.Price, &price.TeamMembers, &price.Projects, &price.Agents, &price.Environments, &price.Requests, &price.SupportType, &stripe.PriceID, &stripe.DevPriceID); err != nil {
 		return Price{}, s.Config.Bugfixes.Logger.Errorf("Failed to scan database: %v", err)
 	}
 
+	price.Stripe = stripe
 	return price, nil
 }
 

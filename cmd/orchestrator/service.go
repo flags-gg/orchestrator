@@ -23,6 +23,7 @@ func (pc ProjectConfig) Build(cfg *ConfigBuilder.Config) error {
 	type PC struct {
 		FlagsService string `env:"FLAGS_SERVICE" envDefault:"flags-service.flags-gg:3000"`
 		ResendKey    string `env:"RESEND_KEY" envDefault:"flags-gg-resend-key"`
+		StripeLocal  string `env:"STRIPE_LOCAL" envDefault:"stripe_local"`
 	}
 	p := PC{}
 
@@ -33,6 +34,7 @@ func (pc ProjectConfig) Build(cfg *ConfigBuilder.Config) error {
 		cfg.ProjectProperties = make(map[string]interface{})
 	}
 	cfg.ProjectProperties["flagsService"] = p.FlagsService
+	cfg.ProjectProperties["stripeLocal"] = p.StripeLocal
 
 	// get the resend key out of the vault
 	vh := *cfg.VaultHelper
