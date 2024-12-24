@@ -124,6 +124,9 @@ func (s *Service) startHTTP(errChan chan error) {
 	mux.HandleFunc("/uploadthing", user.NewSystem(s.Config).UploadThing)
 	mux.HandleFunc("/events/keycloak", general.NewSystem(s.Config).KeycloakEvents)
 
+	// General Webhooks
+	mux.HandleFunc("/webhooks/stripe", general.NewSystem(s.Config).StripeEvents)
+
 	// middlewares
 	mw := middleware.NewMiddleware(context.Background())
 	mw.AddMiddleware(middleware.SetupLogger(middleware.Error).Logger)

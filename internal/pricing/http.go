@@ -39,7 +39,7 @@ func (s *System) GetCompanyPricing(w http.ResponseWriter, r *http.Request) {
 	}
 	pricing := Pricing{}
 
-	pricing.Pricing = append(pricing.Pricing, s.GetFree())
+	//pricing.Pricing = append(pricing.Pricing, s.GetFree())
 	pricing.Pricing = append(pricing.Pricing, s.GetStartup())
 	pricing.Pricing = append(pricing.Pricing, s.GetPro())
 	pricing.Pricing = append(pricing.Pricing, s.GetEnterprise())
