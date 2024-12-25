@@ -327,3 +327,38 @@ func (s *System) InviteUserToCompany(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusOK)
 }
+
+func (s *System) UpgradeCompany(w http.ResponseWriter, r *http.Request) {
+	s.Context = r.Context()
+
+	if r.Header.Get("x-user-subject") == "" || r.Header.Get("x-user-access-token") == "" {
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
+	companyId, err := s.GetCompanyId(r.Header.Get("x-user-subject"))
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	if companyId == "" {
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
+	type upgrade struct {
+		StripeSessionId string `json:"sessionId"`
+	}
+	var upgradeRequest upgrade
+	if err := json.NewDecoder(r.Body).Decode(&upgradeRequest); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	if err := s.UpgradeCompanyInDB(companyId, upgradeRequest.StripeSessionId); err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+}

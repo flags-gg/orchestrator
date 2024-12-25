@@ -7,6 +7,8 @@ import (
 	"github.com/bugfixes/go-bugfixes/logs"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/stripe/stripe-go"
+	"github.com/stripe/stripe-go/checkout/session"
 )
 
 type Agents struct {
@@ -570,4 +572,44 @@ func (s *System) GetInviteCodeFromDB(companyId string) (string, error) {
 	}
 
 	return inviteCode.String, nil
+}
+
+func (s *System) UpgradeCompanyInDB(companyId, stripeSessionId string) error {
+	client, err := s.Config.Database.GetPGXClient(s.Context)
+	if err != nil {
+		return s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
+	}
+	defer func() {
+		if err := client.Close(s.Context); err != nil {
+			s.Config.Bugfixes.Logger.Fatalf("Failed to close database connection: %v", err)
+		}
+	}()
+
+	stripe.Key = s.Config.Local.GetValue("STRIPE_SECRET")
+	params := &stripe.CheckoutSessionParams{}
+	result, err := session.Get(stripeSessionId, params)
+	if err != nil {
+		return s.Config.Bugfixes.Logger.Errorf("Failed to get stripe session: %v", err)
+	}
+
+	priceId, exists := result.Metadata["priceId"]
+	if !exists {
+		return s.Config.Bugfixes.Logger.Errorf("Failed to get price id from metadata")
+	}
+
+	_, err = client.Exec(s.Context, `
+    UPDATE public.company
+    SET
+      payment_plan_id = (
+          SELECT id
+          FROM public.payment_plans
+          WHERE stripe_id = $1
+            OR stripe_id_dev = $1
+      )
+    WHERE company_id = $2`, priceId, companyId)
+	if err != nil {
+		return s.Config.Bugfixes.Logger.Errorf("Failed to update company: %v", err)
+	}
+
+	return nil
 }
