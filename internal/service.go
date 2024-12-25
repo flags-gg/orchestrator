@@ -116,6 +116,7 @@ func (s *Service) startHTTP(errChan chan error) {
 	mux.HandleFunc("GET /company/users", company.NewSystem(s.Config).GetCompanyUsers)
 	mux.HandleFunc("PUT /company/image", company.NewSystem(s.Config).UpdateCompanyImage)
 	mux.HandleFunc("POST /company/invite", company.NewSystem(s.Config).InviteUserToCompany)
+	mux.HandleFunc("PUT /company/upgrade", company.NewSystem(s.Config).UpgradeCompany)
 
 	// General
 	mux.HandleFunc(fmt.Sprintf("%s /health", http.MethodGet), healthcheck.HTTP)
@@ -123,6 +124,9 @@ func (s *Service) startHTTP(errChan chan error) {
 	mux.HandleFunc("GET /pricing", pricing.NewSystem(s.Config).GetGeneralPricing)
 	mux.HandleFunc("/uploadthing", user.NewSystem(s.Config).UploadThing)
 	mux.HandleFunc("/events/keycloak", general.NewSystem(s.Config).KeycloakEvents)
+
+	// General Webhooks
+	mux.HandleFunc("/webhooks/stripe", general.NewSystem(s.Config).StripeEvents)
 
 	// middlewares
 	mw := middleware.NewMiddleware(context.Background())
