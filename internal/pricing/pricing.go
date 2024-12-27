@@ -11,10 +11,10 @@ type Extra struct {
 	Launched bool   `json:"launched,omitempty"`
 }
 type Stripe struct {
-	PriceID       string `json:"price_id,omitempty"`
-	PriceSting    *sql.NullString
-	DevPriceID    string `json:"dev_price_id,omitempty"`
-	DevPriceSting *sql.NullString
+	PriceID        string `json:"price_id,omitempty"`
+	PriceString    *sql.NullString
+	DevPriceID     string `json:"dev_price_id,omitempty"`
+	DevPriceString *sql.NullString
 }
 type Price struct {
 	Title        string  `json:"title,omitempty"`
@@ -66,18 +66,18 @@ func (s *System) GetPrices() ([]Price, error) {
 		var price Price
 		var popular bool
 		var stripe Stripe
-		if err := rows.Scan(&price.Title, &price.Price, &price.TeamMembers, &price.Projects, &price.Agents, &price.Environments, &price.Requests, &price.SupportType, &stripe.PriceSting, &stripe.DevPriceSting, &popular); err != nil {
+		if err := rows.Scan(&price.Title, &price.Price, &price.TeamMembers, &price.Projects, &price.Agents, &price.Environments, &price.Requests, &price.SupportType, &stripe.PriceString, &stripe.DevPriceString, &popular); err != nil {
 			return nil, s.Config.Bugfixes.Logger.Errorf("Failed to scan database: %v", err)
 		}
 		if popular {
 			price.SubTitle = "Most Popular"
 		}
 
-		if stripe.PriceSting != nil && stripe.PriceSting.Valid {
-			price.Stripe.PriceID = stripe.PriceSting.String
+		if stripe.PriceString != nil && stripe.PriceString.Valid {
+			price.Stripe.PriceID = stripe.PriceString.String
 		}
-		if stripe.DevPriceSting != nil && stripe.DevPriceSting.Valid {
-			price.Stripe.DevPriceID = stripe.DevPriceSting.String
+		if stripe.DevPriceString != nil && stripe.DevPriceString.Valid {
+			price.Stripe.DevPriceID = stripe.DevPriceString.String
 		}
 
 		price.Stripe = stripe
