@@ -1,6 +1,7 @@
 package pricing
 
 import (
+	"database/sql"
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
 )
@@ -10,8 +11,10 @@ type Extra struct {
 	Launched bool   `json:"launched,omitempty"`
 }
 type Stripe struct {
-	PriceID    string `json:"price_id,omitempty"`
-	DevPriceID string `json:"dev_price_id,omitempty"`
+	PriceID       string `json:"price_id,omitempty"`
+	PriceSting    *sql.NullString
+	DevPriceID    string `json:"dev_price_id,omitempty"`
+	DevPriceSting *sql.NullString
 }
 type Price struct {
 	Title        string  `json:"title,omitempty"`
@@ -49,7 +52,7 @@ func (s *System) GetPrices() ([]Price, error) {
       payment_plans.environments,
       payment_plans.requests,
       payment_plans.support_category,
-      paymment_plans.stripe_id,
+      payment_plans.stripe_id,
       payment_plans.stripe_id_dev,
       payment_plans.popular
     FROM public.payment_plans
@@ -63,12 +66,20 @@ func (s *System) GetPrices() ([]Price, error) {
 		var price Price
 		var popular bool
 		var stripe Stripe
-		if err := rows.Scan(&price.Title, &price.Price, &price.TeamMembers, &price.Projects, &price.Agents, &price.Environments, &price.Requests, &price.SupportType, &stripe.PriceID, &stripe.DevPriceID, &popular); err != nil {
+		if err := rows.Scan(&price.Title, &price.Price, &price.TeamMembers, &price.Projects, &price.Agents, &price.Environments, &price.Requests, &price.SupportType, &stripe.PriceSting, &stripe.DevPriceSting, &popular); err != nil {
 			return nil, s.Config.Bugfixes.Logger.Errorf("Failed to scan database: %v", err)
 		}
 		if popular {
 			price.SubTitle = "Most Popular"
 		}
+
+		if stripe.PriceSting != nil && stripe.PriceSting.Valid {
+			price.Stripe.PriceID = stripe.PriceSting.String
+		}
+		if stripe.DevPriceSting != nil && stripe.DevPriceSting.Valid {
+			price.Stripe.DevPriceID = stripe.DevPriceSting.String
+		}
+
 		price.Stripe = stripe
 		prices = append(prices, price)
 	}
