@@ -66,7 +66,7 @@ func (s *System) GetPrices() ([]Price, error) {
 		var price Price
 		var popular bool
 		var stripe Stripe
-		if err := rows.Scan(&price.Title, &price.Price, &price.TeamMembers, &price.Projects, &price.Agents, &price.Environments, &price.Requests, &price.SupportType, &stripe.PriceSting, &stripe.DevPriceSting, &popular); err != nil {
+		if err := rows.Scan(&price.Title, &price.Price, &price.TeamMembers, &price.Projects, &price.Agents, &price.Environments, &price.Requests, &price.SupportType, &stripe.PriceString, &stripe.DevPriceString, &popular); err != nil {
 			return nil, s.Config.Bugfixes.Logger.Errorf("Failed to scan database: %v", err)
 		}
 		if popular {
