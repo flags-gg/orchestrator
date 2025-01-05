@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"github.com/bugfixes/go-bugfixes/logs"
 	"github.com/docker/go-connections/nat"
 	"net/http"
 	"net/http/httptest"
@@ -24,7 +25,7 @@ type testContainer struct {
 	uri       string
 }
 
-func setupTestDatabase(t *testing.T, c context.Context) (*testContainer, error) {
+func setupTestDatabase(c context.Context) (*testContainer, error) {
 	req := testcontainers.ContainerRequest{
 		Image:        "postgres:14-alpine",
 		ExposedPorts: []string{"5432/tcp"},
@@ -71,7 +72,11 @@ func setupTestDatabase(t *testing.T, c context.Context) (*testContainer, error) 
 	if err != nil {
 		return nil, err
 	}
-	defer db.Close()
+	defer func() {
+		if err := db.Close(); err != nil {
+			_ = logs.Errorf("Failed to close database connection: %v", err)
+		}
+	}()
 
 	// Create the payment_plans table
 	_, err = db.Exec(`
@@ -127,7 +132,7 @@ func setupTestSystem(t *testing.T) *System {
 func TestGetCompanyPricing(t *testing.T) {
 	c := context.Background()
 
-	testDB, err := setupTestDatabase(t, c)
+	testDB, err := setupTestDatabase(c)
 	if err != nil {
 		t.Fatalf("Failed to setup test database: %v", err)
 	}
@@ -207,7 +212,7 @@ func TestGetCompanyPricing(t *testing.T) {
 
 func TestGetGeneralPricing(t *testing.T) {
 	c := context.Background()
-	testDB, err := setupTestDatabase(t, c)
+	testDB, err := setupTestDatabase(c)
 	if err != nil {
 		t.Fatalf("Failed to setup test database: %v", err)
 	}
@@ -263,7 +268,7 @@ func TestGetGeneralPricing(t *testing.T) {
 
 func TestGetSpecificPrices(t *testing.T) {
 	c := context.Background()
-	testDB, err := setupTestDatabase(t, c)
+	testDB, err := setupTestDatabase(c)
 	if err != nil {
 		t.Fatalf("Failed to setup test database: %v", err)
 	}
