@@ -27,7 +27,9 @@ func (s *System) SetContext(ctx context.Context) *System {
 
 func (s *System) GetCompanyPricing(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("x-flags-timestamp", strconv.FormatInt(time.Now().Unix(), 10))
-	s.Context = r.Context()
+	if s.Context == nil {
+		s.Context = r.Context()
+	}
 
 	if r.Header.Get("x-user-subject") == "" || r.Header.Get("x-user-access-token") == "" {
 		w.WriteHeader(http.StatusUnauthorized)

@@ -24,9 +24,7 @@ type testContainer struct {
 	uri       string
 }
 
-func setupTestDatabase(t *testing.T) (*testContainer, error) {
-	ctx := context.Background()
-
+func setupTestDatabase(t *testing.T, c context.Context) (*testContainer, error) {
 	req := testcontainers.ContainerRequest{
 		Image:        "postgres:14-alpine",
 		ExposedPorts: []string{"5432/tcp"},
@@ -43,7 +41,7 @@ func setupTestDatabase(t *testing.T) (*testContainer, error) {
 		},
 	}
 
-	container, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
+	container, err := testcontainers.GenericContainer(c, testcontainers.GenericContainerRequest{
 		ContainerRequest: req,
 		Started:          true,
 	})
@@ -51,12 +49,12 @@ func setupTestDatabase(t *testing.T) (*testContainer, error) {
 		return nil, err
 	}
 
-	mappedPort, err := container.MappedPort(ctx, "5432")
+	mappedPort, err := container.MappedPort(c, "5432")
 	if err != nil {
 		return nil, err
 	}
 
-	hostIP, err := container.Host(ctx)
+	hostIP, err := container.Host(c)
 	if err != nil {
 		return nil, err
 	}
@@ -66,7 +64,7 @@ func setupTestDatabase(t *testing.T) (*testContainer, error) {
 	_ = os.Setenv("RDS_PORT", mappedPort.Port())
 	_ = os.Setenv("RDS_USERNAME", "test")
 	_ = os.Setenv("RDS_PASSWORD", "test")
-	_ = os.Setenv("RDS_DB_NAME", "testdb")
+	_ = os.Setenv("RDS_DB", "testdb")
 
 	// Initialize the database schema
 	db, err := sql.Open("postgres", uri)
@@ -117,24 +115,30 @@ func setupTestDatabase(t *testing.T) (*testContainer, error) {
 	}, nil
 }
 
-func setupTestSystem(t *testing.T, dbURI string) *System {
+func setupTestSystem(t *testing.T) *System {
 	c := ConfigBuilder.NewConfigNoVault()
+	if err := c.Build(ConfigBuilder.Database); err != nil {
+		t.Fatalf("Failed to build config: %v", err)
+	}
 
 	return NewSystem(c)
 }
 
 func TestGetCompanyPricing(t *testing.T) {
-	testDB, err := setupTestDatabase(t)
+	c := context.Background()
+
+	testDB, err := setupTestDatabase(t, c)
 	if err != nil {
 		t.Fatalf("Failed to setup test database: %v", err)
 	}
 	defer func() {
-		if err := testDB.container.Terminate(context.Background()); err != nil {
+		if err := testDB.container.Terminate(c); err != nil {
 			t.Errorf("Failed to terminate container: %v", err)
 		}
 	}()
 
-	system := setupTestSystem(t, testDB.uri)
+	system := setupTestSystem(t)
+	system.SetContext(c)
 
 	tests := []struct {
 		name              string
@@ -202,17 +206,19 @@ func TestGetCompanyPricing(t *testing.T) {
 }
 
 func TestGetGeneralPricing(t *testing.T) {
-	testDB, err := setupTestDatabase(t)
+	c := context.Background()
+	testDB, err := setupTestDatabase(t, c)
 	if err != nil {
 		t.Fatalf("Failed to setup test database: %v", err)
 	}
 	defer func() {
-		if err := testDB.container.Terminate(context.Background()); err != nil {
+		if err := testDB.container.Terminate(c); err != nil {
 			t.Errorf("Failed to terminate container: %v", err)
 		}
 	}()
 
-	system := setupTestSystem(t, testDB.uri)
+	system := setupTestSystem(t)
+	system.SetContext(c)
 
 	t.Run("Success", func(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, "/pricing/general", nil)
@@ -232,19 +238,19 @@ func TestGetGeneralPricing(t *testing.T) {
 		// Verify specific plans exist and have correct attributes
 		for _, price := range response.Prices {
 			switch price.Title {
-			case "Free":
+			case "free":
 				assert.Equal(t, 0, price.Price)
 				assert.Equal(t, 1, price.TeamMembers)
 				assert.Equal(t, "community", price.SupportType)
-			case "Startup":
+			case "startup":
 				assert.Equal(t, 29, price.Price)
 				assert.Equal(t, 5, price.TeamMembers)
 				assert.Equal(t, "email", price.SupportType)
-			case "Pro":
+			case "pro":
 				assert.Equal(t, 99, price.Price)
 				assert.Equal(t, 10, price.TeamMembers)
 				assert.Equal(t, "priority", price.SupportType)
-			case "Enterprise":
+			case "enterprise":
 				assert.Equal(t, 299, price.Price)
 				assert.Equal(t, 50, price.TeamMembers)
 				assert.Equal(t, "dedicated", price.SupportType)
@@ -256,17 +262,19 @@ func TestGetGeneralPricing(t *testing.T) {
 }
 
 func TestGetSpecificPrices(t *testing.T) {
-	testDB, err := setupTestDatabase(t)
+	c := context.Background()
+	testDB, err := setupTestDatabase(t, c)
 	if err != nil {
 		t.Fatalf("Failed to setup test database: %v", err)
 	}
 	defer func() {
-		if err := testDB.container.Terminate(context.Background()); err != nil {
+		if err := testDB.container.Terminate(c); err != nil {
 			t.Errorf("Failed to terminate container: %v", err)
 		}
 	}()
 
-	system := setupTestSystem(t, testDB.uri)
+	system := setupTestSystem(t)
+	system.SetContext(c)
 
 	tests := []struct {
 		name       string
