@@ -17,7 +17,7 @@ require (
 	github.com/keloran/go-probe v1.0.0
 	github.com/keloran/vault-helper v1.1.0
 	github.com/lib/pq v1.10.9
-	github.com/resend/resend-go/v2 v2.13.0
+	github.com/resend/resend-go/v2 v2.14.0
 	github.com/stretchr/testify v1.10.0
 	github.com/stripe/stripe-go v70.15.0+incompatible
 	github.com/testcontainers/testcontainers-go v0.35.0
