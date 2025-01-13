@@ -20,7 +20,7 @@ require (
 	github.com/resend/resend-go/v2 v2.13.0
 	github.com/stretchr/testify v1.10.0
 	github.com/stripe/stripe-go v70.15.0+incompatible
-	github.com/testcontainers/testcontainers-go v0.34.0
+	github.com/testcontainers/testcontainers-go v0.35.0
 	golang.org/x/text v0.21.0
 )
 
