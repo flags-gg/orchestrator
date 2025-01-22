@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"github.com/flags-gg/orchestrator/internal/company"
 	"net/http"
+
+	flagsService "github.com/flags-gg/go-flags"
 )
 
 type Style struct {
@@ -170,6 +172,16 @@ func (s *System) UpdateSecretMenuSequence(w http.ResponseWriter, r *http.Request
 func (s *System) UpdateSecretMenuStyle(w http.ResponseWriter, r *http.Request) {
 	s.Context = r.Context()
 
+	flags := flagsService.NewClient(flagsService.WithAuth(flagsService.Auth{
+		ProjectID:     s.Config.ProjectProperties["flags_project"].(string),
+		AgentID:       s.Config.ProjectProperties["flags_agent"].(string),
+		EnvironmentID: s.Config.ProjectProperties["flags_environment"].(string),
+	}))
+	if !flags.Is("menu style").Enabled() {
+		w.WriteHeader(http.StatusNotImplemented)
+		return
+	}
+
 	if r.Header.Get("x-user-access-token") == "" || r.Header.Get("x-user-subject") == "" {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
@@ -272,6 +284,16 @@ func (s *System) UpdateSecretMenuStyle(w http.ResponseWriter, r *http.Request) {
 
 func (s *System) GetSecretMenuStyle(w http.ResponseWriter, r *http.Request) {
 	s.Context = r.Context()
+
+	flags := flagsService.NewClient(flagsService.WithAuth(flagsService.Auth{
+		ProjectID:     s.Config.ProjectProperties["flags_project"].(string),
+		AgentID:       s.Config.ProjectProperties["flags_agent"].(string),
+		EnvironmentID: s.Config.ProjectProperties["flags_environment"].(string),
+	}))
+	if !flags.Is("menu style").Enabled() {
+		w.WriteHeader(http.StatusNotImplemented)
+		return
+	}
 
 	if r.Header.Get("x-user-access-token") == "" || r.Header.Get("x-user-subject") == "" {
 		w.WriteHeader(http.StatusUnauthorized)

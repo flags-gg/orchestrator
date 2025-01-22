@@ -20,10 +20,16 @@ var (
 type ProjectConfig struct{}
 
 func (pc ProjectConfig) Build(cfg *ConfigBuilder.Config) error {
+	type FlagsService struct {
+		ProjectID     string `env:"FLAGS_PROJECT_ID" envDefault:"flags-gg"`
+		AgentID       string `env:"FLAGS_AGENT_ID" envDefault:"orchestrator"`
+		EnvironmentID string `env:"FLAGS_ENVIRONMENT_ID" envDefault:"orchestrator"`
+	}
+
 	type PC struct {
-		FlagsService string `env:"FLAGS_SERVICE" envDefault:"flags-service.flags-gg:3000"`
-		ResendKey    string `env:"RESEND_KEY" envDefault:"flags-gg-resend-key"`
-		StripeLocal  string `env:"STRIPE_LOCAL" envDefault:"stripe_local"`
+		ResendKey   string `env:"RESEND_KEY" envDefault:"flags-gg-resend-key"`
+		StripeLocal string `env:"STRIPE_LOCAL" envDefault:"stripe_local"`
+		Flags       FlagsService
 	}
 	p := PC{}
 
@@ -33,8 +39,11 @@ func (pc ProjectConfig) Build(cfg *ConfigBuilder.Config) error {
 	if cfg.ProjectProperties == nil {
 		cfg.ProjectProperties = make(map[string]interface{})
 	}
-	cfg.ProjectProperties["flagsService"] = p.FlagsService
 	cfg.ProjectProperties["stripeLocal"] = p.StripeLocal
+
+	cfg.ProjectProperties["flags_agent"] = p.Flags.AgentID
+	cfg.ProjectProperties["flags_environment"] = p.Flags.EnvironmentID
+	cfg.ProjectProperties["flags_project"] = p.Flags.ProjectID
 
 	// get the resend key out of the vault
 	vh := *cfg.VaultHelper
