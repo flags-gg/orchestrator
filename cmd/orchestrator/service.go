@@ -29,6 +29,7 @@ func (pc ProjectConfig) Build(cfg *ConfigBuilder.Config) error {
 	type PC struct {
 		ResendKey   string `env:"RESEND_KEY" envDefault:"flags-gg-resend-key"`
 		StripeLocal string `env:"STRIPE_LOCAL" envDefault:"stripe_local"`
+		ClerkKey    string `env:"CLERK_SECRET_KEY" envDefault:"clerk_key"`
 		Flags       FlagsService
 	}
 	p := PC{}
@@ -40,6 +41,7 @@ func (pc ProjectConfig) Build(cfg *ConfigBuilder.Config) error {
 		cfg.ProjectProperties = make(map[string]interface{})
 	}
 	cfg.ProjectProperties["stripeLocal"] = p.StripeLocal
+	cfg.ProjectProperties["clerkKey"] = p.ClerkKey
 
 	cfg.ProjectProperties["flags_agent"] = p.Flags.AgentID
 	cfg.ProjectProperties["flags_environment"] = p.Flags.EnvironmentID

@@ -31,7 +31,7 @@ func (s *System) GetCompanyPricing(w http.ResponseWriter, r *http.Request) {
 		s.Context = r.Context()
 	}
 
-	if r.Header.Get("x-user-subject") == "" || r.Header.Get("x-user-access-token") == "" {
+	if r.Header.Get("x-user-subject") == "" {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}

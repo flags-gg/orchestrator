@@ -155,21 +155,13 @@ func TestGetCompanyPricing(t *testing.T) {
 		{
 			name:              "Success with auth",
 			userSubject:       "test-subject",
-			userAccessToken:   "test-token",
 			expectedStatus:    http.StatusOK,
 			expectedPlanCount: 3, // startup, pro, enterprise
 		},
 		{
-			name:            "Unauthorized - missing subject",
-			userSubject:     "",
-			userAccessToken: "test-token",
-			expectedStatus:  http.StatusUnauthorized,
-		},
-		{
-			name:            "Unauthorized - missing token",
-			userSubject:     "test-subject",
-			userAccessToken: "",
-			expectedStatus:  http.StatusUnauthorized,
+			name:           "Unauthorized - missing subject",
+			userSubject:    "",
+			expectedStatus: http.StatusUnauthorized,
 		},
 	}
 
@@ -177,7 +169,6 @@ func TestGetCompanyPricing(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			req := httptest.NewRequest(http.MethodGet, "/pricing/company", nil)
 			req.Header.Set("x-user-subject", tt.userSubject)
-			req.Header.Set("x-user-access-token", tt.userAccessToken)
 
 			w := httptest.NewRecorder()
 			system.GetCompanyPricing(w, req)

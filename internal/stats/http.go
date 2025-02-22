@@ -127,7 +127,7 @@ func (s *System) GetAgentStats(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *System) GetAgentsStats(w http.ResponseWriter, r *http.Request) {
-	if r.Header.Get("x-user-subject") == "" || r.Header.Get("x-user-access-token") == "" {
+	if r.Header.Get("x-user-subject") == "" {
 		if err := json.NewEncoder(w).Encode(&AgentsStats{}); err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 		}
