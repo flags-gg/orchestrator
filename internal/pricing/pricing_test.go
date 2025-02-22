@@ -155,21 +155,13 @@ func TestGetCompanyPricing(t *testing.T) {
 		{
 			name:              "Success with auth",
 			userSubject:       "test-subject",
-			userAccessToken:   "test-token",
 			expectedStatus:    http.StatusOK,
 			expectedPlanCount: 3, // startup, pro, enterprise
 		},
 		{
-			name:            "Unauthorized - missing subject",
-			userSubject:     "",
-			userAccessToken: "test-token",
-			expectedStatus:  http.StatusUnauthorized,
-		},
-		{
-			name:            "Unauthorized - missing token",
-			userSubject:     "test-subject",
-			userAccessToken: "",
-			expectedStatus:  http.StatusUnauthorized,
+			name:           "Unauthorized - missing subject",
+			userSubject:    "",
+			expectedStatus: http.StatusUnauthorized,
 		},
 	}
 
