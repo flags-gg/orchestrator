@@ -177,7 +177,6 @@ func TestGetCompanyPricing(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			req := httptest.NewRequest(http.MethodGet, "/pricing/company", nil)
 			req.Header.Set("x-user-subject", tt.userSubject)
-			req.Header.Set("x-user-access-token", tt.userAccessToken)
 
 			w := httptest.NewRecorder()
 			system.GetCompanyPricing(w, req)

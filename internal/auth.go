@@ -1,25 +1,27 @@
 package internal
 
 import (
+	"github.com/clerk/clerk-sdk-go/v2"
+	clerkUser "github.com/clerk/clerk-sdk-go/v2/user"
 	"github.com/flags-gg/orchestrator/internal/agent"
-	"github.com/flags-gg/orchestrator/internal/user"
 	"net/http"
 )
 
 func (s *Service) ValidateUser(w http.ResponseWriter, r *http.Request) bool {
 	_ = w
-	userSubject := r.Header.Get("x-user-subject")
-	userAccessToken := r.Header.Get("x-user-access-token")
-
+	
 	// Skip the check and just accept what is passed from bruno
 	if s.Config.Local.Development {
 		return true
 	}
 
-	if userSubject != "" && userAccessToken != "" {
-		if user.NewSystem(s.Config).ValidateUser(r.Context(), userSubject) {
-			return true
-		}
+	clerk.SetKey(s.Config.ProjectProperties["clerkKey"].(string))
+	usr, err := clerkUser.Get(r.Context(), r.Header.Get("x-user-subject"))
+	if err != nil {
+		return false
+	}
+	if usr == nil {
+		return false
 	}
 
 	return false

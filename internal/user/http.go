@@ -4,12 +4,11 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
-	"github.com/bugfixes/go-bugfixes/logs"
+	"github.com/clerk/clerk-sdk-go/v2"
+	clerkUser "github.com/clerk/clerk-sdk-go/v2/user"
 	ConfigBuilder "github.com/keloran/go-config"
 	"net/http"
-	"strings"
 )
 
 type System struct {
@@ -28,32 +27,6 @@ func (s *System) SetContext(ctx context.Context) *System {
 	return s
 }
 
-func (s *System) ValidateUser(ctx context.Context, subject string) bool {
-	if subject == "" {
-		return false
-	}
-	s.Context = ctx
-
-	user, err := s.GetKeycloakDetails(subject)
-	if err != nil {
-		if strings.Contains(err.Error(), "ingress.local") {
-			logs.Fatalf("DNS error killing process: %v", err)
-			return false
-		}
-		if err.Error() == "context canceled" || errors.Is(err, context.Canceled) {
-			return false
-		}
-
-		_ = s.Config.Bugfixes.Logger.Errorf("Failed to get keycloak details: %v", err)
-		return false
-	}
-	if user == nil {
-		return false
-	}
-
-	return true
-}
-
 func (s *System) CreateUser(w http.ResponseWriter, r *http.Request) {
 	s.Context = r.Context()
 
@@ -64,9 +37,9 @@ func (s *System) CreateUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	cloakDetails, err := s.GetKeycloakDetails(userSubject)
+	clerk.SetKey(s.Config.ProjectProperties["clerkKey"].(string))
+	usr, err := clerkUser.Get(s.Context, r.Header.Get("x-user-subject"))
 	if err != nil {
-		_ = s.Config.Bugfixes.Logger.Errorf("Failed to get keycloak details: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -86,10 +59,10 @@ func (s *System) CreateUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if fd.KnownAs == "" {
-		fd.KnownAs = *cloakDetails.Username
-		fd.First = *cloakDetails.FirstName
-		fd.Last = *cloakDetails.LastName
-		fd.Email = *cloakDetails.Email
+		fd.KnownAs = *usr.Username
+		fd.First = *usr.FirstName
+		fd.Last = *usr.LastName
+		fd.Email = usr.EmailAddresses[0].EmailAddress
 	}
 
 	if fd.Location == "" {
@@ -109,14 +82,14 @@ func (s *System) GetUser(w http.ResponseWriter, r *http.Request) {
 	s.Context = r.Context()
 	user := &User{}
 
-	subject := r.Header.Get("x-user-subject")
-	if subject == "" {
-		_ = s.Config.Bugfixes.Logger.Errorf("No subject provided")
-		w.WriteHeader(http.StatusBadRequest)
+	clerk.SetKey(s.Config.ProjectProperties["clerkKey"].(string))
+	usr, err := clerkUser.Get(s.Context, r.Header.Get("x-user-subject"))
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
-	dbuser, err := s.RetrieveUserDetailsDB(subject)
+	dbuser, err := s.RetrieveUserDetailsDB(usr.ID)
 	if err != nil {
 		_ = s.Config.Bugfixes.Logger.Errorf("Failed to retrieve user details: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -129,28 +102,10 @@ func (s *System) GetUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if user == nil {
-		kcuser, err := s.GetKeycloakDetails(subject)
-		if err != nil {
-			_ = s.Config.Bugfixes.Logger.Errorf("Failed to retrieve user details: %v", err)
-			w.WriteHeader(http.StatusInternalServerError)
-			return
-		}
-
-		if kcuser == nil {
-			logs.Logf("User not found in keycloak: %v", subject)
-			w.WriteHeader(http.StatusNotFound)
-			return
-		}
-
-		if strings.Contains(*kcuser.Username, "github.") {
-			n := strings.Replace(*kcuser.Username, "github.", "", 1)
-			user.KnownAs = &n
-		}
-
-		user.Id = kcuser.ID
-		user.Email = kcuser.Email
-		user.FirstName = kcuser.FirstName
-		user.LastName = kcuser.LastName
+		user.Id = &usr.ID
+		user.Email = &usr.EmailAddresses[0].EmailAddress
+		user.FirstName = usr.FirstName
+		user.LastName = usr.LastName
 	}
 
 	if err := json.NewEncoder(w).Encode(user); err != nil {
@@ -198,9 +153,16 @@ func (s *System) GetUserNotifications(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	clerk.SetKey(s.Config.ProjectProperties["clerkKey"].(string))
+	usr, err := clerkUser.Get(s.Context, r.Header.Get("x-user-subject"))
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
 	n := &Notifications{}
 
-	notifications, err := s.RetrieveUserNotifications(subject)
+	notifications, err := s.RetrieveUserNotifications(usr.ID)
 	if err != nil {
 		_ = s.Config.Bugfixes.Logger.Errorf("Failed to retrieve user notifications: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -236,8 +198,15 @@ func (s *System) UpdateUserNotification(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	clerk.SetKey(s.Config.ProjectProperties["clerkKey"].(string))
+	usr, err := clerkUser.Get(s.Context, r.Header.Get("x-user-subject"))
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
 	notificationId := r.PathValue("notificationId")
-	if err := s.MarkNotificationAsRead(subject, notificationId); err != nil {
+	if err := s.MarkNotificationAsRead(usr.ID, notificationId); err != nil {
 		_ = s.Config.Bugfixes.Logger.Errorf("Failed to update user notification: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -256,8 +225,15 @@ func (s *System) DeleteUserNotification(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	clerk.SetKey(s.Config.ProjectProperties["clerkKey"].(string))
+	usr, err := clerkUser.Get(s.Context, r.Header.Get("x-user-subject"))
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
 	notificationId := r.PathValue("notificationId")
-	if err := s.DeleteUserNotificationInDB(subject, notificationId); err != nil {
+	if err := s.DeleteUserNotificationInDB(usr.ID, notificationId); err != nil {
 		_ = s.Config.Bugfixes.Logger.Errorf("Failed to update user notification: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -344,14 +320,19 @@ func (s *System) UploadThing(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *System) UpdateUserImage(w http.ResponseWriter, r *http.Request) {
-	if r.Header.Get("x-user-subject") == "" || r.Header.Get("x-user-access-token") == "" {
+	if r.Header.Get("x-user-subject") == "" {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
 
-	s.Context = r.Context()
+	clerk.SetKey(s.Config.ProjectProperties["clerkKey"].(string))
+	usr, err := clerkUser.Get(s.Context, r.Header.Get("x-user-subject"))
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
 
-	userId := r.Header.Get("x-user-subject")
+	s.Context = r.Context()
 
 	imageChange := struct {
 		Image string `json:"image"`
@@ -362,7 +343,7 @@ func (s *System) UpdateUserImage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := s.UpdateUserImageInDB(userId, imageChange.Image); err != nil {
+	if err := s.UpdateUserImageInDB(usr.ID, imageChange.Image); err != nil {
 		_ = s.Config.Bugfixes.Logger.Errorf("Failed to update project: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 	}
@@ -380,25 +361,14 @@ func (s *System) DeleteUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, err := s.GetKeycloakDetails(subject)
+	clerk.SetKey(s.Config.ProjectProperties["clerkKey"].(string))
+	usr, err := clerkUser.Get(s.Context, r.Header.Get("x-user-subject"))
 	if err != nil {
-		_ = s.Config.Bugfixes.Logger.Errorf("Failed to get keycloak details: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
-	if user == nil {
-		w.WriteHeader(http.StatusNotFound)
-		return
-	}
-
-	if err := s.DeleteUserInDB(subject); err != nil {
-		_ = s.Config.Bugfixes.Logger.Errorf("Failed to delete user: %v", err)
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-
-	if err := s.DeleteUserInKeycloak(subject); err != nil {
+	if err := s.DeleteUserInDB(usr.ID); err != nil {
 		_ = s.Config.Bugfixes.Logger.Errorf("Failed to delete user: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return

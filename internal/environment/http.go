@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"github.com/bugfixes/go-bugfixes/logs"
+	"github.com/clerk/clerk-sdk-go/v2"
+	clerkUser "github.com/clerk/clerk-sdk-go/v2/user"
 	"github.com/flags-gg/orchestrator/internal/company"
 	"github.com/flags-gg/orchestrator/internal/flags"
 	"github.com/flags-gg/orchestrator/internal/secretmenu"
@@ -46,12 +48,19 @@ func (s *System) GetAgentEnvironments(w http.ResponseWriter, r *http.Request) {
 	}
 	s.Context = r.Context()
 
-	if r.Header.Get("x-user-access-token") == "" || r.Header.Get("x-user-subject") == "" {
+	if r.Header.Get("x-user-subject") == "" {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
 
-	companyId, err := company.NewSystem(s.Config).SetContext(s.Context).GetCompanyId(r.Header.Get("x-user-subject"))
+	clerk.SetKey(s.Config.ProjectProperties["clerkKey"].(string))
+	usr, err := clerkUser.Get(s.Context, r.Header.Get("x-user-subject"))
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	companyId, err := company.NewSystem(s.Config).SetContext(s.Context).GetCompanyId(usr.ID)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -83,12 +92,19 @@ func (s *System) GetEnvironments(w http.ResponseWriter, r *http.Request) {
 	}
 	s.Context = r.Context()
 
-	if r.Header.Get("x-user-access-token") == "" || r.Header.Get("x-user-subject") == "" {
+	if r.Header.Get("x-user-subject") == "" {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
 
-	companyId, err := company.NewSystem(s.Config).SetContext(s.Context).GetCompanyId(r.Header.Get("x-user-subject"))
+	clerk.SetKey(s.Config.ProjectProperties["clerkKey"].(string))
+	usr, err := clerkUser.Get(s.Context, r.Header.Get("x-user-subject"))
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	companyId, err := company.NewSystem(s.Config).SetContext(s.Context).GetCompanyId(usr.ID)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -113,12 +129,19 @@ func (s *System) GetEnvironments(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *System) CreateAgentEnvironment(w http.ResponseWriter, r *http.Request) {
-	if r.Header.Get("x-user-access-token") == "" || r.Header.Get("x-user-subject") == "" {
+	if r.Header.Get("x-user-subject") == "" {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
 
-	companyId, err := company.NewSystem(s.Config).SetContext(s.Context).GetCompanyId(r.Header.Get("x-user-subject"))
+	clerk.SetKey(s.Config.ProjectProperties["clerkKey"].(string))
+	usr, err := clerkUser.Get(s.Context, r.Header.Get("x-user-subject"))
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	companyId, err := company.NewSystem(s.Config).SetContext(s.Context).GetCompanyId(usr.ID)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -151,12 +174,19 @@ func (s *System) CreateAgentEnvironment(w http.ResponseWriter, r *http.Request) 
 func (s *System) CloneAgentEnvironment(w http.ResponseWriter, r *http.Request) {
 	s.Context = r.Context()
 
-	if r.Header.Get("x-user-access-token") == "" || r.Header.Get("x-user-subject") == "" {
+	if r.Header.Get("x-user-subject") == "" {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
 
-	companyId, err := company.NewSystem(s.Config).SetContext(s.Context).GetCompanyId(r.Header.Get("x-user-subject"))
+	clerk.SetKey(s.Config.ProjectProperties["clerkKey"].(string))
+	usr, err := clerkUser.Get(s.Context, r.Header.Get("x-user-subject"))
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	companyId, err := company.NewSystem(s.Config).SetContext(s.Context).GetCompanyId(usr.ID)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -201,12 +231,19 @@ func (s *System) CloneAgentEnvironment(w http.ResponseWriter, r *http.Request) {
 func (s *System) UpdateEnvironment(w http.ResponseWriter, r *http.Request) {
 	s.Context = r.Context()
 
-	if r.Header.Get("x-user-access-token") == "" || r.Header.Get("x-user-subject") == "" {
+	if r.Header.Get("x-user-subject") == "" {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
 
-	companyId, err := company.NewSystem(s.Config).SetContext(s.Context).GetCompanyId(r.Header.Get("x-user-subject"))
+	clerk.SetKey(s.Config.ProjectProperties["clerkKey"].(string))
+	usr, err := clerkUser.Get(s.Context, r.Header.Get("x-user-subject"))
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	companyId, err := company.NewSystem(s.Config).SetContext(s.Context).GetCompanyId(usr.ID)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -238,12 +275,19 @@ func (s *System) UpdateEnvironment(w http.ResponseWriter, r *http.Request) {
 func (s *System) DeleteEnvironment(w http.ResponseWriter, r *http.Request) {
 	s.Context = r.Context()
 
-	if r.Header.Get("x-user-access-token") == "" || r.Header.Get("x-user-subject") == "" {
+	if r.Header.Get("x-user-subject") == "" {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
 
-	companyId, err := company.NewSystem(s.Config).SetContext(s.Context).GetCompanyId(r.Header.Get("x-user-subject"))
+	clerk.SetKey(s.Config.ProjectProperties["clerkKey"].(string))
+	usr, err := clerkUser.Get(s.Context, r.Header.Get("x-user-subject"))
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	companyId, err := company.NewSystem(s.Config).SetContext(s.Context).GetCompanyId(usr.ID)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -271,12 +315,19 @@ func (s *System) DeleteEnvironment(w http.ResponseWriter, r *http.Request) {
 func (s *System) GetEnvironment(w http.ResponseWriter, r *http.Request) {
 	s.Context = r.Context()
 
-	if r.Header.Get("x-user-access-token") == "" || r.Header.Get("x-user-subject") == "" {
+	if r.Header.Get("x-user-subject") == "" {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
 
-	companyId, err := company.NewSystem(s.Config).SetContext(s.Context).GetCompanyId(r.Header.Get("x-user-subject"))
+	clerk.SetKey(s.Config.ProjectProperties["clerkKey"].(string))
+	usr, err := clerkUser.Get(s.Context, r.Header.Get("x-user-subject"))
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	companyId, err := company.NewSystem(s.Config).SetContext(s.Context).GetCompanyId(usr.ID)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return

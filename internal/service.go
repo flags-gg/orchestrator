@@ -141,7 +141,7 @@ func (s *Service) startHTTP(errChan chan error) {
 		"x-project-id",
 		"x-environment-id",
 		"x-user-subject",
-		"x-user-access-token",
+		"x-user-session",
 		"x-flags-timestamp",
 	)
 	mw.AddAllowedMethods(http.MethodGet, http.MethodPost, http.MethodPut, http.MethodDelete, http.MethodOptions, http.MethodPatch)
