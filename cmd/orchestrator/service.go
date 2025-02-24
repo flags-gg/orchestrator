@@ -27,10 +27,10 @@ func (pc ProjectConfig) Build(cfg *ConfigBuilder.Config) error {
 	}
 
 	type PC struct {
-		ResendKey   string `env:"RESEND_KEY" envDefault:"flags-gg-resend-key"`
+		//ResendKey   string `env:"RESEND_KEY" envDefault:"flags-gg-resend-key"`
 		StripeLocal string `env:"STRIPE_LOCAL" envDefault:"stripe_local"`
-		ClerkKey    string `env:"CLERK_SECRET_KEY" envDefault:"clerk_key"`
-		Flags       FlagsService
+		//ClerkKey    string `env:"CLERK_SECRET_KEY" envDefault:"clerk_key"`
+		Flags FlagsService
 	}
 	p := PC{}
 
@@ -40,8 +40,8 @@ func (pc ProjectConfig) Build(cfg *ConfigBuilder.Config) error {
 	if cfg.ProjectProperties == nil {
 		cfg.ProjectProperties = make(map[string]interface{})
 	}
-	cfg.ProjectProperties["stripeLocal"] = p.StripeLocal
-	cfg.ProjectProperties["clerkKey"] = p.ClerkKey
+	//cfg.ProjectProperties["stripeLocal"] = p.StripeLocal
+	//cfg.ProjectProperties["clerkKey"] = p.ClerkKey
 
 	cfg.ProjectProperties["flags_agent"] = p.Flags.AgentID
 	cfg.ProjectProperties["flags_environment"] = p.Flags.EnvironmentID
@@ -52,11 +52,23 @@ func (pc ProjectConfig) Build(cfg *ConfigBuilder.Config) error {
 	if vh.Secrets() == nil {
 		return logs.Error("no secrets found")
 	}
-	secret, err := vh.GetSecret("resend_key")
-	if err != nil {
-		return logs.Errorf("failed to get resend key: %v", err)
-	}
-	cfg.ProjectProperties["resendKey"] = secret
+
+	//if cfg.ProjectProperties["resendKey"] == "" {
+	//	secret, err := vh.GetSecret("resend_key")
+	//	if err != nil {
+	//		return logs.Errorf("failed to get resend key: %v", err)
+	//	}
+	//	cfg.ProjectProperties["resendKey"] = secret
+	//}
+	//
+	//// get the clerkKey
+	//if cfg.ProjectProperties["clerkKey"] == "" {
+	//	secret, err := vh.GetSecret("clerk_key")
+	//	if err != nil {
+	//		return logs.Errorf("failed to get clerk key: %v", err)
+	//	}
+	//	cfg.ProjectProperties["clerkKey"] = secret
+	//}
 
 	return nil
 }
@@ -84,7 +96,10 @@ func main() {
 		BugFixes: ConfigVault.Path{
 			Details: kvPath,
 		},
-		Authentik: ConfigVault.Path{
+		Clerk: ConfigVault.Path{
+			Details: kvPath,
+		},
+		Resend: ConfigVault.Path{
 			Details: kvPath,
 		},
 	}
@@ -96,6 +111,8 @@ func main() {
 		ConfigBuilder.Keycloak,
 		ConfigBuilder.Influx,
 		ConfigBuilder.Bugfixes,
+		ConfigBuilder.Clerk,
+		ConfigBuilder.Resend,
 		ConfigBuilder.WithProjectConfigurator(ProjectConfig{}))
 	if err != nil {
 		logs.Fatalf("Failed to build config: %v", err)

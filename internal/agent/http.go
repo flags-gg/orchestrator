@@ -47,7 +47,7 @@ func (s *System) GetAgentsRequest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	clerk.SetKey(s.Config.ProjectProperties["clerkKey"].(string))
+	clerk.SetKey(s.Config.Clerk.Key)
 	usr, err := clerkUser.Get(s.Context, r.Header.Get("x-user-subject"))
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
@@ -92,7 +92,7 @@ func (s *System) GetProjectAgents(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	clerk.SetKey(s.Config.ProjectProperties["clerkKey"].(string))
+	clerk.SetKey(s.Config.Clerk.Key)
 	usr, err := clerkUser.Get(s.Context, r.Header.Get("x-user-subject"))
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
@@ -135,7 +135,7 @@ func (s *System) GetAgent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	clerk.SetKey(s.Config.ProjectProperties["clerkKey"].(string))
+	clerk.SetKey(s.Config.Clerk.Key)
 	usr, err := clerkUser.Get(s.Context, r.Header.Get("x-user-subject"))
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
@@ -174,7 +174,7 @@ func (s *System) UpdateAgent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	clerk.SetKey(s.Config.ProjectProperties["clerkKey"].(string))
+	clerk.SetKey(s.Config.Clerk.Key)
 	usr, err := clerkUser.Get(s.Context, r.Header.Get("x-user-subject"))
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
@@ -219,7 +219,7 @@ func (s *System) DeleteAgent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	clerk.SetKey(s.Config.ProjectProperties["clerkKey"].(string))
+	clerk.SetKey(s.Config.Clerk.Key)
 	usr, err := clerkUser.Get(s.Context, r.Header.Get("x-user-subject"))
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
@@ -259,7 +259,7 @@ func (s *System) CreateAgent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	clerk.SetKey(s.Config.ProjectProperties["clerkKey"].(string))
+	clerk.SetKey(s.Config.Clerk.Key)
 	usr, err := clerkUser.Get(s.Context, r.Header.Get("x-user-subject"))
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
