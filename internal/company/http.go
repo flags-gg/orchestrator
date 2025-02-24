@@ -52,7 +52,7 @@ func (s *System) GetCompany(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	clerk.SetKey(s.Config.ProjectProperties["clerkKey"].(string))
+	clerk.SetKey(s.Config.Clerk.Key)
 	usr, err := clerkUser.Get(s.Context, r.Header.Get("x-user-subject"))
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
@@ -79,7 +79,7 @@ func (s *System) CreateCompany(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
-	clerk.SetKey(s.Config.ProjectProperties["clerkKey"].(string))
+	clerk.SetKey(s.Config.Clerk.Key)
 	usr, err := clerkUser.Get(s.Context, r.Header.Get("x-user-subject"))
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
@@ -119,7 +119,7 @@ func (s *System) UpdateCompany(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	clerk.SetKey(s.Config.ProjectProperties["clerkKey"].(string))
+	clerk.SetKey(s.Config.Clerk.Key)
 	_, err := clerkUser.Get(s.Context, r.Header.Get("x-user-subject"))
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
@@ -140,7 +140,7 @@ func (s *System) GetCompanyLimits(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	clerk.SetKey(s.Config.ProjectProperties["clerkKey"].(string))
+	clerk.SetKey(s.Config.Clerk.Key)
 	usr, err := clerkUser.Get(s.Context, r.Header.Get("x-user-subject"))
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
@@ -227,7 +227,7 @@ func (s *System) AttachUserToCompany(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	clerk.SetKey(s.Config.ProjectProperties["clerkKey"].(string))
+	clerk.SetKey(s.Config.Clerk.Key)
 	usr, err := clerkUser.Get(s.Context, r.Header.Get("x-user-subject"))
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
@@ -250,7 +250,7 @@ func (s *System) GetCompanyUsers(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	clerk.SetKey(s.Config.ProjectProperties["clerkKey"].(string))
+	clerk.SetKey(s.Config.Clerk.Key)
 	usr, err := clerkUser.Get(s.Context, r.Header.Get("x-user-subject"))
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
@@ -288,7 +288,7 @@ func (s *System) UpdateCompanyImage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	clerk.SetKey(s.Config.ProjectProperties["clerkKey"].(string))
+	clerk.SetKey(s.Config.Clerk.Key)
 	usr, err := clerkUser.Get(s.Context, r.Header.Get("x-user-subject"))
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
@@ -334,7 +334,7 @@ func (s *System) InviteUserToCompany(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	clerk.SetKey(s.Config.ProjectProperties["clerkKey"].(string))
+	clerk.SetKey(s.Config.Clerk.Key)
 	usr, err := clerkUser.Get(s.Context, r.Header.Get("x-user-subject"))
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
@@ -364,7 +364,7 @@ func (s *System) InviteUserToCompany(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Create the invite
-	client := resend.NewClient(s.Config.ProjectProperties["resendKey"].(string))
+	client := resend.NewClient(s.Config.Resend.Key)
 	params := &resend.SendEmailRequest{
 		From:    "Flags.gg <support@flags.gg>",
 		To:      []string{invite.Email},
@@ -389,7 +389,7 @@ func (s *System) UpgradeCompany(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	clerk.SetKey(s.Config.ProjectProperties["clerkKey"].(string))
+	clerk.SetKey(s.Config.Clerk.Key)
 	usr, err := clerkUser.Get(s.Context, r.Header.Get("x-user-subject"))
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)

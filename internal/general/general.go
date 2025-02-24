@@ -23,10 +23,12 @@ func (s *System) SetContext(ctx context.Context) *System {
 }
 
 func (s *System) KeycloakEvents(w http.ResponseWriter, r *http.Request) {
+	_ = r
 	w.WriteHeader(http.StatusOK)
 }
 
 func (s *System) StripeEvents(w http.ResponseWriter, r *http.Request) {
+	_ = r
 	w.WriteHeader(http.StatusOK)
 
 	//const MaxBodyBytes = int64(65536)

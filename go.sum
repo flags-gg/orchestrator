@@ -125,6 +125,12 @@ github.com/jarcoal/httpmock v1.3.1/go.mod h1:3yb8rc4BI7TCBhFY8ng0gjuLKJNquuDNiPa
 github.com/juju/gnuflag v0.0.0-20171113085948-2ce1bb71843d/go.mod h1:2PavIy+JPciBPrBUjwbNvtwB6RQlve+hkpll6QSNmOE=
 github.com/keloran/go-config v1.4.1 h1:A/l6aseTZVSTBnH8qj97iN9RSSBpz/6dMftycJIKs8U=
 github.com/keloran/go-config v1.4.1/go.mod h1:MbF+VoWsOGL3/5S7XsA8xVf8sez6xY1Y8Qvj3dX3Whs=
+github.com/keloran/go-config v1.5.0 h1:GcxENfdun6qJm4InZBjL90NHRn9IGB7kNEUfk52O5DE=
+github.com/keloran/go-config v1.5.0/go.mod h1:WqKmsi32T60NpCq540ZZ4nrUzcpnHJInKNqdGeThGwI=
+github.com/keloran/go-config v1.5.1 h1:SMmecZ0SWAyUSpGpFSbgsWMSZ46KsmDnpYZUe5sHykg=
+github.com/keloran/go-config v1.5.1/go.mod h1:WqKmsi32T60NpCq540ZZ4nrUzcpnHJInKNqdGeThGwI=
+github.com/keloran/go-config v1.5.2 h1:usVESwRaMZ0jJjoESeDKCzUNXBqB5QevsZqTVtWFLZA=
+github.com/keloran/go-config v1.5.2/go.mod h1:WqKmsi32T60NpCq540ZZ4nrUzcpnHJInKNqdGeThGwI=
 github.com/keloran/go-healthcheck v1.2.2 h1:C92m/ppWkY6OldY5RrDiqCTpXIaOZtSO0vMmHADsrUc=
 github.com/keloran/go-healthcheck v1.2.2/go.mod h1:XGZyWC9IMGoyMGUvh3v3cZQp+eHFuYCHIkDjQOsuUVk=
 github.com/keloran/go-probe v1.0.0 h1:OAO7f71lRJIz+rF7iGAeBj4i86NaUazL8DaVf9dVJGU=
@@ -244,6 +250,8 @@ github.com/yusufpapurcu/wmi v1.2.3 h1:E1ctvB7uKFMOJw3fdOW32DwGE9I7t++CRUEMKvFoFi
 github.com/yusufpapurcu/wmi v1.2.3/go.mod h1:SBZ9tNy3G9/m5Oi98Zks0QjeHVDvuK0qfxQmPyzfmi0=
 go.mongodb.org/mongo-driver v1.17.1 h1:Wic5cJIwJgSpBhe3lx3+/RybR5PiYRMpVFgO7cOHyIM=
 go.mongodb.org/mongo-driver v1.17.1/go.mod h1:wwWm/+BuOddhcq3n68LKRmgk2wXzmF6s0SFOa0GINL4=
+go.mongodb.org/mongo-driver v1.17.2 h1:gvZyk8352qSfzyZ2UMWcpDpMSGEr1eqE4T793SqyhzM=
+go.mongodb.org/mongo-driver v1.17.2/go.mod h1:Hy04i7O2kC4RS06ZrhPRqj/u4DTYkFDAAccj+rVKqgQ=
 go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.49.0 h1:jq9TW8u3so/bN+JPT166wjOI6/vQPF6Xe7nMNIltagk=
 go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.49.0/go.mod h1:p8pYQP+m5XfbZm9fxtSKAbM6oIllS7s2AfxrChvc7iw=
 go.opentelemetry.io/otel v1.24.0 h1:0LAOdjNmQeSTzGBzduGe/rU4tZhMwL5rWgtp9Ku5Jfo=

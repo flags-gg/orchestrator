@@ -9,13 +9,13 @@ import (
 
 func (s *Service) ValidateUser(w http.ResponseWriter, r *http.Request) bool {
 	_ = w
-	
+
 	// Skip the check and just accept what is passed from bruno
 	if s.Config.Local.Development {
 		return true
 	}
 
-	clerk.SetKey(s.Config.ProjectProperties["clerkKey"].(string))
+	clerk.SetKey(s.Config.Clerk.Key)
 	usr, err := clerkUser.Get(r.Context(), r.Header.Get("x-user-subject"))
 	if err != nil {
 		return false

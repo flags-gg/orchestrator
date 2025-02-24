@@ -104,7 +104,7 @@ func (s *System) GetClientFlags(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	clerk.SetKey(s.Config.ProjectProperties["clerkKey"].(string))
+	clerk.SetKey(s.Config.Clerk.Key)
 	usr, err := clerkUser.Get(s.Context, r.Header.Get("x-user-subject"))
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
@@ -144,7 +144,7 @@ func (s *System) CreateFlags(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	clerk.SetKey(s.Config.ProjectProperties["clerkKey"].(string))
+	clerk.SetKey(s.Config.Clerk.Key)
 	usr, err := clerkUser.Get(s.Context, r.Header.Get("x-user-subject"))
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
@@ -186,7 +186,7 @@ func (s *System) UpdateFlags(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	clerk.SetKey(s.Config.ProjectProperties["clerkKey"].(string))
+	clerk.SetKey(s.Config.Clerk.Key)
 	usr, err := clerkUser.Get(s.Context, r.Header.Get("x-user-subject"))
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
@@ -240,7 +240,7 @@ func (s *System) EditFlag(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	clerk.SetKey(s.Config.ProjectProperties["clerkKey"].(string))
+	clerk.SetKey(s.Config.Clerk.Key)
 	usr, err := clerkUser.Get(s.Context, r.Header.Get("x-user-subject"))
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
@@ -285,7 +285,7 @@ func (s *System) DeleteFlags(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	clerk.SetKey(s.Config.ProjectProperties["clerkKey"].(string))
+	clerk.SetKey(s.Config.Clerk.Key)
 	usr, err := clerkUser.Get(s.Context, r.Header.Get("x-user-subject"))
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)

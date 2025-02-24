@@ -29,7 +29,7 @@ func (s *System) GetSecretMenu(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	clerk.SetKey(s.Config.ProjectProperties["clerkKey"].(string))
+	clerk.SetKey(s.Config.Clerk.Key)
 	usr, err := clerkUser.Get(s.Context, r.Header.Get("x-user-subject"))
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
@@ -71,7 +71,7 @@ func (s *System) CreateSecretMenu(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	clerk.SetKey(s.Config.ProjectProperties["clerkKey"].(string))
+	clerk.SetKey(s.Config.Clerk.Key)
 	usr, err := clerkUser.Get(s.Context, r.Header.Get("x-user-subject"))
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
@@ -124,7 +124,7 @@ func (s *System) UpdateSecretMenuState(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	clerk.SetKey(s.Config.ProjectProperties["clerkKey"].(string))
+	clerk.SetKey(s.Config.Clerk.Key)
 	usr, err := clerkUser.Get(s.Context, r.Header.Get("x-user-subject"))
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
@@ -160,7 +160,7 @@ func (s *System) UpdateSecretMenuSequence(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	clerk.SetKey(s.Config.ProjectProperties["clerkKey"].(string))
+	clerk.SetKey(s.Config.Clerk.Key)
 	usr, err := clerkUser.Get(s.Context, r.Header.Get("x-user-subject"))
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
@@ -217,7 +217,7 @@ func (s *System) UpdateSecretMenuStyle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	clerk.SetKey(s.Config.ProjectProperties["clerkKey"].(string))
+	clerk.SetKey(s.Config.Clerk.Key)
 	usr, err := clerkUser.Get(s.Context, r.Header.Get("x-user-subject"))
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
@@ -337,7 +337,7 @@ func (s *System) GetSecretMenuStyle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	clerk.SetKey(s.Config.ProjectProperties["clerkKey"].(string))
+	clerk.SetKey(s.Config.Clerk.Key)
 	usr, err := clerkUser.Get(s.Context, r.Header.Get("x-user-subject"))
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
