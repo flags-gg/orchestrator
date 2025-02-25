@@ -3,6 +3,7 @@ package user
 import (
 	"context"
 	"errors"
+	"github.com/bugfixes/go-bugfixes/logs"
 	"github.com/jackc/pgx/v5"
 	"time"
 )
@@ -75,6 +76,8 @@ func (s *System) CreateUserDetails(subject, knownAs, email, firstname, lastname,
 }
 
 func (s *System) RetrieveUserDetailsDB(subject string) (*User, error) {
+	logs.Logf("database %+v", s.Config.Database)
+
 	client, err := s.Config.Database.GetPGXClient(s.Context)
 	if err != nil {
 		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
