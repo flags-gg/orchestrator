@@ -219,6 +219,7 @@ func (s *System) ValidateAgentWithEnvironment(ctx context.Context, agentId, proj
 
 	client, err := s.Config.Database.GetPGXClient(ctx)
 	if err != nil {
+		logs.Logf("validate agent: %+v", s.Config.Database)
 		return false, s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
 	}
 	defer func() {
