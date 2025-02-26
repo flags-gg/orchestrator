@@ -209,6 +209,7 @@ func (s *System) GetAgentLimits(companyId string) (*Agents, error) {
 func (s *System) GetCompanyId(userSubject string) (string, error) {
 	client, err := s.Config.Database.GetPGXClient(s.Context)
 	if err != nil {
+		logs.Logf("Failed to connect to database: %+v", s.Config.Database)
 		return "", s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
 	}
 	defer func() {
