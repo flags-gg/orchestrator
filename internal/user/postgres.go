@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"github.com/jackc/pgx/v5"
+	"strings"
 	"time"
 )
 
@@ -44,6 +45,9 @@ type Notifications struct {
 func (s *System) CreateUserDetails(subject, knownAs, email, firstname, lastname, location string, userGroup int) error {
 	client, err := s.Config.Database.GetPGXClient(s.Context)
 	if err != nil {
+		if strings.Contains(err.Error(), "operation was canceled") {
+			return nil
+		}
 		return s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
 	}
 	defer func() {
@@ -77,6 +81,9 @@ func (s *System) CreateUserDetails(subject, knownAs, email, firstname, lastname,
 func (s *System) RetrieveUserDetailsDB(subject string) (*User, error) {
 	client, err := s.Config.Database.GetPGXClient(s.Context)
 	if err != nil {
+		if strings.Contains(err.Error(), "operation was canceled") {
+			return nil, nil
+		}
 		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
 	}
 	defer func() {
@@ -138,6 +145,9 @@ func (s *System) RetrieveUserDetailsDB(subject string) (*User, error) {
 func (s *System) RetrieveUserNotifications(subject string) ([]Notification, error) {
 	client, err := s.Config.Database.GetPGXClient(s.Context)
 	if err != nil {
+		if strings.Contains(err.Error(), "operation was canceled") {
+			return nil, nil
+		}
 		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
 	}
 	defer func() {
@@ -181,6 +191,9 @@ func (s *System) RetrieveUserNotifications(subject string) ([]Notification, erro
 func (s *System) MarkNotificationAsRead(subject, notificationId string) error {
 	client, err := s.Config.Database.GetPGXClient(s.Context)
 	if err != nil {
+		if strings.Contains(err.Error(), "operation was canceled") {
+			return nil
+		}
 		return s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
 	}
 	defer func() {
@@ -205,6 +218,9 @@ func (s *System) MarkNotificationAsRead(subject, notificationId string) error {
 func (s *System) DeleteUserNotificationInDB(subject, notificationId string) error {
 	client, err := s.Config.Database.GetPGXClient(s.Context)
 	if err != nil {
+		if strings.Contains(err.Error(), "operation was canceled") {
+			return nil
+		}
 		return s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
 	}
 	defer func() {
@@ -231,6 +247,9 @@ func (s *System) DeleteUserNotificationInDB(subject, notificationId string) erro
 func (s *System) UpdateUserImageInDB(subject string, image string) error {
 	client, err := s.Config.Database.GetPGXClient(s.Context)
 	if err != nil {
+		if strings.Contains(err.Error(), "operation was canceled") {
+			return nil
+		}
 		return s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
 	}
 	defer func() {
@@ -251,6 +270,9 @@ func (s *System) UpdateUserImageInDB(subject string, image string) error {
 func (s *System) UpdateUserDetailsDB(subject, knownAs, email, firstname, lastname, location string) error {
 	client, err := s.Config.Database.GetPGXClient(s.Context)
 	if err != nil {
+		if strings.Contains(err.Error(), "operation was canceled") {
+			return nil
+		}
 		return s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
 	}
 	defer func() {
@@ -278,6 +300,9 @@ func (s *System) UpdateUserDetailsDB(subject, knownAs, email, firstname, lastnam
 func (s *System) DeleteUserInDB(subject string) error {
 	client, err := s.Config.Database.GetPGXClient(s.Context)
 	if err != nil {
+		if strings.Contains(err.Error(), "operation was canceled") {
+			return nil
+		}
 		return s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
 	}
 	defer func() {

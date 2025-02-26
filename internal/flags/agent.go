@@ -19,6 +19,9 @@ func (s *System) GetAgentFlagsFromDB(projectId, agentId, environmentId string) (
 	client, err := s.Config.Database.GetPGXClient(s.Context)
 	if err != nil {
 		stats.NewSystem(s.Config).AddAgentError(projectId, agentId, environmentId)
+		if strings.Contains(err.Error(), "operation was canceled") {
+			return nil, nil
+		}
 		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
 	}
 	defer func() {
@@ -185,6 +188,9 @@ func (s *System) GetAgentFlagsFromDB(projectId, agentId, environmentId string) (
 func (s *System) GetDefaultEnvironment(projectId, agentId string) (string, error) {
 	client, err := s.Config.Database.GetPGXClient(s.Context)
 	if err != nil {
+		if strings.Contains(err.Error(), "operation was canceled") {
+			return "", nil
+		}
 		return "", s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
 	}
 	defer func() {

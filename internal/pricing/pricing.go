@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
+	"strings"
 )
 
 type Extra struct {
@@ -33,6 +34,9 @@ type Price struct {
 func (s *System) GetPrices() ([]Price, error) {
 	client, err := s.Config.Database.GetPGXClient(s.Context)
 	if err != nil {
+		if strings.Contains(err.Error(), "operation was canceled") {
+			return nil, nil
+		}
 		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
 	}
 	defer func() {
@@ -90,6 +94,9 @@ func (s *System) GetPrices() ([]Price, error) {
 func (s *System) GetPrice(title string) (Price, error) {
 	client, err := s.Config.Database.GetPGXClient(s.Context)
 	if err != nil {
+		if strings.Contains(err.Error(), "operation was canceled") {
+			return Price{}, nil
+		}
 		return Price{}, s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
 	}
 	defer func() {

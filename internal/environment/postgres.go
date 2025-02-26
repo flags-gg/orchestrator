@@ -8,11 +8,15 @@ import (
 	"github.com/flags-gg/orchestrator/internal/secretmenu"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"strings"
 )
 
 func (s *System) CreateEnvironmentInDB(name, agentId string) (*Environment, error) {
 	client, err := s.Config.Database.GetPGXClient(s.Context)
 	if err != nil {
+		if strings.Contains(err.Error(), "operation was canceled") {
+			return nil, nil
+		}
 		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
 	}
 	defer func() {
@@ -48,6 +52,9 @@ func (s *System) CreateEnvironmentInDB(name, agentId string) (*Environment, erro
 func (s *System) GetEnvironmentFromDB(envId, companyId string) (*Environment, error) {
 	client, err := s.Config.Database.GetPGXClient(s.Context)
 	if err != nil {
+		if strings.Contains(err.Error(), "operation was canceled") {
+			return nil, nil
+		}
 		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
 	}
 	defer func() {
@@ -86,6 +93,9 @@ func (s *System) GetEnvironmentFromDB(envId, companyId string) (*Environment, er
 func (s *System) GetAgentEnvironmentsFromDB(agentId, companyId string) ([]*Environment, error) {
 	client, err := s.Config.Database.GetPGXClient(s.Context)
 	if err != nil {
+		if strings.Contains(err.Error(), "operation was canceled") {
+			return nil, nil
+		}
 		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
 	}
 	defer func() {
@@ -130,6 +140,9 @@ func (s *System) GetAgentEnvironmentsFromDB(agentId, companyId string) ([]*Envir
 func (s *System) GetEnvironmentsFromDB(companyId string) ([]*Environment, error) {
 	client, err := s.Config.Database.GetPGXClient(s.Context)
 	if err != nil {
+		if strings.Contains(err.Error(), "operation was canceled") {
+			return nil, nil
+		}
 		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
 	}
 	defer func() {
@@ -173,6 +186,9 @@ func (s *System) GetEnvironmentsFromDB(companyId string) ([]*Environment, error)
 func (s *System) UpdateEnvironmentInDB(env Environment) error {
 	client, err := s.Config.Database.GetPGXClient(s.Context)
 	if err != nil {
+		if strings.Contains(err.Error(), "operation was canceled") {
+			return nil
+		}
 		return s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
 	}
 	defer func() {
@@ -195,6 +211,9 @@ func (s *System) UpdateEnvironmentInDB(env Environment) error {
 func (s *System) CloneEnvironmentInDB(envId, newEnvId, agentId, name string) error {
 	client, err := s.Config.Database.GetPGXClient(s.Context)
 	if err != nil {
+		if strings.Contains(err.Error(), "operation was canceled") {
+			return nil
+		}
 		return s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
 	}
 	defer func() {
@@ -252,6 +271,9 @@ func (s *System) CloneEnvironmentInDB(envId, newEnvId, agentId, name string) err
 func (s *System) DeleteEnvironmentFromDB(envId string) error {
 	client, err := s.Config.Database.GetPGXClient(s.Context)
 	if err != nil {
+		if strings.Contains(err.Error(), "operation was canceled") {
+			return nil
+		}
 		return s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
 	}
 	defer func() {
@@ -280,6 +302,9 @@ func (s *System) DeleteEnvironmentFromDB(envId string) error {
 func (s *System) DeleteAllEnvironmentsForAgent(agentId string) error {
 	client, err := s.Config.Database.GetPGXClient(s.Context)
 	if err != nil {
+		if strings.Contains(err.Error(), "operation was canceled") {
+			return nil
+		}
 		return s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
 	}
 	defer func() {
