@@ -5,6 +5,7 @@ import (
 	"errors"
 	"github.com/bugfixes/go-bugfixes/logs"
 	"github.com/jackc/pgx/v5"
+	"strings"
 )
 
 func (s *System) GetNamesForData(data *AgentStat) (*AgentStat, error) {
@@ -29,6 +30,9 @@ func (s *System) GetNamesForData(data *AgentStat) (*AgentStat, error) {
 func (s *System) GetAgentName(agentId string) (string, error) {
 	client, err := s.Config.Database.GetPGXClient(s.Context)
 	if err != nil {
+		if strings.Contains(err.Error(), "operation was canceled") {
+			return "", nil
+		}
 		return "", s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
 	}
 	defer func() {
@@ -58,6 +62,9 @@ func (s *System) GetAgentName(agentId string) (string, error) {
 func (s *System) GetEnvironmentName(environmentId string) (string, error) {
 	client, err := s.Config.Database.GetPGXClient(s.Context)
 	if err != nil {
+		if strings.Contains(err.Error(), "operation was canceled") {
+			return "", nil
+		}
 		return "", s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
 	}
 	defer func() {

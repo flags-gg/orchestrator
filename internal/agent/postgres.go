@@ -7,6 +7,7 @@ import (
 	"github.com/flags-gg/orchestrator/internal/environment"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"strings"
 )
 
 type ProjectInfo struct {
@@ -28,6 +29,9 @@ type Agent struct {
 func (s *System) CreateAgentForProject(name, projectId string) (string, error) {
 	client, err := s.Config.Database.GetPGXClient(s.Context)
 	if err != nil {
+		if strings.Contains(err.Error(), "operation was canceled") {
+			return "", nil
+		}
 		return "", s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
 	}
 	defer func() {
@@ -57,6 +61,9 @@ func (s *System) CreateAgentForProject(name, projectId string) (string, error) {
 func (s *System) GetAgentDetails(agentId, companyId string) (*Agent, error) {
 	client, err := s.Config.Database.GetPGXClient(s.Context)
 	if err != nil {
+		if strings.Contains(err.Error(), "operation was canceled") {
+			return nil, nil
+		}
 		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
 	}
 	defer func() {
@@ -112,6 +119,9 @@ func (s *System) GetAgentDetails(agentId, companyId string) (*Agent, error) {
 func (s *System) GetAgents(companyId string) ([]*Agent, error) {
 	client, err := s.Config.Database.GetPGXClient(s.Context)
 	if err != nil {
+		if strings.Contains(err.Error(), "operation was canceled") {
+			return nil, nil
+		}
 		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
 	}
 	defer func() {
@@ -165,6 +175,9 @@ func (s *System) GetAgents(companyId string) ([]*Agent, error) {
 func (s *System) GetAgentsForProject(companyId, projectId string) ([]*Agent, error) {
 	client, err := s.Config.Database.GetPGXClient(s.Context)
 	if err != nil {
+		if strings.Contains(err.Error(), "operation was canceled") {
+			return nil, nil
+		}
 		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
 	}
 	defer func() {
@@ -219,7 +232,9 @@ func (s *System) ValidateAgentWithEnvironment(ctx context.Context, agentId, proj
 
 	client, err := s.Config.Database.GetPGXClient(ctx)
 	if err != nil {
-		logs.Logf("validate agent: %+v", s.Config.Database)
+		if strings.Contains(err.Error(), "operation was canceled") {
+			return false, nil
+		}
 		return false, s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
 	}
 	defer func() {
@@ -254,6 +269,9 @@ func (s *System) ValidateAgentWithoutEnvironment(ctx context.Context, agentId, p
 
 	client, err := s.Config.Database.GetPGXClient(ctx)
 	if err != nil {
+		if strings.Contains(err.Error(), "operation was canceled") {
+			return false, nil
+		}
 		return false, s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
 	}
 	defer func() {
@@ -283,6 +301,9 @@ func (s *System) ValidateAgentWithoutEnvironment(ctx context.Context, agentId, p
 func (s *System) CreateAgentInDB(name, projectId string) (*Agent, error) {
 	client, err := s.Config.Database.GetPGXClient(s.Context)
 	if err != nil {
+		if strings.Contains(err.Error(), "operation was canceled") {
+			return nil, nil
+		}
 		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
 	}
 	defer func() {
@@ -318,6 +339,9 @@ func (s *System) CreateAgentInDB(name, projectId string) (*Agent, error) {
 func (s *System) UpdateAgentDetails(agent Agent) error {
 	client, err := s.Config.Database.GetPGXClient(s.Context)
 	if err != nil {
+		if strings.Contains(err.Error(), "operation was canceled") {
+			return nil
+		}
 		return s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
 	}
 	defer func() {
@@ -340,6 +364,9 @@ func (s *System) UpdateAgentDetails(agent Agent) error {
 func (s *System) DeleteAgentFromDB(agentId string) error {
 	client, err := s.Config.Database.GetPGXClient(s.Context)
 	if err != nil {
+		if strings.Contains(err.Error(), "operation was canceled") {
+			return nil
+		}
 		return s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
 	}
 	defer func() {
@@ -361,6 +388,9 @@ func (s *System) DeleteAgentFromDB(agentId string) error {
 func (s *System) DeleteAllAgentsForProject(projectId string) error {
 	client, err := s.Config.Database.GetPGXClient(s.Context)
 	if err != nil {
+		if strings.Contains(err.Error(), "operation was canceled") {
+			return nil
+		}
 		return s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
 	}
 	defer func() {

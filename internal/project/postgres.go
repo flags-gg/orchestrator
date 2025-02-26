@@ -7,6 +7,7 @@ import (
 	"github.com/flags-gg/orchestrator/internal/agent"
 	"github.com/flags-gg/orchestrator/internal/environment"
 	"github.com/google/uuid"
+	"strings"
 )
 
 type Project struct {
@@ -22,6 +23,9 @@ type Project struct {
 func (s *System) GetProjectsFromDB(companyId string) ([]Project, error) {
 	client, err := s.Config.Database.GetPGXClient(s.Context)
 	if err != nil {
+		if strings.Contains(err.Error(), "operation was canceled") {
+			return nil, nil
+		}
 		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
 	}
 	defer func() {
@@ -77,6 +81,9 @@ func (s *System) GetProjectsFromDB(companyId string) ([]Project, error) {
 func (s *System) GetProjectFromDB(companyId, projectId string) (*Project, error) {
 	client, err := s.Config.Database.GetPGXClient(s.Context)
 	if err != nil {
+		if strings.Contains(err.Error(), "operation was canceled") {
+			return nil, nil
+		}
 		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
 	}
 	defer func() {
@@ -118,6 +125,9 @@ func (s *System) GetProjectFromDB(companyId, projectId string) (*Project, error)
 func (s *System) CreateProjectInDB(companyId, projectName string) (*Project, error) {
 	client, err := s.Config.Database.GetPGXClient(s.Context)
 	if err != nil {
+		if strings.Contains(err.Error(), "operation was canceled") {
+			return nil, nil
+		}
 		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
 	}
 	defer func() {
@@ -165,6 +175,9 @@ func (s *System) CreateProjectInDB(companyId, projectName string) (*Project, err
 func (s *System) UpdateProjectInDB(projectId, projectName string, enabled bool) (*Project, error) {
 	client, err := s.Config.Database.GetPGXClient(s.Context)
 	if err != nil {
+		if strings.Contains(err.Error(), "operation was canceled") {
+			return nil, nil
+		}
 		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
 	}
 	defer func() {
@@ -190,6 +203,9 @@ func (s *System) UpdateProjectInDB(projectId, projectName string, enabled bool) 
 func (s *System) DeleteProjectInDB(projectId string) error {
 	client, err := s.Config.Database.GetPGXClient(s.Context)
 	if err != nil {
+		if strings.Contains(err.Error(), "operation was canceled") {
+			return nil
+		}
 		return s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
 	}
 	defer func() {
@@ -210,6 +226,9 @@ func (s *System) DeleteProjectInDB(projectId string) error {
 func (s *System) UpdateProjectImageInDB(projectId, logo string) error {
 	client, err := s.Config.Database.GetPGXClient(s.Context)
 	if err != nil {
+		if strings.Contains(err.Error(), "operation was canceled") {
+			return nil
+		}
 		return s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
 	}
 	defer func() {
@@ -238,6 +257,9 @@ func (s *System) GetLimitsFromDB(companyId, projectId string) (AgentLimits, erro
 
 	client, err := s.Config.Database.GetPGXClient(s.Context)
 	if err != nil {
+		if strings.Contains(err.Error(), "operation was canceled") {
+			return limits, nil
+		}
 		return limits, s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
 	}
 	defer func() {

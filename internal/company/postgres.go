@@ -9,6 +9,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/stripe/stripe-go"
 	"github.com/stripe/stripe-go/checkout/session"
+	"strings"
 )
 
 type Agents struct {
@@ -62,6 +63,9 @@ func (s *System) GetProjectLimits(userSubject string) (*Projects, error) {
 
 	client, err := s.Config.Database.GetPGXClient(s.Context)
 	if err != nil {
+		if strings.Contains(err.Error(), "operation was canceled") {
+			return nil, nil
+		}
 		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
 	}
 	defer func() {
@@ -104,6 +108,9 @@ func (s *System) GetUserLimits(userSubject string) (*Users, error) {
 
 	client, err := s.Config.Database.GetPGXClient(s.Context)
 	if err != nil {
+		if strings.Contains(err.Error(), "operation was canceled") {
+			return nil, nil
+		}
 		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
 	}
 	defer func() {
@@ -143,6 +150,9 @@ func (s *System) GetAgentLimits(companyId string) (*Agents, error) {
 
 	client, err := s.Config.Database.GetPGXClient(s.Context)
 	if err != nil {
+		if strings.Contains(err.Error(), "operation was canceled") {
+			return nil, nil
+		}
 		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
 	}
 	defer func() {
@@ -209,7 +219,9 @@ func (s *System) GetAgentLimits(companyId string) (*Agents, error) {
 func (s *System) GetCompanyId(userSubject string) (string, error) {
 	client, err := s.Config.Database.GetPGXClient(s.Context)
 	if err != nil {
-		logs.Logf("Failed to connect to database: %+v", s.Config.Database)
+		if strings.Contains(err.Error(), "operation was canceled") {
+			return "", nil
+		}
 		return "", s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
 	}
 	defer func() {
@@ -250,6 +262,9 @@ func (s *System) GetCompanyInfo(userSubject string) (*Details, error) {
 
 	client, err := s.Config.Database.GetPGXClient(s.Context)
 	if err != nil {
+		if strings.Contains(err.Error(), "operation was canceled") {
+			return nil, nil
+		}
 		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
 	}
 	defer func() {
@@ -317,6 +332,9 @@ func (s *System) GetCompanyInfo(userSubject string) (*Details, error) {
 func (s *System) GetCompanyBasedOnDomain(domain, inviteCode string) (bool, error) {
 	client, err := s.Config.Database.GetPGXClient(s.Context)
 	if err != nil {
+		if strings.Contains(err.Error(), "operation was canceled") {
+			return false, nil
+		}
 		return false, s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
 	}
 	defer func() {
@@ -346,6 +364,9 @@ func (s *System) GetCompanyBasedOnDomain(domain, inviteCode string) (bool, error
 func (s *System) AttachUserToCompanyDB(userSubject string) error {
 	client, err := s.Config.Database.GetPGXClient(s.Context)
 	if err != nil {
+		if strings.Contains(err.Error(), "operation was canceled") {
+			return nil
+		}
 		return s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
 	}
 	defer func() {
@@ -380,6 +401,9 @@ func (s *System) AttachUserToCompanyDB(userSubject string) error {
 func (s *System) CreateCompanyDB(name, domain, userSubject string) error {
 	client, err := s.Config.Database.GetPGXClient(s.Context)
 	if err != nil {
+		if strings.Contains(err.Error(), "operation was canceled") {
+			return nil
+		}
 		return s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
 	}
 	defer func() {
@@ -438,6 +462,9 @@ func (s *System) GetCompanyUsersFromDB(companyId string) ([]User, error) {
 
 	client, err := s.Config.Database.GetPGXClient(s.Context)
 	if err != nil {
+		if strings.Contains(err.Error(), "operation was canceled") {
+			return users, nil
+		}
 		return users, s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
 	}
 	defer func() {
@@ -483,6 +510,9 @@ func (s *System) GetLimits(companyId string) (Limits, error) {
 
 	client, err := s.Config.Database.GetPGXClient(s.Context)
 	if err != nil {
+		if strings.Contains(err.Error(), "operation was canceled") {
+			return limits, nil
+		}
 		return limits, s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
 	}
 	defer func() {
@@ -535,6 +565,9 @@ func (s *System) GetLimits(companyId string) (Limits, error) {
 func (s *System) UpdateCompanyImageInDB(companyId, image string) error {
 	client, err := s.Config.Database.GetPGXClient(s.Context)
 	if err != nil {
+		if strings.Contains(err.Error(), "operation was canceled") {
+			return nil
+		}
 		return s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
 	}
 	defer func() {
@@ -555,6 +588,9 @@ func (s *System) UpdateCompanyImageInDB(companyId, image string) error {
 func (s *System) GetInviteCodeFromDB(companyId string) (string, error) {
 	client, err := s.Config.Database.GetPGXClient(s.Context)
 	if err != nil {
+		if strings.Contains(err.Error(), "operation was canceled") {
+			return "", nil
+		}
 		return "", s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
 	}
 	defer func() {
@@ -578,6 +614,9 @@ func (s *System) GetInviteCodeFromDB(companyId string) (string, error) {
 func (s *System) UpgradeCompanyInDB(companyId, stripeSessionId string) error {
 	client, err := s.Config.Database.GetPGXClient(s.Context)
 	if err != nil {
+		if strings.Contains(err.Error(), "operation was canceled") {
+			return nil
+		}
 		return s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
 	}
 	defer func() {

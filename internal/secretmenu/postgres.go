@@ -127,6 +127,9 @@ func (s *System) GetEnvironmentSecretMenu(environmentId string) (SecretMenu, err
 
 	client, err := s.Config.Database.GetPGXClient(s.Context)
 	if err != nil {
+		if strings.Contains(err.Error(), "operation was canceled") {
+			return secretMenu, nil
+		}
 		return secretMenu, s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
 	}
 	defer func() {
@@ -186,6 +189,9 @@ func (s *System) GetSecretMenuFromDB(menuId string) (SecretMenu, error) {
 
 	client, err := s.Config.Database.GetPGXClient(s.Context)
 	if err != nil {
+		if strings.Contains(err.Error(), "operation was canceled") {
+			return secretMenu, nil
+		}
 		return secretMenu, s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
 	}
 	defer func() {
@@ -249,6 +255,9 @@ func (s *System) GetSecretMenuFromDB(menuId string) (SecretMenu, error) {
 func (s *System) UpdateSecretMenuSequenceInDB(menuId string, secretMenu SecretMenu) error {
 	client, err := s.Config.Database.GetPGXClient(s.Context)
 	if err != nil {
+		if strings.Contains(err.Error(), "operation was canceled") {
+			return nil
+		}
 		return s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
 	}
 	defer func() {
@@ -271,6 +280,9 @@ func (s *System) UpdateSecretMenuSequenceInDB(menuId string, secretMenu SecretMe
 func (s *System) UpdateSecretMenuStateInDB(menuId string) error {
 	client, err := s.Config.Database.GetPGXClient(s.Context)
 	if err != nil {
+		if strings.Contains(err.Error(), "operation was canceled") {
+			return nil
+		}
 		return s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
 	}
 	defer func() {
@@ -292,6 +304,9 @@ func (s *System) UpdateSecretMenuStateInDB(menuId string) error {
 func (s *System) UpdateSecretMenuStyleInDB(menuId string, secretMenu SecretMenu) error {
 	client, err := s.Config.Database.GetPGXClient(s.Context)
 	if err != nil {
+		if strings.Contains(err.Error(), "operation was canceled") {
+			return nil
+		}
 		return s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
 	}
 	defer func() {
@@ -356,6 +371,9 @@ func (s *System) UpdateSecretMenuStyleInDB(menuId string, secretMenu SecretMenu)
 func (s *System) CreateSecretMenuInDB(environmentId string, secretMenu SecretMenu) (string, string, error) {
 	client, err := s.Config.Database.GetPGXClient(s.Context)
 	if err != nil {
+		if strings.Contains(err.Error(), "operation was canceled") {
+			return "", "", nil
+		}
 		return "", "", s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
 	}
 	defer func() {
@@ -428,6 +446,9 @@ func (s *System) CreateSecretMenuInDB(environmentId string, secretMenu SecretMen
 func (s *System) DeleteSecretMenuForEnv(envId string) error {
 	client, err := s.Config.Database.GetPGXClient(s.Context)
 	if err != nil {
+		if strings.Contains(err.Error(), "operation was canceled") {
+			return nil
+		}
 		return s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
 	}
 	defer func() {
@@ -457,6 +478,9 @@ func (s *System) GetSecretMenuStyleFromDB(menuId string) (StyleMenu, error) {
 
 	client, err := s.Config.Database.GetPGXClient(s.Context)
 	if err != nil {
+		if strings.Contains(err.Error(), "operation was canceled") {
+			return styleMenu, nil
+		}
 		return styleMenu, s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
 	}
 	defer func() {
