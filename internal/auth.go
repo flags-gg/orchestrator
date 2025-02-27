@@ -24,7 +24,7 @@ func (s *Service) ValidateUser(w http.ResponseWriter, r *http.Request) bool {
 		return false
 	}
 
-	return false
+	return true
 }
 
 func (s *Service) ValidateAgent(w http.ResponseWriter, r *http.Request) bool {
