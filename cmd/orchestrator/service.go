@@ -24,7 +24,6 @@ func (pc ProjectConfig) Build(cfg *ConfigBuilder.Config) error {
 
 	type PC struct {
 		StripeSecret string `env:"STRIPE_SECRET" envDefault:"stripe_secret"`
-		ClerkKey     string `env:"CLERK_SECRET_KEY" envDefault:"clerk_key"`
 		Flags        FlagsService
 	}
 	p := PC{}
@@ -35,7 +34,6 @@ func (pc ProjectConfig) Build(cfg *ConfigBuilder.Config) error {
 	if cfg.ProjectProperties == nil {
 		cfg.ProjectProperties = make(map[string]interface{})
 	}
-	cfg.ProjectProperties["clerkKey"] = p.ClerkKey
 	cfg.ProjectProperties["stripeKey"] = p.StripeSecret
 
 	cfg.ProjectProperties["flags_agent"] = p.Flags.AgentID
