@@ -40,7 +40,7 @@ func (s *System) GetProjects(w http.ResponseWriter, r *http.Request) {
 
 	if r.Header.Get("x-user-subject") == "" {
 		if err := json.NewEncoder(w).Encode(&project); err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
+			w.WriteHeader(http.StatusBadRequest)
 		}
 		return
 	}
@@ -48,7 +48,7 @@ func (s *System) GetProjects(w http.ResponseWriter, r *http.Request) {
 	clerk.SetKey(s.Config.Clerk.Key)
 	usr, err := clerkUser.Get(s.Context, r.Header.Get("x-user-subject"))
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
+		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
 
@@ -85,7 +85,7 @@ func (s *System) GetProject(w http.ResponseWriter, r *http.Request) {
 	clerk.SetKey(s.Config.Clerk.Key)
 	usr, err := clerkUser.Get(s.Context, r.Header.Get("x-user-subject"))
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
+		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
 
@@ -180,7 +180,7 @@ func (s *System) UpdateProject(w http.ResponseWriter, r *http.Request) {
 	clerk.SetKey(s.Config.Clerk.Key)
 	_, err := clerkUser.Get(s.Context, r.Header.Get("x-user-subject"))
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
+		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
 
@@ -220,7 +220,7 @@ func (s *System) DeleteProject(w http.ResponseWriter, r *http.Request) {
 	clerk.SetKey(s.Config.Clerk.Key)
 	_, err := clerkUser.Get(s.Context, r.Header.Get("x-user-subject"))
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
+		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
 
@@ -261,7 +261,7 @@ func (s *System) UpdateProjectImage(w http.ResponseWriter, r *http.Request) {
 	clerk.SetKey(s.Config.Clerk.Key)
 	_, err := clerkUser.Get(s.Context, r.Header.Get("x-user-subject"))
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
+		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
 
@@ -284,7 +284,7 @@ func (s *System) GetLimits(w http.ResponseWriter, r *http.Request) {
 	clerk.SetKey(s.Config.Clerk.Key)
 	usr, err := clerkUser.Get(s.Context, r.Header.Get("x-user-subject"))
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
+		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
 

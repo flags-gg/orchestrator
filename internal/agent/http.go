@@ -50,7 +50,7 @@ func (s *System) GetAgentsRequest(w http.ResponseWriter, r *http.Request) {
 	clerk.SetKey(s.Config.Clerk.Key)
 	usr, err := clerkUser.Get(s.Context, r.Header.Get("x-user-subject"))
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
+		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
 
@@ -67,7 +67,7 @@ func (s *System) GetAgentsRequest(w http.ResponseWriter, r *http.Request) {
 
 	agents, err := s.GetAgents(companyId)
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
+		w.WriteHeader(http.StatusNoContent)
 		return
 	}
 
@@ -95,7 +95,7 @@ func (s *System) GetProjectAgents(w http.ResponseWriter, r *http.Request) {
 	clerk.SetKey(s.Config.Clerk.Key)
 	usr, err := clerkUser.Get(s.Context, r.Header.Get("x-user-subject"))
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
+		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
 
@@ -113,7 +113,7 @@ func (s *System) GetProjectAgents(w http.ResponseWriter, r *http.Request) {
 	projectId := r.PathValue("projectId")
 	agents, err := s.GetAgentsForProject(companyId, projectId)
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
+		w.WriteHeader(http.StatusNoContent)
 		return
 	}
 
@@ -138,7 +138,7 @@ func (s *System) GetAgent(w http.ResponseWriter, r *http.Request) {
 	clerk.SetKey(s.Config.Clerk.Key)
 	usr, err := clerkUser.Get(s.Context, r.Header.Get("x-user-subject"))
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
+		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
 
@@ -155,7 +155,7 @@ func (s *System) GetAgent(w http.ResponseWriter, r *http.Request) {
 	agentId := r.PathValue("agentId")
 	details, err := s.GetAgentDetails(agentId, companyId)
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
+		w.WriteHeader(http.StatusNoContent)
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
@@ -177,7 +177,7 @@ func (s *System) UpdateAgent(w http.ResponseWriter, r *http.Request) {
 	clerk.SetKey(s.Config.Clerk.Key)
 	usr, err := clerkUser.Get(s.Context, r.Header.Get("x-user-subject"))
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
+		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
 
@@ -222,7 +222,7 @@ func (s *System) DeleteAgent(w http.ResponseWriter, r *http.Request) {
 	clerk.SetKey(s.Config.Clerk.Key)
 	usr, err := clerkUser.Get(s.Context, r.Header.Get("x-user-subject"))
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
+		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
 
@@ -262,7 +262,7 @@ func (s *System) CreateAgent(w http.ResponseWriter, r *http.Request) {
 	clerk.SetKey(s.Config.Clerk.Key)
 	usr, err := clerkUser.Get(s.Context, r.Header.Get("x-user-subject"))
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
+		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
 

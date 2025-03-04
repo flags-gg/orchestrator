@@ -55,7 +55,7 @@ func (s *System) GetCompany(w http.ResponseWriter, r *http.Request) {
 	clerk.SetKey(s.Config.Clerk.Key)
 	usr, err := clerkUser.Get(s.Context, r.Header.Get("x-user-subject"))
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
+		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
 
@@ -122,7 +122,7 @@ func (s *System) UpdateCompany(w http.ResponseWriter, r *http.Request) {
 	clerk.SetKey(s.Config.Clerk.Key)
 	_, err := clerkUser.Get(s.Context, r.Header.Get("x-user-subject"))
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
+		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
 
@@ -143,7 +143,7 @@ func (s *System) GetCompanyLimits(w http.ResponseWriter, r *http.Request) {
 	clerk.SetKey(s.Config.Clerk.Key)
 	usr, err := clerkUser.Get(s.Context, r.Header.Get("x-user-subject"))
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
+		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
 
@@ -230,7 +230,7 @@ func (s *System) AttachUserToCompany(w http.ResponseWriter, r *http.Request) {
 	clerk.SetKey(s.Config.Clerk.Key)
 	usr, err := clerkUser.Get(s.Context, r.Header.Get("x-user-subject"))
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
+		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
 
@@ -253,7 +253,7 @@ func (s *System) GetCompanyUsers(w http.ResponseWriter, r *http.Request) {
 	clerk.SetKey(s.Config.Clerk.Key)
 	usr, err := clerkUser.Get(s.Context, r.Header.Get("x-user-subject"))
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
+		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
 
@@ -291,7 +291,7 @@ func (s *System) UpdateCompanyImage(w http.ResponseWriter, r *http.Request) {
 	clerk.SetKey(s.Config.Clerk.Key)
 	usr, err := clerkUser.Get(s.Context, r.Header.Get("x-user-subject"))
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
+		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
 
@@ -337,7 +337,7 @@ func (s *System) InviteUserToCompany(w http.ResponseWriter, r *http.Request) {
 	clerk.SetKey(s.Config.Clerk.Key)
 	usr, err := clerkUser.Get(s.Context, r.Header.Get("x-user-subject"))
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
+		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
 
@@ -392,7 +392,7 @@ func (s *System) UpgradeCompany(w http.ResponseWriter, r *http.Request) {
 	clerk.SetKey(s.Config.Clerk.Key)
 	usr, err := clerkUser.Get(s.Context, r.Header.Get("x-user-subject"))
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
+		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
 
