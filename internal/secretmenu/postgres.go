@@ -143,7 +143,7 @@ func (s *System) GetEnvironmentSecretMenu(environmentId string) (SecretMenu, err
 	if err := client.QueryRow(s.Context, `
     SELECT
         menu_id,
-        environment_secret_menu.enabled,
+        secret_menu.enabled,
         code,
         close_button,
         container,
@@ -153,10 +153,10 @@ func (s *System) GetEnvironmentSecretMenu(environmentId string) (SecretMenu, err
         button_disabled,
         header,
         style_id
-    FROM public.environment_secret_menu
-        LEFT JOIN public.secret_menu_style ON secret_menu_style.secret_menu_id = environment_secret_menu.id
-        JOIN public.agent_environment ON agent_environment.id = environment_secret_menu.environment_id
-    WHERE agent_environment.env_id = $1`, environmentId).Scan(
+    FROM public.secret_menu
+        LEFT JOIN public.secret_menu_style ON secret_menu_style.secret_menu_id = secret_menu.id
+        JOIN public.environment ON environment.id = secret_menu.environment_id
+    WHERE environment.env_id = $1`, environmentId).Scan(
 		&secretMenu.Id,
 		&secretMenu.Enabled,
 		&sequence,
@@ -215,11 +215,11 @@ func (s *System) GetSecretMenuFromDB(menuId string) (SecretMenu, error) {
         button_disabled,
         header,
         style_id,
-        agent_environment.env_id,
-        agent_environment.name
-    FROM public.environment_secret_menu AS secret_menu
+        environment.env_id,
+        environment.name
+    FROM public.secret_menu AS secret_menu
         LEFT JOIN public.secret_menu_style ON secret_menu_style.secret_menu_id = secret_menu.id
-        LEFT JOIN public.agent_environment ON agent_environment.id = secret_menu.environment_id
+        LEFT JOIN public.environment ON environment.id = secret_menu.environment_id
     WHERE secret_menu.menu_id = $1`, menuId).Scan(
 		&secretMenu.Id,
 		&secretMenu.Enabled,
@@ -268,7 +268,7 @@ func (s *System) UpdateSecretMenuSequenceInDB(menuId string, secretMenu SecretMe
 
 	sequence := strings.Join(secretMenu.Sequence, ",")
 	if _, err := client.Exec(s.Context, `
-    UPDATE public.environment_secret_menu
+    UPDATE public.secret_menu
     SET code = $1
     WHERE menu_id = $2`, sequence, menuId); err != nil {
 		return s.Config.Bugfixes.Logger.Errorf("Failed to update database: %v", err)
@@ -292,7 +292,7 @@ func (s *System) UpdateSecretMenuStateInDB(menuId string) error {
 	}()
 
 	if _, err := client.Exec(s.Context, `
-    UPDATE public.environment_secret_menu
+    UPDATE public.secret_menu
     SET enabled = NOT enabled
     WHERE menu_id = $1`, menuId); err != nil {
 		return s.Config.Bugfixes.Logger.Errorf("Failed to update database: %v", err)
@@ -323,7 +323,7 @@ func (s *System) UpdateSecretMenuStyleInDB(menuId string, secretMenu SecretMenu)
 		styleId := uu.String()
 
 		var secretMenuId int
-		if err := client.QueryRow(s.Context, `SELECT id FROM public.environment_secret_menu WHERE menu_id = $1`, menuId).Scan(&secretMenuId); err != nil {
+		if err := client.QueryRow(s.Context, `SELECT id FROM public.secret_menu WHERE menu_id = $1`, menuId).Scan(&secretMenuId); err != nil {
 			if err.Error() == "context canceled" || errors.Is(err, context.Canceled) {
 				return nil
 			}
@@ -390,7 +390,7 @@ func (s *System) CreateSecretMenuInDB(environmentId string, secretMenu SecretMen
 
 	var envId int
 	var agentId int
-	if err := client.QueryRow(s.Context, `SELECT agent_id, id FROM public.agent_environment WHERE env_id = $1`, environmentId).Scan(&agentId, &envId); err != nil {
+	if err := client.QueryRow(s.Context, `SELECT agent_id, id FROM public.environment WHERE env_id = $1`, environmentId).Scan(&agentId, &envId); err != nil {
 		if err.Error() == "context canceled" || errors.Is(err, context.Canceled) {
 			return "", "", nil
 		}
@@ -401,7 +401,7 @@ func (s *System) CreateSecretMenuInDB(environmentId string, secretMenu SecretMen
 		return "", "", s.Config.Bugfixes.Logger.Errorf("Failed to query database: %v", err)
 	}
 
-	if _, err := client.Exec(s.Context, `INSERT INTO public.environment_secret_menu (menu_id, environment_id, enabled, code, agent_id) VALUES ($1, $2, $3, $4, $5)`, menuId.String(), envId, secretMenu.Enabled, sequence, agentId); err != nil {
+	if _, err := client.Exec(s.Context, `INSERT INTO public.secret_menu (menu_id, environment_id, enabled, code, agent_id) VALUES ($1, $2, $3, $4, $5)`, menuId.String(), envId, secretMenu.Enabled, sequence, agentId); err != nil {
 		return "", "", s.Config.Bugfixes.Logger.Errorf("Failed to insert into database: %v", err)
 	}
 
@@ -413,7 +413,7 @@ func (s *System) CreateSecretMenuInDB(environmentId string, secretMenu SecretMen
 		styleId := uu.String()
 
 		var secretMenuId int
-		if err := client.QueryRow(s.Context, `SELECT id FROM public.environment_secret_menu WHERE menu_id = $1`, menuId.String()).Scan(&secretMenuId); err != nil {
+		if err := client.QueryRow(s.Context, `SELECT id FROM public.secret_menu WHERE menu_id = $1`, menuId.String()).Scan(&secretMenuId); err != nil {
 			if err.Error() == "context canceled" || errors.Is(err, context.Canceled) {
 				return "", "", nil
 			}
@@ -458,10 +458,10 @@ func (s *System) DeleteSecretMenuForEnv(envId string) error {
 	}()
 
 	if _, err := client.Exec(s.Context, `
-    DELETE FROM public.environment_secret_menu
+    DELETE FROM public.secret_menu
            WHERE environment_id = (
              SELECT id
-              FROM public.agent_environment
+              FROM public.environment
               WHERE env_id = $1
               LIMIT 1
            )`, envId); err != nil {
@@ -500,10 +500,10 @@ func (s *System) GetSecretMenuStyleFromDB(menuId string) (StyleMenu, error) {
         button_disabled,
         header,
         style_id
-    FROM public.environment_secret_menu
-        LEFT JOIN public.secret_menu_style ON secret_menu_style.secret_menu_id = environment_secret_menu.id
-        JOIN public.agent_environment ON agent_environment.id = environment_secret_menu.environment_id
-    WHERE environment_secret_menu.menu_id = $1`, menuId).Scan(
+    FROM public.secret_menu
+        LEFT JOIN public.secret_menu_style ON secret_menu_style.secret_menu_id = secret_menu.id
+        JOIN public.environment ON environment.id = secret_menu.environment_id
+    WHERE secret_menu.menu_id = $1`, menuId).Scan(
 		&styleId,
 		&menuStyle.SQLCloseButton,
 		&menuStyle.SQLContainer,

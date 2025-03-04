@@ -246,7 +246,7 @@ func (s *System) ValidateAgentWithEnvironment(ctx context.Context, agentId, proj
 	if err := client.QueryRow(ctx, `
     SELECT TRUE
     FROM public.agent
-      JOIN public.agent_environment AS pa ON pa.agent_id = agent.id
+      JOIN public.environment AS pa ON pa.agent_id = agent.id
       JOIN public.project ON project.id = agent.project_id
     WHERE agent.agent_id = $1
       AND pa.env_id = $2

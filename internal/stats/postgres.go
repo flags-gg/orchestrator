@@ -76,7 +76,7 @@ func (s *System) GetEnvironmentName(environmentId string) (string, error) {
 	var envName string
 	if err := client.QueryRow(s.Context, `
     SELECT env.name AS EnvName
-    FROM public.agent_environment AS env
+    FROM public.environment AS env
     WHERE env_id = $1`, environmentId).Scan(&envName); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return "", nil
