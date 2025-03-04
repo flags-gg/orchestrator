@@ -56,7 +56,7 @@ func (s *System) GetAgentEnvironments(w http.ResponseWriter, r *http.Request) {
 	clerk.SetKey(s.Config.Clerk.Key)
 	usr, err := clerkUser.Get(s.Context, r.Header.Get("x-user-subject"))
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
+		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
 
@@ -100,7 +100,7 @@ func (s *System) GetEnvironments(w http.ResponseWriter, r *http.Request) {
 	clerk.SetKey(s.Config.Clerk.Key)
 	usr, err := clerkUser.Get(s.Context, r.Header.Get("x-user-subject"))
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
+		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
 
@@ -137,7 +137,7 @@ func (s *System) CreateAgentEnvironment(w http.ResponseWriter, r *http.Request) 
 	clerk.SetKey(s.Config.Clerk.Key)
 	usr, err := clerkUser.Get(s.Context, r.Header.Get("x-user-subject"))
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
+		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
 
@@ -182,7 +182,7 @@ func (s *System) CloneAgentEnvironment(w http.ResponseWriter, r *http.Request) {
 	clerk.SetKey(s.Config.Clerk.Key)
 	usr, err := clerkUser.Get(s.Context, r.Header.Get("x-user-subject"))
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
+		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
 
@@ -239,7 +239,7 @@ func (s *System) UpdateEnvironment(w http.ResponseWriter, r *http.Request) {
 	clerk.SetKey(s.Config.Clerk.Key)
 	usr, err := clerkUser.Get(s.Context, r.Header.Get("x-user-subject"))
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
+		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
 
@@ -283,7 +283,7 @@ func (s *System) DeleteEnvironment(w http.ResponseWriter, r *http.Request) {
 	clerk.SetKey(s.Config.Clerk.Key)
 	usr, err := clerkUser.Get(s.Context, r.Header.Get("x-user-subject"))
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
+		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
 
@@ -323,7 +323,7 @@ func (s *System) GetEnvironment(w http.ResponseWriter, r *http.Request) {
 	clerk.SetKey(s.Config.Clerk.Key)
 	usr, err := clerkUser.Get(s.Context, r.Header.Get("x-user-subject"))
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
+		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
 
