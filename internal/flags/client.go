@@ -29,8 +29,8 @@ func (s *System) GetClientFlagsFromDB(environmentId string) ([]Flag, error) {
         flags.name,
         flags.enabled
     FROM public.agent
-        LEFT JOIN public.environment_flag AS flags ON agent.id = flags.agent_id
-        LEFT JOIN public.agent_environment AS env ON env.id = flags.environment_id
+        LEFT JOIN public.flag AS flags ON agent.id = flags.agent_id
+        LEFT JOIN public.environment AS env ON env.id = flags.environment_id
         LEFT JOIN public.project ON project.id = agent.project_id
     WHERE env.env_id = $1`, environmentId)
 	if err != nil {
@@ -65,7 +65,7 @@ func (s *System) UpdateFlagInDB(flag Flag) error {
 	}()
 
 	_, err = client.Exec(s.Context, `
-    UPDATE public.environment_flag
+    UPDATE public.flag
     SET
       enabled = $1,
       name=$3
@@ -89,7 +89,7 @@ func (s *System) EditFlagInDB(cr FlagNameChangeRequest) error {
 	}()
 
 	_, err = client.Exec(s.Context, `
-    UPDATE public.environment_flag
+    UPDATE public.flag
     SET
       name=$2
     WHERE id = $1`, cr.ID, cr.Name)
@@ -111,7 +111,7 @@ func (s *System) DeleteFlagFromDB(flag Flag) error {
 		}
 	}()
 
-	_, err = client.Exec(s.Context, `DELETE FROM public.environment_flag WHERE id = $1`, flag.Details.ID)
+	_, err = client.Exec(s.Context, `DELETE FROM public.flag WHERE id = $1`, flag.Details.ID)
 	if err != nil {
 		return s.Config.Bugfixes.Logger.Errorf("failed to delete flag: %v", err)
 	}
@@ -131,12 +131,12 @@ func (s *System) DeleteAllFlagsForEnv(envId string) error {
 	}()
 
 	var envIdInt int
-	err = client.QueryRow(s.Context, `SELECT id FROM public.agent_environment WHERE env_id = $1`, envId).Scan(&envIdInt)
+	err = client.QueryRow(s.Context, `SELECT id FROM public.environment WHERE env_id = $1`, envId).Scan(&envIdInt)
 	if err != nil {
 		return s.Config.Bugfixes.Logger.Errorf("failed to get environment id: %v", err)
 	}
 
-	_, err = client.Exec(s.Context, `DELETE FROM public.environment_flag WHERE environment_id = $1`, envIdInt)
+	_, err = client.Exec(s.Context, `DELETE FROM public.flag WHERE environment_id = $1`, envIdInt)
 	if err != nil {
 		return s.Config.Bugfixes.Logger.Errorf("failed to delete flags: %v", err)
 	}
@@ -155,14 +155,14 @@ func (s *System) CreateFlagInDB(flag flagCreate) error {
 	}()
 
 	_, err = client.Exec(s.Context, `
-        INSERT INTO public.environment_flag (
+        INSERT INTO public.flag (
           name,
           agent_id,
           environment_id
         ) VALUES (
           $1,
           (SELECT id FROM public.agent WHERE agent_id = $2),
-          (SELECT id FROM public.agent_environment WHERE env_id = $3))`, flag.Name, flag.AgentId, flag.EnvironmentId)
+          (SELECT id FROM public.environment WHERE env_id = $3))`, flag.Name, flag.AgentId, flag.EnvironmentId)
 	if err != nil {
 		return s.Config.Bugfixes.Logger.Errorf("failed to delete flag: %v", err)
 	}

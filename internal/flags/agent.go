@@ -66,16 +66,15 @@ func (s *System) GetAgentFlagsFromDB(projectId, agentId, environmentId string) (
       menuStyle.header AS Header,
       agent.interval
     FROM public.agent
-      LEFT JOIN public.environment_flag AS flags ON agent.id = flags.agent_id
-      LEFT JOIN public.agent_environment AS env ON env.id = flags.environment_id
+      LEFT JOIN public.flag AS flags ON agent.id = flags.agent_id
+      LEFT JOIN public.environment AS env ON env.id = flags.environment_id
       LEFT JOIN public.project ON project.id = agent.project_id
-      LEFT JOIN public.environment_secret_menu AS secretMenu ON secretMenu.agent_id = agent.id
+      LEFT JOIN public.secret_menu AS secretMenu ON secretMenu.agent_id = agent.id
 		AND secretMenu.environment_id = env.id
       LEFT JOIN public.secret_menu_style AS menuStyle ON menuStyle.secret_menu_id = secretMenu.id
     WHERE env.env_id = $1
       AND agent.agent_id = $2
       AND project.project_id = $3
-      AND agent.enabled = true
       AND agent.enabled = true
       AND project.enabled = true`, environmentId, agentId, projectId)
 	if err != nil {
@@ -202,7 +201,7 @@ func (s *System) GetDefaultEnvironment(projectId, agentId string) (string, error
 	var envId string
 	err = client.QueryRow(s.Context, `
     SELECT env.env_id
-    FROM public.agent_environment AS env
+    FROM public.environment AS env
       JOIN public.agent ON env.agent_id = agent.id
       JOIN public.project ON agent.project_id = project.id
     WHERE agent.agent_id = $1

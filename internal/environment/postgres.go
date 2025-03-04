@@ -29,7 +29,7 @@ func (s *System) CreateEnvironmentInDB(name, agentId string) (*Environment, erro
 	var insertedEnvId string
 
 	if err := client.QueryRow(s.Context, `
-      INSERT INTO public.agent_environment (
+      INSERT INTO public.environment (
           agent_id,
           env_id,
           name
@@ -38,7 +38,7 @@ func (s *System) CreateEnvironmentInDB(name, agentId string) (*Environment, erro
         FROM public.agent
         WHERE agent.agent_id = $1
       ), $2, $3)
-      RETURNING agent_environment.id`, agentId, envId, name).Scan(&insertedEnvId); err != nil {
+      RETURNING environment.id`, agentId, envId, name).Scan(&insertedEnvId); err != nil {
 		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to insert environment into database: %v", err)
 	}
 
@@ -72,7 +72,7 @@ func (s *System) GetEnvironmentFromDB(envId, companyId string) (*Environment, er
       env.enabled,
       agent.name as AgentName,
       project.name as ProjectName
-    FROM public.agent_environment AS env
+    FROM public.environment AS env
     	LEFT JOIN public.agent ON agent.id = env.agent_id
     	LEFT JOIN public.project ON project.id = agent.project_id
         JOIN public.company ON company.id = project.company_id
@@ -110,7 +110,7 @@ func (s *System) GetAgentEnvironmentsFromDB(agentId, companyId string) ([]*Envir
       env.name,
       env.env_id,
       env.enabled
-    FROM agent_environment AS env
+    FROM environment AS env
       JOIN agent ON env.agent_id = agent.id
       JOIN project ON project.id = agent.project_id
       JOIN company ON company.id = project.company_id
@@ -157,7 +157,7 @@ func (s *System) GetEnvironmentsFromDB(companyId string) ([]*Environment, error)
   		env.name AS EnvName,
   		agent.name AS AgentName,
   		project.name AS ProjectName
-	FROM agent_environment AS env
+	FROM environment AS env
 		JOIN agent ON agent.id = env.agent_id
   		JOIN project ON project.id = agent.project_id
   		JOIN company ON company.id = project.company_id
@@ -198,7 +198,7 @@ func (s *System) UpdateEnvironmentInDB(env Environment) error {
 	}()
 
 	_, err = client.Exec(s.Context, `
-    UPDATE public.agent_environment
+    UPDATE public.environment
     SET name = $1, enabled = $3
     WHERE env_id = $2`, env.Name, env.EnvironmentId, env.Enabled)
 	if err != nil {
@@ -238,9 +238,9 @@ func (s *System) CloneEnvironmentInDB(envId, newEnvId, agentId, name string) err
 
 	var envIdInt int
 	if err := client.QueryRow(s.Context, `
-    INSERT INTO public.agent_environment (agent_id, env_id, name)
+    INSERT INTO public.environment (agent_id, env_id, name)
         VALUES ($1, $2, $3)
-        RETURNING agent_environment.id`, agentIdInt, newEnvId, name).Scan(&envIdInt); err != nil {
+        RETURNING environment.id`, agentIdInt, newEnvId, name).Scan(&envIdInt); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return s.Config.Bugfixes.Logger.Errorf("Failed to insert environment into database: %v", err)
 		}
@@ -258,7 +258,7 @@ func (s *System) CloneEnvironmentInDB(envId, newEnvId, agentId, name string) err
 	}
 	if insertVars != "" {
 		insertVars = insertVars[:len(insertVars)-1] // Remove last comma
-		_, err := client.Exec(s.Context, fmt.Sprintf(`INSERT INTO public.environment_flag (name, agent_id, environment_id, enabled) VALUES %s`, insertVars))
+		_, err := client.Exec(s.Context, fmt.Sprintf(`INSERT INTO public.flag (name, agent_id, environment_id, enabled) VALUES %s`, insertVars))
 		if err != nil {
 			return s.Config.Bugfixes.Logger.Errorf("Failed to insert flags into database: %v", err)
 		}
@@ -290,7 +290,7 @@ func (s *System) DeleteEnvironmentFromDB(envId string) error {
 	}
 
 	_, err = client.Exec(s.Context, `
-    DELETE FROM public.agent_environment
+    DELETE FROM public.environment
     WHERE env_id = $1`, envId)
 	if err != nil {
 		return s.Config.Bugfixes.Logger.Errorf("Failed to delete environment from database: %v", err)
@@ -316,7 +316,7 @@ func (s *System) DeleteAllEnvironmentsForAgent(agentId string) error {
 	var environmentIds []string
 	rows, err := client.Query(s.Context, `
     SELECT env_id
-    FROM public.agent_environment
+    FROM public.environment
     WHERE agent_id = (
         SELECT id
         FROM public.agent
