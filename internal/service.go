@@ -74,6 +74,7 @@ func (s *Service) startHTTP(errChan chan error) {
 	mux.HandleFunc("GET /environments", environment.NewSystem(s.Config).GetEnvironments)
 
 	// Flags
+	mux.HandleFunc("GET /v1/flags", flags.NewSystem(s.Config).GetAgentFlags)                           // temp whilst apis update
 	mux.HandleFunc("GET /flags", flags.NewSystem(s.Config).GetAgentFlags)                              // used by the library
 	mux.HandleFunc("GET /environment/{environmentId}/flags", flags.NewSystem(s.Config).GetClientFlags) // used by the frontend
 	mux.HandleFunc("POST /flag", flags.NewSystem(s.Config).CreateFlags)
