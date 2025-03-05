@@ -12,6 +12,7 @@ import (
 	"github.com/flags-gg/orchestrator/internal/secretmenu"
 	ConfigBuilder "github.com/keloran/go-config"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/bugfixes/go-bugfixes/logs"
@@ -149,9 +150,19 @@ func (s *Service) startHTTP(errChan chan error) {
 		mw.AddAllowedOrigins("http://localhost:3000", "http://localhost:5173", "*")
 	}
 
+	port := s.Config.Local.HTTPPort
+	if s.Config.ProjectProperties["railway_port"].(string) != "" {
+		i, err := strconv.Atoi(s.Config.ProjectProperties["railway_port"].(string))
+		if err != nil {
+			_ = logs.Errorf("Failed to parse port: %v", err)
+			return
+		}
+		port = i
+	}
+
 	logs.Logf("Starting HTTP on %d", s.Config.Local.HTTPPort)
 	server := &http.Server{
-		Addr:              fmt.Sprintf(":%d", s.Config.Local.HTTPPort),
+		Addr:              fmt.Sprintf(":%d", port),
 		Handler:           mw.Handler(mux),
 		ReadTimeout:       10 * time.Second,
 		WriteTimeout:      10 * time.Second,
