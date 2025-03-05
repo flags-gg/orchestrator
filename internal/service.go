@@ -152,7 +152,7 @@ func (s *Service) startHTTP(errChan chan error) {
 	}
 
 	port := s.Config.Local.HTTPPort
-	if s.Config.ProjectProperties["railway_port"].(string) != "" {
+	if s.Config.ProjectProperties["railway_port"].(string) != "" && s.Config.ProjectProperties["on_railway"].(bool) {
 		i, err := strconv.Atoi(s.Config.ProjectProperties["railway_port"].(string))
 		if err != nil {
 			_ = logs.Errorf("Failed to parse port: %v", err)
@@ -166,7 +166,7 @@ func (s *Service) startHTTP(errChan chan error) {
 		Addr:              fmt.Sprintf(":%d", port),
 		Handler:           mw.Handler(mux),
 		ReadTimeout:       10 * time.Second,
-		WriteTimeout:      10 * time.Second,
+		WriteTimeout:      30 * time.Second,
 		IdleTimeout:       10 * time.Second,
 		ReadHeaderTimeout: 10 * time.Second,
 		TLSNextProto:      make(map[string]func(*http.Server, *tls.Conn, http.Handler), 0),

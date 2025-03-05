@@ -25,6 +25,7 @@ func (pc ProjectConfig) Build(cfg *ConfigBuilder.Config) error {
 	type PC struct {
 		StripeSecret string `env:"STRIPE_SECRET" envDefault:"stripe_secret"`
 		RailwayPort  string `env:"PORT" envDefault:"3000"`
+		OnRailway    bool   `env:"ON_RAILWAY" envDefault:"false"`
 		Flags        FlagsService
 	}
 	p := PC{}
@@ -37,6 +38,7 @@ func (pc ProjectConfig) Build(cfg *ConfigBuilder.Config) error {
 	}
 	cfg.ProjectProperties["stripeKey"] = p.StripeSecret
 	cfg.ProjectProperties["railway_port"] = p.RailwayPort
+	cfg.ProjectProperties["on_railway"] = p.OnRailway
 
 	cfg.ProjectProperties["flags_agent"] = p.Flags.AgentID
 	cfg.ProjectProperties["flags_environment"] = p.Flags.EnvironmentID
