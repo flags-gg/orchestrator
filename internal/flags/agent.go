@@ -24,9 +24,11 @@ func (s *System) GetAgentFlagsFromDB(projectId, agentId, environmentId string) (
 		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
 	}
 	defer func() {
-		if err := client.Close(s.Context); err != nil {
-			//stats.NewSystem(s.Config).AddAgentError(projectId, agentId, environmentId)
-			s.Config.Bugfixes.Logger.Fatalf("Failed to close database connection: %v", err)
+		if client != nil {
+			if err := client.Close(s.Context); err != nil {
+				//stats.NewSystem(s.Config).AddAgentError(projectId, agentId, environmentId)
+				s.Config.Bugfixes.Logger.Fatalf("Failed to close database connection: %v", err)
+			}
 		}
 	}()
 
