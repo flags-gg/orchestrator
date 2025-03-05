@@ -2,7 +2,7 @@ package main
 
 import (
 	"github.com/bugfixes/go-bugfixes/logs"
-	env "github.com/caarlos0/env/v8"
+	"github.com/caarlos0/env/v8"
 	"github.com/flags-gg/orchestrator/internal"
 	ConfigBuilder "github.com/keloran/go-config"
 )

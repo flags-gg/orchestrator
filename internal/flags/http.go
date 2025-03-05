@@ -6,7 +6,6 @@ import (
 	"github.com/clerk/clerk-sdk-go/v2"
 	clerkUser "github.com/clerk/clerk-sdk-go/v2/user"
 	"github.com/flags-gg/orchestrator/internal/company"
-	"github.com/flags-gg/orchestrator/internal/stats"
 	ConfigBuilder "github.com/keloran/go-config"
 	"net/http"
 	"strconv"
@@ -89,10 +88,10 @@ func (s *System) GetAgentFlags(w http.ResponseWriter, r *http.Request) {
 
 	if err := json.NewEncoder(w).Encode(responseObj); err != nil {
 		_, _ = w.Write([]byte(`{"error": "failed to encode response"}`))
-		stats.NewSystem(s.Config).AddAgentError(projectId, agentId, environmentId)
+		//stats.NewSystem(s.Config).AddAgentError(projectId, agentId, environmentId)
 		_ = s.Config.Bugfixes.Logger.Errorf("Failed to encode response: %v", err)
 	}
-	stats.NewSystem(s.Config).AddAgentSuccess(projectId, agentId, environmentId)
+	//stats.NewSystem(s.Config).AddAgentSuccess(projectId, agentId, environmentId)
 }
 
 func (s *System) GetClientFlags(w http.ResponseWriter, r *http.Request) {

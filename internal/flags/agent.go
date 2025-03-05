@@ -5,7 +5,6 @@ import (
 	"crypto/rand"
 	"database/sql"
 	"errors"
-	"github.com/flags-gg/orchestrator/internal/stats"
 	"github.com/jackc/pgx/v5"
 	"math/big"
 	"strings"
@@ -18,15 +17,15 @@ func (s *System) GetAgentFlagsFromDB(projectId, agentId, environmentId string) (
 
 	client, err := s.Config.Database.GetPGXClient(s.Context)
 	if err != nil {
-		stats.NewSystem(s.Config).AddAgentError(projectId, agentId, environmentId)
-		if strings.Contains(err.Error(), "operation was canceled") {
-			return nil, nil
-		}
+		//stats.NewSystem(s.Config).AddAgentError(projectId, agentId, environmentId)
+		//if strings.Contains(err.Error(), "operation was canceled") {
+		//	return nil, nil
+		//}
 		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
 	}
 	defer func() {
 		if err := client.Close(s.Context); err != nil {
-			stats.NewSystem(s.Config).AddAgentError(projectId, agentId, environmentId)
+			//stats.NewSystem(s.Config).AddAgentError(projectId, agentId, environmentId)
 			s.Config.Bugfixes.Logger.Fatalf("Failed to close database connection: %v", err)
 		}
 	}()
@@ -82,7 +81,7 @@ func (s *System) GetAgentFlagsFromDB(projectId, agentId, environmentId string) (
 			return nil, nil
 		}
 
-		stats.NewSystem(s.Config).AddAgentError(projectId, agentId, environmentId)
+		//stats.NewSystem(s.Config).AddAgentError(projectId, agentId, environmentId)
 		if err.Error() == "context canceled" || errors.Is(err, context.Canceled) {
 			return nil, nil
 		}
@@ -180,7 +179,7 @@ func (s *System) GetAgentFlagsFromDB(projectId, agentId, environmentId string) (
 
 	}
 
-	stats.NewSystem(s.Config).AddAgentSuccess(projectId, agentId, environmentId)
+	//stats.NewSystem(s.Config).AddAgentSuccess(projectId, agentId, environmentId)
 	return res, nil
 }
 
