@@ -129,6 +129,7 @@ func (s *Service) startHTTP(errChan chan error) {
 
 	// General Webhooks
 	mux.HandleFunc("/webhooks/stripe", general.NewSystem(s.Config).StripeEvents)
+	mux.HandleFunc("/v1/webhooks/stripe", general.NewSystem(s.Config).StripeEvents)
 
 	// middlewares
 	mw := middleware.NewMiddleware(context.Background())
