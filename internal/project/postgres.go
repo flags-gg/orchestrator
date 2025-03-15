@@ -35,7 +35,7 @@ func (s *System) GetProjectsFromDB(companyId string) ([]Project, error) {
 	}()
 
 	rows, err := client.Query(s.Context, `
-    SELECT
+    SELECT DISTINCT
       project.id,
       project.project_id,
       project.name,
