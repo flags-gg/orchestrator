@@ -10,7 +10,7 @@ require (
 	github.com/caarlos0/env/v8 v8.0.0
 	github.com/clerk/clerk-sdk-go/v2 v2.2.0
 	github.com/docker/go-connections v0.5.0
-	github.com/flags-gg/go-flags v0.4.2
+	github.com/flags-gg/go-flags v0.5.2
 	github.com/google/uuid v1.6.0
 	github.com/influxdata/influxdb-client-go/v2 v2.14.0
 	github.com/jackc/pgx/v5 v5.7.4
