@@ -92,7 +92,8 @@ func (s *System) RetrieveUserDetailsDB(subject string) (*User, error) {
 		}
 	}()
 
-	companyName := ""
+	cName := ""
+	companyName := &cName
 
 	user := &User{}
 	ug := &Group{}
@@ -128,7 +129,7 @@ func (s *System) RetrieveUserDetailsDB(subject string) (*User, error) {
 	}
 	user.UserGroup = ug
 
-	if companyName != "" && user.Onboarded == false {
+	if companyName != nil && user.Onboarded == false {
 		user.Onboarded = true
 
 		if _, err := client.Exec(s.Context, `
