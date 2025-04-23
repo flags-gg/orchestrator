@@ -3,6 +3,7 @@ package flags
 import (
 	"context"
 	"encoding/json"
+	"github.com/bugfixes/go-bugfixes/logs"
 	"github.com/clerk/clerk-sdk-go/v2"
 	clerkUser "github.com/clerk/clerk-sdk-go/v2/user"
 	"github.com/flags-gg/orchestrator/internal/company"
@@ -59,6 +60,8 @@ func (s *System) SetContext(ctx context.Context) *System {
 }
 
 func (s *System) GetAgentFlags(w http.ResponseWriter, r *http.Request) {
+	logs.Infof("Headers: %v", r.Header)
+
 	w.Header().Set("x-flags-timestamp", strconv.FormatInt(time.Now().Unix(), 10))
 	w.Header().Set("Content-Type", "application/json")
 	s.Context = r.Context()
