@@ -138,6 +138,7 @@ func (s *Service) startHTTP(errChan chan error) {
 	mw.AddMiddleware(middleware.Recoverer)
 	mw.AddMiddleware(s.Auth)
 	mw.AddMiddleware(mw.CORS)
+	mw.AddMiddleware(middleware.LowerCaseHeaders)
 	mw.AddAllowedHeaders(
 		"x-agent-id",
 		"x-company-id",
