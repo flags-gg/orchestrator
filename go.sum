@@ -123,8 +123,8 @@ github.com/jackc/puddle/v2 v2.2.2/go.mod h1:vriiEXHvEE654aYKXXjOvZM39qJ0q+azkZFr
 github.com/jarcoal/httpmock v1.4.0 h1:BvhqnH0JAYbNudL2GMJKgOHe2CtKlzJ/5rWKyp+hc2k=
 github.com/jarcoal/httpmock v1.4.0/go.mod h1:ftW1xULwo+j0R0JJkJIIi7UKigZUXCLLanykgjwBXL0=
 github.com/juju/gnuflag v0.0.0-20171113085948-2ce1bb71843d/go.mod h1:2PavIy+JPciBPrBUjwbNvtwB6RQlve+hkpll6QSNmOE=
-github.com/keloran/go-config v1.5.8 h1:LJoRe7OefAsSADYHu4vUufQ81kxmCEfkfomAyBptJvk=
-github.com/keloran/go-config v1.5.8/go.mod h1:mu0pasJ4aZpx1cHEiWpf9rHQGioH46aUF9HDqKWdnW8=
+github.com/keloran/go-config v1.6.1 h1:q/A8uWYNAq2b3JmA66Lxt6ku23zjENOjxMXNOsz2B5A=
+github.com/keloran/go-config v1.6.1/go.mod h1:ZmbBOP3/JZAppuR5Cq3pPZzwA/q38USR4XTuvVJLwmM=
 github.com/keloran/go-healthcheck v1.2.2 h1:C92m/ppWkY6OldY5RrDiqCTpXIaOZtSO0vMmHADsrUc=
 github.com/keloran/go-healthcheck v1.2.2/go.mod h1:XGZyWC9IMGoyMGUvh3v3cZQp+eHFuYCHIkDjQOsuUVk=
 github.com/keloran/go-probe v1.0.0 h1:OAO7f71lRJIz+rF7iGAeBj4i86NaUazL8DaVf9dVJGU=
