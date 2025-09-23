@@ -8,7 +8,7 @@ require (
 	github.com/Nerzal/gocloak/v13 v13.9.0
 	github.com/bugfixes/go-bugfixes v0.14.0
 	github.com/caarlos0/env/v8 v8.0.0
-	github.com/clerk/clerk-sdk-go/v2 v2.4.0
+	github.com/clerk/clerk-sdk-go/v2 v2.4.1
 	github.com/docker/go-connections v0.6.0
 	github.com/flags-gg/go-flags v0.5.2
 	github.com/google/uuid v1.6.0
