@@ -18,7 +18,7 @@ require (
 	github.com/keloran/go-healthcheck v1.2.2
 	github.com/keloran/go-probe v1.0.0
 	github.com/lib/pq v1.10.9
-	github.com/resend/resend-go/v2 v2.24.0
+	github.com/resend/resend-go/v2 v2.25.0
 	github.com/stretchr/testify v1.11.1
 	github.com/stripe/stripe-go v70.15.0+incompatible
 	github.com/testcontainers/testcontainers-go v0.39.0
