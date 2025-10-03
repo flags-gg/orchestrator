@@ -62,6 +62,8 @@ Each domain follows a consistent pattern with an `http.go` file for handlers and
   - `agent.go`: Agent-facing flag retrieval (used by SDKs)
   - `client.go`: Client-facing flag retrieval (used by frontend)
   - `http.go`: HTTP handlers for CRUD operations
+  - `ofrep_http.go`: OFREP (OpenFeature Remote Evaluation Protocol) HTTP handlers
+  - `ofrep_postgres.go`: OFREP database access methods
 - **general**: Webhook handlers (Stripe, Keycloak events) and miscellaneous endpoints
 - **pricing**: Pricing tiers and limits
 - **project**: Top-level project management
@@ -85,6 +87,8 @@ The service uses Go 1.22+ HTTP routing with method prefixes:
   - `/flags` - Agent/SDK requests (authenticated via headers)
   - `/environment/{environmentId}/flags` - Client/frontend requests
   - `/flag/{flagId}` - CRUD operations
+  - `/ofrep/v1/evaluate/flags/{key}` - OFREP single flag evaluation
+  - `/ofrep/v1/evaluate/flags` - OFREP bulk flag evaluation
 - Stats: `/stats/company`, `/stats/project/{projectId}`, `/stats/agent/{agentId}`
 - Company: `/company`, `/company/users`, `/company/invite`
 
@@ -114,9 +118,10 @@ Applied in this order (see `internal/service.go:135-154`):
 6. LowerCaseHeaders
 
 ### Agent vs Client Flags
-Two distinct flag retrieval paths:
+Three distinct flag retrieval paths:
 - **Agent path** (`flags/agent.go`): Used by SDKs, includes interval control and secret menu configuration
 - **Client path** (`flags/client.go`): Used by frontend applications, returns simpler flag list
+- **OFREP path** (`flags/ofrep_http.go`): OpenFeature Remote Evaluation Protocol compliant endpoints for standard OpenFeature SDK integration
 
 ### Statistics System
 Dual storage approach:
@@ -128,6 +133,15 @@ When `Development: true` in config:
 - All authentication checks are bypassed
 - Additional CORS origins allowed (localhost:3000, localhost:5173)
 - Bruno API client can be used without authentication
+
+### OpenFeature Support
+The service implements OFREP (OpenFeature Remote Evaluation Protocol) to allow standard OpenFeature SDKs to consume feature flags:
+- Spec: https://github.com/open-feature/protocol
+- Single flag evaluation: `POST /ofrep/v1/evaluate/flags/{key}`
+- Bulk flag evaluation: `POST /ofrep/v1/evaluate/flags`
+- Requires standard headers: `x-project-id`, `x-agent-id`, `x-environment-id`
+- Returns OpenFeature-compliant responses with resolution details, reasons, and metadata
+- Current implementation supports boolean flags (value type can be extended in the future)
 
 ## Dependencies
 - Go 1.24+
