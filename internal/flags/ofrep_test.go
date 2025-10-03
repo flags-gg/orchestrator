@@ -468,6 +468,13 @@ func TestOFREPAPIKeyAuthentication(t *testing.T) {
 	_, ofrepSystem := setupTestSystem(t)
 	ofrepSystem.SetContext(ctx)
 
+	// Generate JWT API keys
+	apiKeySystem := NewAPIKeySystem(ofrepSystem.Config)
+	validAPIKeyWithEnv, err := apiKeySystem.GenerateAPIKey("test-project-1", "test-agent-1", "test-env-1")
+	assert.NoError(t, err)
+	validAPIKeyWithoutEnv, err := apiKeySystem.GenerateAPIKey("test-project-1", "test-agent-1", "")
+	assert.NoError(t, err)
+
 	tests := []struct {
 		name           string
 		apiKey         string
@@ -477,14 +484,14 @@ func TestOFREPAPIKeyAuthentication(t *testing.T) {
 	}{
 		{
 			name:           "Success with API key",
-			apiKey:         "test-project-1:test-agent-1:test-env-1",
+			apiKey:         validAPIKeyWithEnv,
 			flagKey:        "feature-flag-1",
 			expectedStatus: http.StatusOK,
 			shouldSucceed:  true,
 		},
 		{
 			name:           "Success with API key without environment",
-			apiKey:         "test-project-1:test-agent-1",
+			apiKey:         validAPIKeyWithoutEnv,
 			flagKey:        "feature-flag-1",
 			expectedStatus: http.StatusOK,
 			shouldSucceed:  true,
