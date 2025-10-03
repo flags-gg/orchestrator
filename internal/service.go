@@ -86,6 +86,9 @@ func (s *Service) startHTTP(errChan chan error) {
 	mux.HandleFunc("POST /ofrep/v1/evaluate/flags/{key}", flags.NewOFREPSystem(s.Config).EvaluateSingleFlag)
 	mux.HandleFunc("POST /ofrep/v1/evaluate/flags", flags.NewOFREPSystem(s.Config).EvaluateBulkFlags)
 
+	// API Key Management
+	mux.HandleFunc("POST /api-key/generate", flags.NewAPIKeyHTTPSystem(s.Config).GenerateAPIKeyHandler)
+
 	// Secret Menu
 	mux.HandleFunc("GET /secret-menu/{menuId}", secretmenu.NewSystem(s.Config).GetSecretMenu)
 	mux.HandleFunc("POST /secret-menu/{environmentId}", secretmenu.NewSystem(s.Config).CreateSecretMenu)

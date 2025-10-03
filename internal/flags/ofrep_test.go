@@ -452,6 +452,93 @@ func TestOFREPAndStandardEndpointsReturnSameFlags(t *testing.T) {
 	}
 }
 
+func TestOFREPAPIKeyAuthentication(t *testing.T) {
+	ctx := context.Background()
+
+	testDB, err := setupTestDatabase(ctx)
+	if err != nil {
+		t.Fatalf("Failed to setup test database: %v", err)
+	}
+	defer func() {
+		if err := testDB.container.Terminate(ctx); err != nil {
+			t.Errorf("Failed to terminate container: %v", err)
+		}
+	}()
+
+	_, ofrepSystem := setupTestSystem(t)
+	ofrepSystem.SetContext(ctx)
+
+	tests := []struct {
+		name           string
+		apiKey         string
+		flagKey        string
+		expectedStatus int
+		shouldSucceed  bool
+	}{
+		{
+			name:           "Success with API key",
+			apiKey:         "test-project-1:test-agent-1:test-env-1",
+			flagKey:        "feature-flag-1",
+			expectedStatus: http.StatusOK,
+			shouldSucceed:  true,
+		},
+		{
+			name:           "Success with API key without environment",
+			apiKey:         "test-project-1:test-agent-1",
+			flagKey:        "feature-flag-1",
+			expectedStatus: http.StatusOK,
+			shouldSucceed:  true,
+		},
+		{
+			name:           "Invalid API key format",
+			apiKey:         "invalid-key",
+			flagKey:        "feature-flag-1",
+			expectedStatus: http.StatusBadRequest,
+			shouldSucceed:  false,
+		},
+		{
+			name:           "Empty API key",
+			apiKey:         "",
+			flagKey:        "feature-flag-1",
+			expectedStatus: http.StatusBadRequest,
+			shouldSucceed:  false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			body, _ := json.Marshal(EvaluationRequest{
+				Context: EvaluationContext{
+					TargetingKey: "user-123",
+				},
+			})
+			req := httptest.NewRequest(http.MethodPost, "/ofrep/v1/evaluate/flags/"+tt.flagKey, bytes.NewReader(body))
+			if tt.apiKey != "" {
+				req.Header.Set("X-API-Key", tt.apiKey)
+			}
+			req.SetPathValue("key", tt.flagKey)
+
+			w := httptest.NewRecorder()
+			ofrepSystem.EvaluateSingleFlag(w, req)
+
+			assert.Equal(t, tt.expectedStatus, w.Code)
+
+			if tt.shouldSucceed {
+				var response SuccessEvaluationResponse
+				err := json.NewDecoder(w.Body).Decode(&response)
+				assert.NoError(t, err)
+				assert.Equal(t, tt.flagKey, response.Key)
+				assert.NotNil(t, response.Value)
+			} else {
+				var response ErrorEvaluationResponse
+				err := json.NewDecoder(w.Body).Decode(&response)
+				assert.NoError(t, err)
+				assert.NotEmpty(t, response.ErrorCode)
+			}
+		})
+	}
+}
+
 func TestOFREPCaseInsensitiveFlagLookup(t *testing.T) {
 	ctx := context.Background()
 

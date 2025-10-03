@@ -94,6 +94,29 @@ func (s *OFREPSystem) SetContext(ctx context.Context) *OFREPSystem {
 	return s
 }
 
+// extractCredentials gets credentials from X-API-Key (JWT) or individual headers
+// Priority: X-API-Key (JWT) > individual headers (x-project-id, x-agent-id, x-environment-id)
+func (s *OFREPSystem) extractCredentials(r *http.Request) (projectId, agentId, environmentId string) {
+	// Check X-API-Key header first (OFREP standard)
+	apiKey := r.Header.Get("X-API-Key")
+	if apiKey != "" {
+		// X-API-Key contains a JWT with project_id, agent_id, environment_id
+		apiKeySystem := NewAPIKeySystem(s.Config)
+		claims, err := apiKeySystem.ValidateAPIKey(apiKey)
+		if err == nil && claims != nil {
+			return claims.ProjectID, claims.AgentID, claims.EnvironmentID
+		}
+		// If JWT validation fails, silently continue to fallback
+	}
+
+	// Fall back to individual headers (existing flags.gg method)
+	projectId = r.Header.Get("x-project-id")
+	agentId = r.Header.Get("x-agent-id")
+	environmentId = r.Header.Get("x-environment-id")
+
+	return projectId, agentId, environmentId
+}
+
 // EvaluateSingleFlag handles POST /ofrep/v1/evaluate/flags/{key}
 func (s *OFREPSystem) EvaluateSingleFlag(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
@@ -112,9 +135,7 @@ func (s *OFREPSystem) EvaluateSingleFlag(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	projectId := r.Header.Get("x-project-id")
-	agentId := r.Header.Get("x-agent-id")
-	environmentId := r.Header.Get("x-environment-id")
+	projectId, agentId, environmentId := s.extractCredentials(r)
 
 	if projectId == "" || agentId == "" {
 		s.sendErrorResponse(w, flagKey, ErrorInvalidContext, "Missing project-id or agent-id headers", http.StatusBadRequest)
@@ -168,9 +189,7 @@ func (s *OFREPSystem) EvaluateBulkFlags(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	projectId := r.Header.Get("x-project-id")
-	agentId := r.Header.Get("x-agent-id")
-	environmentId := r.Header.Get("x-environment-id")
+	projectId, agentId, environmentId := s.extractCredentials(r)
 
 	if projectId == "" || agentId == "" {
 		w.WriteHeader(http.StatusBadRequest)

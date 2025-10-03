@@ -64,6 +64,8 @@ Each domain follows a consistent pattern with an `http.go` file for handlers and
   - `http.go`: HTTP handlers for CRUD operations
   - `ofrep_http.go`: OFREP (OpenFeature Remote Evaluation Protocol) HTTP handlers
   - `ofrep_postgres.go`: OFREP database access methods
+  - `apikey.go`: JWT-based API key generation and validation
+  - `apikey_http.go`: HTTP endpoint for generating API keys
 - **general**: Webhook handlers (Stripe, Keycloak events) and miscellaneous endpoints
 - **pricing**: Pricing tiers and limits
 - **project**: Top-level project management
@@ -89,6 +91,7 @@ The service uses Go 1.22+ HTTP routing with method prefixes:
   - `/flag/{flagId}` - CRUD operations
   - `/ofrep/v1/evaluate/flags/{key}` - OFREP single flag evaluation
   - `/ofrep/v1/evaluate/flags` - OFREP bulk flag evaluation
+  - `/api-key/generate` - Generate JWT-based API keys
 - Stats: `/stats/company`, `/stats/project/{projectId}`, `/stats/agent/{agentId}`
 - Company: `/company`, `/company/users`, `/company/invite`
 
@@ -139,9 +142,18 @@ The service implements OFREP (OpenFeature Remote Evaluation Protocol) to allow s
 - Spec: https://github.com/open-feature/protocol
 - Single flag evaluation: `POST /ofrep/v1/evaluate/flags/{key}`
 - Bulk flag evaluation: `POST /ofrep/v1/evaluate/flags`
-- Requires standard headers: `x-project-id`, `x-agent-id`, `x-environment-id`
 - Returns OpenFeature-compliant responses with resolution details, reasons, and metadata
 - Current implementation supports boolean flags (value type can be extended in the future)
+
+### API Key Authentication
+The service supports JWT-based API keys for authentication:
+- **JWT API Keys**: Generate via `POST /api-key/generate` (requires user authentication)
+  - JWT contains `project_id`, `agent_id`, and `environment_id` claims
+  - Use in `X-API-Key` header for OFREP endpoints
+  - Falls back to individual headers if JWT validation fails
+- **Individual Headers**: Traditional method (still supported)
+  - `x-project-id`, `x-agent-id`, `x-environment-id`
+- **Priority**: X-API-Key (JWT) > Individual headers
 
 ## Dependencies
 - Go 1.24+
