@@ -27,7 +27,8 @@ func (s *System) GetClientFlagsFromDB(environmentId string) ([]Flag, error) {
     SELECT
 	    flags.id,
         flags.name,
-        flags.enabled
+        flags.enabled,
+        COALESCE(flags.last_changed::text, '')
     FROM public.agent
         LEFT JOIN public.flag AS flags ON agent.id = flags.agent_id
         LEFT JOIN public.environment AS env ON env.id = flags.environment_id
@@ -42,7 +43,7 @@ func (s *System) GetClientFlagsFromDB(environmentId string) ([]Flag, error) {
 	for rows.Next() {
 		flag := Flag{}
 		details := Details{}
-		err := rows.Scan(&details.ID, &details.Name, &flag.Enabled)
+		err := rows.Scan(&details.ID, &details.Name, &flag.Enabled, &details.LastChanged)
 		if err != nil {
 			return nil, s.Config.Bugfixes.Logger.Errorf("failed to scan row: %v", err)
 		}
@@ -68,7 +69,11 @@ func (s *System) UpdateFlagInDB(flag Flag) error {
     UPDATE public.flag
     SET
       enabled = $1,
-      name=$3
+      name = $3,
+      last_changed = CASE
+        WHEN enabled != $1 THEN now()
+        ELSE last_changed
+      END
     WHERE id = $2`, flag.Enabled, flag.Details.ID, flag.Details.Name)
 	if err != nil {
 		return s.Config.Bugfixes.Logger.Errorf("failed to update flag: %v", err)
