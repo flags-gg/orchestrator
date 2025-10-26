@@ -113,7 +113,8 @@ func setupTestDatabase(c context.Context) (*testContainer, error) {
 			enabled boolean NOT NULL DEFAULT false,
 			agent_id integer REFERENCES public.agent(id),
 			environment_id integer REFERENCES public.environment(id),
-			created_at timestamp NOT NULL DEFAULT now()
+			created_at timestamp NOT NULL DEFAULT now(),
+		    updated_at timestamp NOT NULL DEFAULT now()
 		);
 
 		CREATE TABLE public.secret_menu (

@@ -22,8 +22,9 @@ type SecretMenu struct {
 	Styles   []SecretMenuStyle `json:"styles,omitempty"`
 }
 type Details struct {
-	Name string `json:"name"`
-	ID   string `json:"id"`
+	Name        string `json:"name"`
+	ID          string `json:"id"`
+	LastChanged string `json:"lastChanged,omitempty"`
 }
 type Flag struct {
 	Enabled bool    `json:"enabled"`

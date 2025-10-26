@@ -35,12 +35,14 @@ func (s *OFREPSystem) GetSingleFlagFromDB(projectId, agentId, environmentId, fla
 	var flagName string
 	var flagEnabled bool
 	var flagId string
+	var lastChanged string
 
 	err = client.QueryRow(s.Context, `
     SELECT
       flags.id AS FlagId,
       flags.name AS FlagName,
-      flags.enabled AS FlagEnabled
+      flags.enabled AS FlagEnabled,
+      COALESCE(flags.updated_at::text, '')
     FROM public.agent
       LEFT JOIN public.flag AS flags ON agent.id = flags.agent_id
       LEFT JOIN public.environment AS env ON env.id = flags.environment_id
@@ -51,7 +53,7 @@ func (s *OFREPSystem) GetSingleFlagFromDB(projectId, agentId, environmentId, fla
       AND LOWER(flags.name) = LOWER($4)
       AND agent.enabled = true
       AND project.enabled = true
-    LIMIT 1`, environmentId, agentId, projectId, flagKey).Scan(&flagId, &flagName, &flagEnabled)
+    LIMIT 1`, environmentId, agentId, projectId, flagKey).Scan(&flagId, &flagName, &flagEnabled, &lastChanged)
 
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -63,8 +65,9 @@ func (s *OFREPSystem) GetSingleFlagFromDB(projectId, agentId, environmentId, fla
 	flag := &Flag{
 		Enabled: flagEnabled,
 		Details: Details{
-			Name: flagName,
-			ID:   flagId,
+			Name:        flagName,
+			ID:          flagId,
+			LastChanged: lastChanged,
 		},
 	}
 
