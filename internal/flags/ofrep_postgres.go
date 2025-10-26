@@ -42,7 +42,7 @@ func (s *OFREPSystem) GetSingleFlagFromDB(projectId, agentId, environmentId, fla
       flags.id AS FlagId,
       flags.name AS FlagName,
       flags.enabled AS FlagEnabled,
-      COALESCE(flags.last_changed::text, '')
+      COALESCE(flags.updated_at::text, '')
     FROM public.agent
       LEFT JOIN public.flag AS flags ON agent.id = flags.agent_id
       LEFT JOIN public.environment AS env ON env.id = flags.environment_id

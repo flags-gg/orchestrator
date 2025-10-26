@@ -2,6 +2,7 @@ package flags
 
 import (
 	"errors"
+
 	"github.com/jackc/pgx/v5"
 )
 
@@ -28,7 +29,7 @@ func (s *System) GetClientFlagsFromDB(environmentId string) ([]Flag, error) {
 	    flags.id,
         flags.name,
         flags.enabled,
-        COALESCE(flags.last_changed::text, '')
+        COALESCE(flags.updated_at::text, '')
     FROM public.agent
         LEFT JOIN public.flag AS flags ON agent.id = flags.agent_id
         LEFT JOIN public.environment AS env ON env.id = flags.environment_id
@@ -70,9 +71,9 @@ func (s *System) UpdateFlagInDB(flag Flag) error {
     SET
       enabled = $1,
       name = $3,
-      last_changed = CASE
+      updated_at = CASE
         WHEN enabled != $1 THEN now()
-        ELSE last_changed
+        ELSE updated_at
       END
     WHERE id = $2`, flag.Enabled, flag.Details.ID, flag.Details.Name)
 	if err != nil {
