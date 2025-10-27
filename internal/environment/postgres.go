@@ -28,16 +28,23 @@ func (s *System) CreateEnvironmentInDB(name, agentId string) (*Environment, erro
 	envId := uuid.New().String()
 	var insertedEnvId string
 
-	if err := client.QueryRow(s.Context, `
+ if err := client.QueryRow(s.Context, `
+      WITH agent_row AS (
+        SELECT id FROM public.agent WHERE agent_id = $1
+      ), next_level AS (
+        SELECT COALESCE(MAX(level) + 1, 0) AS lvl FROM public.environment WHERE agent_id = (SELECT id FROM agent_row)
+      )
       INSERT INTO public.environment (
           agent_id,
           env_id,
-          name
-      ) VALUES ((
-        SELECT agent.id
-        FROM public.agent
-        WHERE agent.agent_id = $1
-      ), $2, $3)
+          name,
+          level
+      ) VALUES (
+        (SELECT id FROM agent_row),
+        $2,
+        $3,
+        (SELECT lvl FROM next_level)
+      )
       RETURNING environment.id`, agentId, envId, name).Scan(&insertedEnvId); err != nil {
 		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to insert environment into database: %v", err)
 	}
@@ -70,6 +77,7 @@ func (s *System) GetEnvironmentFromDB(envId, companyId string) (*Environment, er
       env.name,
       env.env_id,
       env.enabled,
+      env.level,
       agent.name as AgentName,
       project.name as ProjectName
     FROM public.environment AS env
@@ -77,7 +85,7 @@ func (s *System) GetEnvironmentFromDB(envId, companyId string) (*Environment, er
     	LEFT JOIN public.project ON project.id = agent.project_id
         JOIN public.company ON company.id = project.company_id
     WHERE env.env_id = $1
-      AND company.company_id = $2`, envId, companyId).Scan(&environment.Id, &environment.Name, &environment.EnvironmentId, &environment.Enabled, &environment.AgentName, &environment.ProjectName); err != nil {
+      AND company.company_id = $2`, envId, companyId).Scan(&environment.Id, &environment.Name, &environment.EnvironmentId, &environment.Enabled, &environment.Level, &environment.AgentName, &environment.ProjectName); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, nil
 		}
@@ -104,18 +112,20 @@ func (s *System) GetAgentEnvironmentsFromDB(agentId, companyId string) ([]*Envir
 		}
 	}()
 
-	rows, err := client.Query(s.Context, `
+ rows, err := client.Query(s.Context, `
     SELECT
       env.id,
       env.name,
       env.env_id,
-      env.enabled
+      env.enabled,
+      env.level
     FROM environment AS env
       JOIN agent ON env.agent_id = agent.id
       JOIN project ON project.id = agent.project_id
       JOIN company ON company.id = project.company_id
     WHERE agent.agent_id = $1
-      AND company.company_id = $2`, agentId, companyId)
+      AND company.company_id = $2
+    ORDER BY env.level ASC`, agentId, companyId)
 	if err != nil {
 		if err.Error() == "context canceled" || errors.Is(err, context.Canceled) {
 			return nil, nil
@@ -127,7 +137,7 @@ func (s *System) GetAgentEnvironmentsFromDB(agentId, companyId string) ([]*Envir
 	var environments []*Environment
 	for rows.Next() {
 		environment := &Environment{}
-		if err := rows.Scan(&environment.Id, &environment.Name, &environment.EnvironmentId, &environment.Enabled); err != nil {
+  if err := rows.Scan(&environment.Id, &environment.Name, &environment.EnvironmentId, &environment.Enabled, &environment.Level); err != nil {
 			return nil, s.Config.Bugfixes.Logger.Errorf("Failed to scan database rows: %v", err)
 		}
 
@@ -237,9 +247,12 @@ func (s *System) CloneEnvironmentInDB(envId, newEnvId, agentId, name string) err
 	}
 
 	var envIdInt int
-	if err := client.QueryRow(s.Context, `
-    INSERT INTO public.environment (agent_id, env_id, name)
-        VALUES ($1, $2, $3)
+ if err := client.QueryRow(s.Context, `
+    WITH next_level AS (
+      SELECT COALESCE(MAX(level) + 1, 0) AS lvl FROM public.environment WHERE agent_id = $1
+    )
+    INSERT INTO public.environment (agent_id, env_id, name, level)
+        VALUES ($1, $2, $3, (SELECT lvl FROM next_level))
         RETURNING environment.id`, agentIdInt, newEnvId, name).Scan(&envIdInt); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return s.Config.Bugfixes.Logger.Errorf("Failed to insert environment into database: %v", err)
@@ -265,6 +278,46 @@ func (s *System) CloneEnvironmentInDB(envId, newEnvId, agentId, name string) err
 		return nil
 	}
 
+	return nil
+}
+
+func (s *System) LinkChildEnvironmentInDB(parentEnvId, childEnvId, agentId string) error {
+	client, err := s.Config.Database.GetPGXClient(s.Context)
+	if err != nil {
+		if strings.Contains(err.Error(), "operation was canceled") {
+			return nil
+		}
+		return s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
+	}
+	defer func() {
+		if err := client.Close(s.Context); err != nil {
+			s.Config.Bugfixes.Logger.Fatalf("Failed to close database connection: %v", err)
+		}
+	}()
+
+	// Resolve IDs
+	var (
+		agentIdInt       int
+		parentEnvIdInt  int
+		childEnvIdInt   int
+	)
+	if err := client.QueryRow(s.Context, `SELECT id FROM public.agent WHERE agent_id = $1`, agentId).Scan(&agentIdInt); err != nil {
+		return s.Config.Bugfixes.Logger.Errorf("Failed to resolve agent: %v", err)
+	}
+	if err := client.QueryRow(s.Context, `SELECT id FROM public.environment WHERE env_id = $1`, parentEnvId).Scan(&parentEnvIdInt); err != nil {
+		return s.Config.Bugfixes.Logger.Errorf("Failed to resolve parent environment: %v", err)
+	}
+	if err := client.QueryRow(s.Context, `SELECT id FROM public.environment WHERE env_id = $1`, childEnvId).Scan(&childEnvIdInt); err != nil {
+		return s.Config.Bugfixes.Logger.Errorf("Failed to resolve child environment: %v", err)
+	}
+
+	_, err = client.Exec(s.Context, `
+		INSERT INTO public.environment_chain (agent_id, parent_environment_id, child_environment_id)
+		VALUES ($1, $2, $3)
+		ON CONFLICT (agent_id, parent_environment_id) DO UPDATE SET child_environment_id = EXCLUDED.child_environment_id`, agentIdInt, parentEnvIdInt, childEnvIdInt)
+	if err != nil {
+		return s.Config.Bugfixes.Logger.Errorf("Failed to link child environment: %v", err)
+	}
 	return nil
 }
 

@@ -235,6 +235,46 @@ func (s *System) UpdateFlags(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
+func (s *System) PromoteFlag(w http.ResponseWriter, r *http.Request) {
+	s.Context = r.Context()
+
+	if r.Header.Get("x-user-subject") == "" {
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
+	clerk.SetKey(s.Config.Clerk.Key)
+	usr, err := clerkUser.Get(s.Context, r.Header.Get("x-user-subject"))
+	if err != nil {
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
+	companyId, err := company.NewSystem(s.Config).SetContext(s.Context).GetCompanyId(usr.ID)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	if companyId == "" {
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
+	flagId := r.PathValue("flagId")
+	if flagId == "" {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	if err := s.PromoteFlagInDB(flagId); err != nil {
+		_ = s.Config.Bugfixes.Logger.Errorf("Failed to promote flag: %v", err)
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+}
+
 func (s *System) EditFlag(w http.ResponseWriter, r *http.Request) {
 	s.Context = r.Context()
 

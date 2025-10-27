@@ -4,6 +4,10 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+	"net/http"
+	"strconv"
+	"time"
+
 	"github.com/flags-gg/orchestrator/internal/agent"
 	"github.com/flags-gg/orchestrator/internal/environment"
 	"github.com/flags-gg/orchestrator/internal/general"
@@ -11,9 +15,6 @@ import (
 	"github.com/flags-gg/orchestrator/internal/project"
 	"github.com/flags-gg/orchestrator/internal/secretmenu"
 	ConfigBuilder "github.com/keloran/go-config"
-	"net/http"
-	"strconv"
-	"time"
 
 	"github.com/bugfixes/go-bugfixes/logs"
 	"github.com/bugfixes/go-bugfixes/middleware"
@@ -81,6 +82,7 @@ func (s *Service) startHTTP(errChan chan error) {
 	mux.HandleFunc("PATCH /flag/{flagId}", flags.NewSystem(s.Config).UpdateFlags)
 	mux.HandleFunc("PUT /flag/{flagId}", flags.NewSystem(s.Config).EditFlag)
 	mux.HandleFunc("DELETE /flag/{flagId}", flags.NewSystem(s.Config).DeleteFlags)
+	mux.HandleFunc("POST /flag/{flagId}/promote", flags.NewSystem(s.Config).PromoteFlag)
 
 	// OFREP (OpenFeature Remote Evaluation Protocol)
 	mux.HandleFunc("POST /ofrep/v1/evaluate/flags/{key}", flags.NewOFREPSystem(s.Config).EvaluateSingleFlag)

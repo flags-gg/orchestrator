@@ -19,6 +19,7 @@ type Environment struct {
 	Name          string                 `json:"name"`
 	EnvironmentId string                 `json:"environment_id"`
 	Enabled       bool                   `json:"enabled"`
+	Level         int                    `json:"level"`
 	SecretMenu    *secretmenu.SecretMenu `json:"secret_menu,omitempty"`
 	Flags         []flags.Flag           `json:"flags,omitempty"`
 	ProjectName   string                 `json:"project_name,omitempty"`
@@ -216,7 +217,13 @@ func (s *System) CloneAgentEnvironment(w http.ResponseWriter, r *http.Request) {
 		EnvironmentId: newEnvId,
 	}
 
-	if err := s.CloneEnvironmentInDB(environmentId, newEnvId, agentId, cloneRequest.Name); err != nil {
+ if err := s.CloneEnvironmentInDB(environmentId, newEnvId, agentId, cloneRequest.Name); err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	// Link the cloned environment as a child of the source in the promotion chain
+	if err := s.LinkChildEnvironmentInDB(environmentId, newEnvId, agentId); err != nil {
+		_ = s.Config.Bugfixes.Logger.Errorf("Failed to link child environment: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
