@@ -41,6 +41,21 @@ func (s *System) SetContext(ctx context.Context) *System {
 	return s
 }
 
+// getUserId returns the user ID, using dev mode config if in development, otherwise Clerk
+func (s *System) getUserId(r *http.Request) (string, error) {
+	if s.Config.Local.Development && s.Config.Clerk.DevUser != "" {
+		return s.Config.Clerk.DevUser, nil
+	}
+
+	// Production mode: use Clerk authentication
+	clerk.SetKey(s.Config.Clerk.Key)
+	usr, err := clerkUser.Get(s.Context, r.Header.Get("x-user-subject"))
+	if err != nil {
+		return "", err
+	}
+	return usr.ID, nil
+}
+
 func (s *System) GetCompany(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("x-flags-timestamp", strconv.FormatInt(time.Now().Unix(), 10))
 	s.Context = r.Context()
@@ -52,14 +67,13 @@ func (s *System) GetCompany(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	clerk.SetKey(s.Config.Clerk.Key)
-	usr, err := clerkUser.Get(s.Context, r.Header.Get("x-user-subject"))
+	userId, err := s.getUserId(r)
 	if err != nil {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
 
-	company, err := s.GetCompanyInfo(usr.ID)
+	company, err := s.GetCompanyInfo(userId)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -79,8 +93,7 @@ func (s *System) CreateCompany(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
-	clerk.SetKey(s.Config.Clerk.Key)
-	usr, err := clerkUser.Get(s.Context, r.Header.Get("x-user-subject"))
+	userId, err := s.getUserId(r)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -100,7 +113,7 @@ func (s *System) CreateCompany(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
-	if err := s.CreateCompanyDB(c.Name, c.Domain, usr.ID); err != nil {
+	if err := s.CreateCompanyDB(c.Name, c.Domain, userId); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -119,8 +132,7 @@ func (s *System) UpdateCompany(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	clerk.SetKey(s.Config.Clerk.Key)
-	_, err := clerkUser.Get(s.Context, r.Header.Get("x-user-subject"))
+	_, err := s.getUserId(r)
 	if err != nil {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
@@ -140,14 +152,13 @@ func (s *System) GetCompanyLimits(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	clerk.SetKey(s.Config.Clerk.Key)
-	usr, err := clerkUser.Get(s.Context, r.Header.Get("x-user-subject"))
+	userId, err := s.getUserId(r)
 	if err != nil {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
 
-	companyId, err := s.GetCompanyId(usr.ID)
+	companyId, err := s.GetCompanyId(userId)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -250,14 +261,13 @@ func (s *System) GetCompanyUsers(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	clerk.SetKey(s.Config.Clerk.Key)
-	usr, err := clerkUser.Get(s.Context, r.Header.Get("x-user-subject"))
+	userId, err := s.getUserId(r)
 	if err != nil {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
 
-	companyId, err := s.GetCompanyId(usr.ID)
+	companyId, err := s.GetCompanyId(userId)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -288,14 +298,13 @@ func (s *System) UpdateCompanyImage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	clerk.SetKey(s.Config.Clerk.Key)
-	usr, err := clerkUser.Get(s.Context, r.Header.Get("x-user-subject"))
+	userId, err := s.getUserId(r)
 	if err != nil {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
 
-	companyId, err := s.GetCompanyId(usr.ID)
+	companyId, err := s.GetCompanyId(userId)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -389,14 +398,13 @@ func (s *System) UpgradeCompany(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	clerk.SetKey(s.Config.Clerk.Key)
-	usr, err := clerkUser.Get(s.Context, r.Header.Get("x-user-subject"))
+	userId, err := s.getUserId(r)
 	if err != nil {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
 
-	companyId, err := s.GetCompanyId(usr.ID)
+	companyId, err := s.GetCompanyId(userId)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return

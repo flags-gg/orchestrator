@@ -28,6 +28,21 @@ func (s *APIKeyHTTPSystem) SetContext(ctx context.Context) *APIKeyHTTPSystem {
 	return s
 }
 
+// getUserId returns the user ID, using dev mode config if in development, otherwise Clerk
+func (s *APIKeyHTTPSystem) getUserId(r *http.Request) (string, error) {
+	if s.Config.Local.Development && s.Config.Clerk.DevUser != "" {
+		return s.Config.Clerk.DevUser, nil
+	}
+
+	// Production mode: use Clerk authentication
+	clerk.SetKey(s.Config.Clerk.Key)
+	usr, err := clerkUser.Get(s.Context, r.Header.Get("x-user-subject"))
+	if err != nil {
+		return "", err
+	}
+	return usr.ID, nil
+}
+
 type GenerateAPIKeyRequest struct {
 	ProjectID     string `json:"project_id"`
 	AgentID       string `json:"agent_id"`
@@ -50,14 +65,13 @@ func (s *APIKeyHTTPSystem) GenerateAPIKeyHandler(w http.ResponseWriter, r *http.
 		return
 	}
 
-	clerk.SetKey(s.Config.Clerk.Key)
-	usr, err := clerkUser.Get(s.Context, r.Header.Get("x-user-subject"))
+	userId, err := s.getUserId(r)
 	if err != nil {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
 
-	companyId, err := company.NewSystem(s.Config).SetContext(s.Context).GetCompanyId(usr.ID)
+	companyId, err := company.NewSystem(s.Config).SetContext(s.Context).GetCompanyId(userId)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
