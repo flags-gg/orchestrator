@@ -3,6 +3,8 @@ package environment
 import (
 	"context"
 	"encoding/json"
+	"net/http"
+
 	"github.com/bugfixes/go-bugfixes/logs"
 	"github.com/clerk/clerk-sdk-go/v2"
 	clerkUser "github.com/clerk/clerk-sdk-go/v2/user"
@@ -11,7 +13,6 @@ import (
 	"github.com/flags-gg/orchestrator/internal/secretmenu"
 	"github.com/google/uuid"
 	ConfigBuilder "github.com/keloran/go-config"
-	"net/http"
 )
 
 type Environment struct {
@@ -172,6 +173,10 @@ func (s *System) CreateAgentEnvironment(w http.ResponseWriter, r *http.Request) 
 	w.WriteHeader(http.StatusCreated)
 }
 
+func (s *System) CreateChildEnvironment(w http.ResponseWriter, r *http.Request) {
+
+}
+
 func (s *System) CloneAgentEnvironment(w http.ResponseWriter, r *http.Request) {
 	s.Context = r.Context()
 
@@ -217,7 +222,7 @@ func (s *System) CloneAgentEnvironment(w http.ResponseWriter, r *http.Request) {
 		EnvironmentId: newEnvId,
 	}
 
- if err := s.CloneEnvironmentInDB(environmentId, newEnvId, agentId, cloneRequest.Name); err != nil {
+	if err := s.CloneEnvironmentInDB(environmentId, newEnvId, agentId, cloneRequest.Name); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}

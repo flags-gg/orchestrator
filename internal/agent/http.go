@@ -3,13 +3,14 @@ package agent
 import (
 	"context"
 	"encoding/json"
+	"net/http"
+
 	"github.com/bugfixes/go-bugfixes/logs"
 	"github.com/clerk/clerk-sdk-go/v2"
 	clerkUser "github.com/clerk/clerk-sdk-go/v2/user"
 	"github.com/flags-gg/orchestrator/internal/company"
 	"github.com/flags-gg/orchestrator/internal/environment"
 	ConfigBuilder "github.com/keloran/go-config"
-	"net/http"
 )
 
 type Details struct {
@@ -129,11 +130,6 @@ func (s *System) GetProjectAgents(w http.ResponseWriter, r *http.Request) {
 
 func (s *System) GetAgent(w http.ResponseWriter, r *http.Request) {
 	s.Context = r.Context()
-
-	if r.Header.Get("x-user-subject") == "" {
-		w.WriteHeader(http.StatusUnauthorized)
-		return
-	}
 
 	clerk.SetKey(s.Config.Clerk.Key)
 	usr, err := clerkUser.Get(s.Context, r.Header.Get("x-user-subject"))
