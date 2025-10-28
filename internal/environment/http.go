@@ -172,10 +172,6 @@ func (s *System) CreateAgentEnvironment(w http.ResponseWriter, r *http.Request) 
 	w.WriteHeader(http.StatusCreated)
 }
 
-func (s *System) CreateChildEnvironment(w http.ResponseWriter, r *http.Request) {
-
-}
-
 func (s *System) CloneAgentEnvironment(w http.ResponseWriter, r *http.Request) {
 	s.Context = r.Context()
 

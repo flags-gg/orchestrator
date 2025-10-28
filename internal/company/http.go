@@ -5,14 +5,15 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"net/http"
+	"strconv"
+	"time"
+
 	"github.com/bugfixes/go-bugfixes/logs"
 	"github.com/clerk/clerk-sdk-go/v2"
 	clerkUser "github.com/clerk/clerk-sdk-go/v2/user"
 	ConfigBuilder "github.com/keloran/go-config"
 	"github.com/resend/resend-go/v2"
-	"net/http"
-	"strconv"
-	"time"
 )
 
 type System struct {
@@ -142,7 +143,8 @@ func (s *System) UpdateCompany(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *System) GetCompanyLimits(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("x-flags-timestamp", strconv.FormatInt(time.Now().Unix(), 10))
+	ts := strconv.FormatInt(time.Now().Unix(), 10)
+	w.Header().Set("x-flags-timestamp", ts)
 	s.Context = r.Context()
 
 	if r.Header.Get("x-user-subject") == "" {
@@ -169,36 +171,6 @@ func (s *System) GetCompanyLimits(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-
-	//projectLimits, err := s.GetProjectLimits(userSubject)
-	//if err != nil {
-	//	w.WriteHeader(http.StatusInternalServerError)
-	//	return
-	//}
-	//
-	//userLimits, err := s.GetUserLimits(userSubject)
-	//if err != nil {
-	//	w.WriteHeader(http.StatusInternalServerError)
-	//	return
-	//}
-	//
-	//agentLimits, err := s.GetAgentLimits(userSubject)
-	//if err != nil {
-	//	w.WriteHeader(http.StatusInternalServerError)
-	//	return
-	//}
-	//
-	//if userLimits == nil || projectLimits == nil {
-	//	w.WriteHeader(http.StatusNotFound)
-	//	return
-	//}
-	//
-	//// This is a dummy response
-	//limits := Limits{
-	//	Projects: *projectLimits,
-	//	Users:    *userLimits,
-	//	Agents:   *agentLimits,
-	//}
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(&limits); err != nil {

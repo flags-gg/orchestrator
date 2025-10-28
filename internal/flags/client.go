@@ -24,12 +24,23 @@ func (s *System) GetClientFlagsFromDB(environmentId string) ([]Flag, error) {
 	}()
 
 	var flags []Flag
-	rows, err := client.Query(s.Context, `
+ rows, err := client.Query(s.Context, `
     SELECT
-	    flags.id,
+        flags.id,
         flags.name,
         flags.enabled,
-        COALESCE(flags.updated_at::text, '')
+        COALESCE(flags.updated_at::text, ''),
+        COALESCE(
+          EXISTS (
+            SELECT 1
+            FROM public.environment_chain ec
+            JOIN public.flag f2 ON f2.agent_id = flags.agent_id
+                                AND f2.name = flags.name
+                                AND f2.environment_id = ec.child_environment_id
+            WHERE ec.agent_id = flags.agent_id
+              AND ec.parent_environment_id = flags.environment_id
+          ), false
+        ) AS promoted
     FROM public.agent
         LEFT JOIN public.flag AS flags ON agent.id = flags.agent_id
         LEFT JOIN public.environment AS env ON env.id = flags.environment_id
@@ -44,7 +55,7 @@ func (s *System) GetClientFlagsFromDB(environmentId string) ([]Flag, error) {
 	for rows.Next() {
 		flag := Flag{}
 		details := Details{}
-		err := rows.Scan(&details.ID, &details.Name, &flag.Enabled, &details.LastChanged)
+		err := rows.Scan(&details.ID, &details.Name, &flag.Enabled, &details.LastChanged, &details.Promoted)
 		if err != nil {
 			return nil, s.Config.Bugfixes.Logger.Errorf("failed to scan row: %v", err)
 		}

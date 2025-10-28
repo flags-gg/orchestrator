@@ -28,7 +28,7 @@ func (s *System) CreateEnvironmentInDB(name, agentId string) (*Environment, erro
 	envId := uuid.New().String()
 	var insertedEnvId string
 
- if err := client.QueryRow(s.Context, `
+	if err := client.QueryRow(s.Context, `
       WITH agent_row AS (
         SELECT id FROM public.agent WHERE agent_id = $1
       ), next_level AS (
@@ -112,7 +112,7 @@ func (s *System) GetAgentEnvironmentsFromDB(agentId, companyId string) ([]*Envir
 		}
 	}()
 
- rows, err := client.Query(s.Context, `
+	rows, err := client.Query(s.Context, `
     SELECT
       env.id,
       env.name,
@@ -137,7 +137,7 @@ func (s *System) GetAgentEnvironmentsFromDB(agentId, companyId string) ([]*Envir
 	var environments []*Environment
 	for rows.Next() {
 		environment := &Environment{}
-  if err := rows.Scan(&environment.Id, &environment.Name, &environment.EnvironmentId, &environment.Enabled, &environment.Level); err != nil {
+		if err := rows.Scan(&environment.Id, &environment.Name, &environment.EnvironmentId, &environment.Enabled, &environment.Level); err != nil {
 			return nil, s.Config.Bugfixes.Logger.Errorf("Failed to scan database rows: %v", err)
 		}
 
@@ -247,7 +247,7 @@ func (s *System) CloneEnvironmentInDB(envId, newEnvId, agentId, name string) err
 	}
 
 	var envIdInt int
- if err := client.QueryRow(s.Context, `
+	if err := client.QueryRow(s.Context, `
     WITH next_level AS (
       SELECT COALESCE(MAX(level) + 1, 0) AS lvl FROM public.environment WHERE agent_id = $1
     )
@@ -261,6 +261,7 @@ func (s *System) CloneEnvironmentInDB(envId, newEnvId, agentId, name string) err
 	}
 
 	insertVars := ""
+
 	for _, flag := range flagsToClone {
 		bv := "false"
 		if flag.Enabled {
@@ -297,9 +298,9 @@ func (s *System) LinkChildEnvironmentInDB(parentEnvId, childEnvId, agentId strin
 
 	// Resolve IDs
 	var (
-		agentIdInt       int
-		parentEnvIdInt  int
-		childEnvIdInt   int
+		agentIdInt     int
+		parentEnvIdInt int
+		childEnvIdInt  int
 	)
 	if err := client.QueryRow(s.Context, `SELECT id FROM public.agent WHERE agent_id = $1`, agentId).Scan(&agentIdInt); err != nil {
 		return s.Config.Bugfixes.Logger.Errorf("Failed to resolve agent: %v", err)

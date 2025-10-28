@@ -25,6 +25,7 @@ type Details struct {
 	Name        string `json:"name"`
 	ID          string `json:"id"`
 	LastChanged string `json:"lastChanged,omitempty"`
+	Promoted    bool   `json:"promoted,omitempty"`
 }
 type Flag struct {
 	Enabled bool    `json:"enabled"`
