@@ -21,6 +21,7 @@ type Environment struct {
 	EnvironmentId string                 `json:"environment_id"`
 	Enabled       bool                   `json:"enabled"`
 	Level         int                    `json:"level"`
+	CanPromote    bool                   `json:"canPromote"`
 	SecretMenu    *secretmenu.SecretMenu `json:"secret_menu,omitempty"`
 	Flags         []flags.Flag           `json:"flags,omitempty"`
 	ProjectName   string                 `json:"project_name,omitempty"`
