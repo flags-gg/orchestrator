@@ -199,17 +199,14 @@ func (s *System) PromoteFlagInDB(flagId string) error {
 		return s.Config.Bugfixes.Logger.Errorf("failed to find child environment: %v", err)
 	}
 
-	// 3) Upsert the flag into the child environment by name
+	// 3) Create a NEW flag in the child environment (do not rely on name uniqueness)
 	_, err = client.Exec(s.Context, `
 		INSERT INTO public.flag (name, agent_id, environment_id, enabled)
-		VALUES ($1, $2, $3, $4)
-		ON CONFLICT (agent_id, environment_id, name)
-		DO UPDATE SET enabled = EXCLUDED.enabled,
-			updated_at = CASE WHEN public.flag.enabled <> EXCLUDED.enabled THEN now() ELSE public.flag.updated_at END`,
+		VALUES ($1, $2, $3, $4)`,
 		flagName, agentIdInt, childEnvId, enabled,
 	)
 	if err != nil {
-		return s.Config.Bugfixes.Logger.Errorf("failed to upsert promoted flag: %v", err)
+		return s.Config.Bugfixes.Logger.Errorf("failed to insert promoted flag: %v", err)
 	}
 
 	return nil

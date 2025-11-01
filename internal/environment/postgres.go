@@ -78,6 +78,11 @@ func (s *System) GetEnvironmentFromDB(envId, companyId string) (*Environment, er
       env.env_id,
       env.enabled,
       env.level,
+      -- can promote: has a child link
+      EXISTS (
+        SELECT 1 FROM public.environment_chain ec
+        WHERE ec.parent_environment_id = env.id AND ec.agent_id = env.agent_id
+      ) AS can_promote,
       agent.name as AgentName,
       project.name as ProjectName
     FROM public.environment AS env
@@ -85,7 +90,7 @@ func (s *System) GetEnvironmentFromDB(envId, companyId string) (*Environment, er
     	LEFT JOIN public.project ON project.id = agent.project_id
         JOIN public.company ON company.id = project.company_id
     WHERE env.env_id = $1
-      AND company.company_id = $2`, envId, companyId).Scan(&environment.Id, &environment.Name, &environment.EnvironmentId, &environment.Enabled, &environment.Level, &environment.AgentName, &environment.ProjectName); err != nil {
+      AND company.company_id = $2`, envId, companyId).Scan(&environment.Id, &environment.Name, &environment.EnvironmentId, &environment.Enabled, &environment.Level, &environment.CanPromote, &environment.AgentName, &environment.ProjectName); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, nil
 		}
@@ -118,7 +123,11 @@ func (s *System) GetAgentEnvironmentsFromDB(agentId, companyId string) ([]*Envir
       env.name,
       env.env_id,
       env.enabled,
-      env.level
+      env.level,
+      EXISTS (
+        SELECT 1 FROM public.environment_chain ec
+        WHERE ec.parent_environment_id = env.id AND ec.agent_id = env.agent_id
+      ) AS can_promote
     FROM environment AS env
       JOIN agent ON env.agent_id = agent.id
       JOIN project ON project.id = agent.project_id
@@ -137,7 +146,7 @@ func (s *System) GetAgentEnvironmentsFromDB(agentId, companyId string) ([]*Envir
 	var environments []*Environment
 	for rows.Next() {
 		environment := &Environment{}
-		if err := rows.Scan(&environment.Id, &environment.Name, &environment.EnvironmentId, &environment.Enabled, &environment.Level); err != nil {
+		if err := rows.Scan(&environment.Id, &environment.Name, &environment.EnvironmentId, &environment.Enabled, &environment.Level, &environment.CanPromote); err != nil {
 			return nil, s.Config.Bugfixes.Logger.Errorf("Failed to scan database rows: %v", err)
 		}
 
