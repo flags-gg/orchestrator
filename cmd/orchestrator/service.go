@@ -1,10 +1,18 @@
 package main
 
 import (
+	"database/sql"
+	"errors"
+	"fmt"
+
 	"github.com/bugfixes/go-bugfixes/logs"
 	"github.com/caarlos0/env/v8"
 	"github.com/flags-gg/orchestrator/internal"
+	"github.com/golang-migrate/migrate/v4"
+	"github.com/golang-migrate/migrate/v4/database/postgres"
+	_ "github.com/golang-migrate/migrate/v4/source/file"
 	ConfigBuilder "github.com/keloran/go-config"
+	_ "github.com/lib/pq"
 )
 
 var (
@@ -64,7 +72,41 @@ func main() {
 		logs.Fatalf("Failed to build config: %v", err)
 	}
 
+	// do migration before starting app
+	if err := migrateDB(c); err != nil {
+		logs.Fatalf("Failed to migrate db: %v", err)
+	}
+
 	if err := internal.New(c).Start(); err != nil {
 		logs.Fatalf("Failed to start service: %v", err)
 	}
+}
+
+func migrateDB(config *ConfigBuilder.Config) error {
+	db, err := sql.Open("postgres",
+		fmt.Sprintf("postgres://%s:%s@%s:%d/%s?sslmode=disable",
+			config.Database.User,
+			config.Database.Password,
+			config.Database.Host,
+			config.Database.Port,
+			config.Database.DBName))
+	if err != nil {
+		return logs.Errorf("Failed to connect to database: %v", err)
+	}
+
+	driver, err := postgres.WithInstance(db, &postgres.Config{})
+	if err != nil {
+		return logs.Errorf("Failed to create postgres driver: %v", err)
+	}
+
+	m, err := migrate.NewWithDatabaseInstance("file://k8s/schema", "postgres", driver)
+	if err != nil {
+		return logs.Errorf("Failed to create migration instance: %v", err)
+	}
+
+	if err := m.Up(); err != nil && !errors.Is(err, migrate.ErrNoChange) {
+		return logs.Errorf("Failed to run migration: %v", err)
+	}
+
+	return nil
 }
