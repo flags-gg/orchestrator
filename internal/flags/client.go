@@ -24,12 +24,23 @@ func (s *System) GetClientFlagsFromDB(environmentId string) ([]Flag, error) {
 	}()
 
 	var flags []Flag
-	rows, err := client.Query(s.Context, `
+ rows, err := client.Query(s.Context, `
     SELECT
-	    flags.id,
+        flags.id,
         flags.name,
         flags.enabled,
-        COALESCE(flags.updated_at::text, '')
+        COALESCE(flags.updated_at::text, ''),
+        COALESCE(
+          EXISTS (
+            SELECT 1
+            FROM public.environment_chain ec
+            JOIN public.flag f2 ON f2.agent_id = flags.agent_id
+                                AND f2.name = flags.name
+                                AND f2.environment_id = ec.child_environment_id
+            WHERE ec.agent_id = flags.agent_id
+              AND ec.parent_environment_id = flags.environment_id
+          ), false
+        ) AS promoted
     FROM public.agent
         LEFT JOIN public.flag AS flags ON agent.id = flags.agent_id
         LEFT JOIN public.environment AS env ON env.id = flags.environment_id
@@ -44,7 +55,7 @@ func (s *System) GetClientFlagsFromDB(environmentId string) ([]Flag, error) {
 	for rows.Next() {
 		flag := Flag{}
 		details := Details{}
-		err := rows.Scan(&details.ID, &details.Name, &flag.Enabled, &details.LastChanged)
+		err := rows.Scan(&details.ID, &details.Name, &flag.Enabled, &details.LastChanged, &details.Promoted)
 		if err != nil {
 			return nil, s.Config.Bugfixes.Logger.Errorf("failed to scan row: %v", err)
 		}
@@ -146,6 +157,61 @@ func (s *System) DeleteAllFlagsForEnv(envId string) error {
 	if err != nil {
 		return s.Config.Bugfixes.Logger.Errorf("failed to delete flags: %v", err)
 	}
+	return nil
+}
+
+func (s *System) PromoteFlagInDB(flagId string) error {
+	client, err := s.Config.Database.GetPGXClient(s.Context)
+	if err != nil {
+		return s.Config.Bugfixes.Logger.Errorf("failed to connect to database: %v", err)
+	}
+	defer func() {
+		if err := client.Close(s.Context); err != nil {
+			s.Config.Bugfixes.Logger.Fatalf("failed to close database connection: %v", err)
+		}
+	}()
+
+	// 1) Get source flag info
+	var (
+		flagName           string
+		enabled            bool
+		agentIdInt         int
+		sourceEnvironmentId int
+	)
+	err = client.QueryRow(s.Context, `
+		SELECT f.name, f.enabled, f.agent_id, f.environment_id
+		FROM public.flag f
+		WHERE f.id = $1`, flagId).Scan(&flagName, &enabled, &agentIdInt, &sourceEnvironmentId)
+	if err != nil {
+		return s.Config.Bugfixes.Logger.Errorf("failed to load flag for promotion: %v", err)
+	}
+
+	// 2) Find the next child environment in the chain
+	var childEnvId int
+	err = client.QueryRow(s.Context, `
+		SELECT ec.child_environment_id
+		FROM public.environment_chain ec
+		WHERE ec.agent_id = $1 AND ec.parent_environment_id = $2`, agentIdInt, sourceEnvironmentId).Scan(&childEnvId)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return s.Config.Bugfixes.Logger.Errorf("no child environment to promote to")
+		}
+		return s.Config.Bugfixes.Logger.Errorf("failed to find child environment: %v", err)
+	}
+
+	// 3) Upsert the flag into the child environment by name
+	_, err = client.Exec(s.Context, `
+		INSERT INTO public.flag (name, agent_id, environment_id, enabled)
+		VALUES ($1, $2, $3, $4)
+		ON CONFLICT (agent_id, environment_id, name)
+		DO UPDATE SET enabled = EXCLUDED.enabled,
+			updated_at = CASE WHEN public.flag.enabled <> EXCLUDED.enabled THEN now() ELSE public.flag.updated_at END`,
+		flagName, agentIdInt, childEnvId, enabled,
+	)
+	if err != nil {
+		return s.Config.Bugfixes.Logger.Errorf("failed to upsert promoted flag: %v", err)
+	}
+
 	return nil
 }
 

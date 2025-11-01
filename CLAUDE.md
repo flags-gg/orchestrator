@@ -157,7 +157,7 @@ The service supports JWT-based API keys for authentication:
 
 ## Dependencies
 - Go 1.24+
-- PostgreSQL (via pgx/v5)
+- PostgreSQL (via pgx/v5) {its structure is in k8s/schema_2025.sql}
 - InfluxDB v2
 - Clerk for authentication
 - Stripe for payments

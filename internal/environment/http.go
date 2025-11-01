@@ -3,6 +3,8 @@ package environment
 import (
 	"context"
 	"encoding/json"
+	"net/http"
+
 	"github.com/bugfixes/go-bugfixes/logs"
 	"github.com/clerk/clerk-sdk-go/v2"
 	clerkUser "github.com/clerk/clerk-sdk-go/v2/user"
@@ -11,7 +13,6 @@ import (
 	"github.com/flags-gg/orchestrator/internal/secretmenu"
 	"github.com/google/uuid"
 	ConfigBuilder "github.com/keloran/go-config"
-	"net/http"
 )
 
 type Environment struct {
@@ -19,6 +20,7 @@ type Environment struct {
 	Name          string                 `json:"name"`
 	EnvironmentId string                 `json:"environment_id"`
 	Enabled       bool                   `json:"enabled"`
+	Level         int                    `json:"level"`
 	SecretMenu    *secretmenu.SecretMenu `json:"secret_menu,omitempty"`
 	Flags         []flags.Flag           `json:"flags,omitempty"`
 	ProjectName   string                 `json:"project_name,omitempty"`
@@ -42,25 +44,34 @@ func (s *System) SetContext(ctx context.Context) *System {
 	return s
 }
 
+// getUserId returns the user ID, using dev mode config if in development, otherwise Clerk
+func (s *System) getUserId(r *http.Request) (string, error) {
+	if s.Config.Local.Development && s.Config.Clerk.DevUser != "" {
+		return s.Config.Clerk.DevUser, nil
+	}
+
+	// Production mode: use Clerk authentication
+	clerk.SetKey(s.Config.Clerk.Key)
+	usr, err := clerkUser.Get(s.Context, r.Header.Get("x-user-subject"))
+	if err != nil {
+		return "", err
+	}
+	return usr.ID, nil
+}
+
 func (s *System) GetAgentEnvironments(w http.ResponseWriter, r *http.Request) {
 	type Environments struct {
 		Environments []*Environment `json:"environments"`
 	}
 	s.Context = r.Context()
 
-	if r.Header.Get("x-user-subject") == "" {
-		w.WriteHeader(http.StatusUnauthorized)
-		return
-	}
-
-	clerk.SetKey(s.Config.Clerk.Key)
-	usr, err := clerkUser.Get(s.Context, r.Header.Get("x-user-subject"))
+	userId, err := s.getUserId(r)
 	if err != nil {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
 
-	companyId, err := company.NewSystem(s.Config).SetContext(s.Context).GetCompanyId(usr.ID)
+	companyId, err := company.NewSystem(s.Config).SetContext(s.Context).GetCompanyId(userId)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -92,19 +103,13 @@ func (s *System) GetEnvironments(w http.ResponseWriter, r *http.Request) {
 	}
 	s.Context = r.Context()
 
-	if r.Header.Get("x-user-subject") == "" {
-		w.WriteHeader(http.StatusUnauthorized)
-		return
-	}
-
-	clerk.SetKey(s.Config.Clerk.Key)
-	usr, err := clerkUser.Get(s.Context, r.Header.Get("x-user-subject"))
+	userId, err := s.getUserId(r)
 	if err != nil {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
 
-	companyId, err := company.NewSystem(s.Config).SetContext(s.Context).GetCompanyId(usr.ID)
+	companyId, err := company.NewSystem(s.Config).SetContext(s.Context).GetCompanyId(userId)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -129,19 +134,15 @@ func (s *System) GetEnvironments(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *System) CreateAgentEnvironment(w http.ResponseWriter, r *http.Request) {
-	if r.Header.Get("x-user-subject") == "" {
-		w.WriteHeader(http.StatusUnauthorized)
-		return
-	}
+	s.Context = r.Context()
 
-	clerk.SetKey(s.Config.Clerk.Key)
-	usr, err := clerkUser.Get(s.Context, r.Header.Get("x-user-subject"))
+	userId, err := s.getUserId(r)
 	if err != nil {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
 
-	companyId, err := company.NewSystem(s.Config).SetContext(s.Context).GetCompanyId(usr.ID)
+	companyId, err := company.NewSystem(s.Config).SetContext(s.Context).GetCompanyId(userId)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -174,19 +175,13 @@ func (s *System) CreateAgentEnvironment(w http.ResponseWriter, r *http.Request) 
 func (s *System) CloneAgentEnvironment(w http.ResponseWriter, r *http.Request) {
 	s.Context = r.Context()
 
-	if r.Header.Get("x-user-subject") == "" {
-		w.WriteHeader(http.StatusUnauthorized)
-		return
-	}
-
-	clerk.SetKey(s.Config.Clerk.Key)
-	usr, err := clerkUser.Get(s.Context, r.Header.Get("x-user-subject"))
+	userId, err := s.getUserId(r)
 	if err != nil {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
 
-	companyId, err := company.NewSystem(s.Config).SetContext(s.Context).GetCompanyId(usr.ID)
+	companyId, err := company.NewSystem(s.Config).SetContext(s.Context).GetCompanyId(userId)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -220,6 +215,12 @@ func (s *System) CloneAgentEnvironment(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
+	// Link the cloned environment as a child of the source in the promotion chain
+	if err := s.LinkChildEnvironmentInDB(environmentId, newEnvId, agentId); err != nil {
+		_ = s.Config.Bugfixes.Logger.Errorf("Failed to link child environment: %v", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
 
 	if err := json.NewEncoder(w).Encode(returnEnv); err != nil {
 		_ = s.Config.Bugfixes.Logger.Errorf("Failed to encode response: %v", err)
@@ -231,19 +232,13 @@ func (s *System) CloneAgentEnvironment(w http.ResponseWriter, r *http.Request) {
 func (s *System) UpdateEnvironment(w http.ResponseWriter, r *http.Request) {
 	s.Context = r.Context()
 
-	if r.Header.Get("x-user-subject") == "" {
-		w.WriteHeader(http.StatusUnauthorized)
-		return
-	}
-
-	clerk.SetKey(s.Config.Clerk.Key)
-	usr, err := clerkUser.Get(s.Context, r.Header.Get("x-user-subject"))
+	userId, err := s.getUserId(r)
 	if err != nil {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
 
-	companyId, err := company.NewSystem(s.Config).SetContext(s.Context).GetCompanyId(usr.ID)
+	companyId, err := company.NewSystem(s.Config).SetContext(s.Context).GetCompanyId(userId)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -275,19 +270,13 @@ func (s *System) UpdateEnvironment(w http.ResponseWriter, r *http.Request) {
 func (s *System) DeleteEnvironment(w http.ResponseWriter, r *http.Request) {
 	s.Context = r.Context()
 
-	if r.Header.Get("x-user-subject") == "" {
-		w.WriteHeader(http.StatusUnauthorized)
-		return
-	}
-
-	clerk.SetKey(s.Config.Clerk.Key)
-	usr, err := clerkUser.Get(s.Context, r.Header.Get("x-user-subject"))
+	userId, err := s.getUserId(r)
 	if err != nil {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
 
-	companyId, err := company.NewSystem(s.Config).SetContext(s.Context).GetCompanyId(usr.ID)
+	companyId, err := company.NewSystem(s.Config).SetContext(s.Context).GetCompanyId(userId)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -315,19 +304,13 @@ func (s *System) DeleteEnvironment(w http.ResponseWriter, r *http.Request) {
 func (s *System) GetEnvironment(w http.ResponseWriter, r *http.Request) {
 	s.Context = r.Context()
 
-	if r.Header.Get("x-user-subject") == "" {
-		w.WriteHeader(http.StatusUnauthorized)
-		return
-	}
-
-	clerk.SetKey(s.Config.Clerk.Key)
-	usr, err := clerkUser.Get(s.Context, r.Header.Get("x-user-subject"))
+	userId, err := s.getUserId(r)
 	if err != nil {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
 
-	companyId, err := company.NewSystem(s.Config).SetContext(s.Context).GetCompanyId(usr.ID)
+	companyId, err := company.NewSystem(s.Config).SetContext(s.Context).GetCompanyId(userId)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return

@@ -5,14 +5,15 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"net/http"
+	"strconv"
+	"time"
+
 	"github.com/bugfixes/go-bugfixes/logs"
 	"github.com/clerk/clerk-sdk-go/v2"
 	clerkUser "github.com/clerk/clerk-sdk-go/v2/user"
 	ConfigBuilder "github.com/keloran/go-config"
 	"github.com/resend/resend-go/v2"
-	"net/http"
-	"strconv"
-	"time"
 )
 
 type System struct {
@@ -41,6 +42,21 @@ func (s *System) SetContext(ctx context.Context) *System {
 	return s
 }
 
+// getUserId returns the user ID, using dev mode config if in development, otherwise Clerk
+func (s *System) getUserId(r *http.Request) (string, error) {
+	if s.Config.Local.Development && s.Config.Clerk.DevUser != "" {
+		return s.Config.Clerk.DevUser, nil
+	}
+
+	// Production mode: use Clerk authentication
+	clerk.SetKey(s.Config.Clerk.Key)
+	usr, err := clerkUser.Get(s.Context, r.Header.Get("x-user-subject"))
+	if err != nil {
+		return "", err
+	}
+	return usr.ID, nil
+}
+
 func (s *System) GetCompany(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("x-flags-timestamp", strconv.FormatInt(time.Now().Unix(), 10))
 	s.Context = r.Context()
@@ -52,14 +68,13 @@ func (s *System) GetCompany(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	clerk.SetKey(s.Config.Clerk.Key)
-	usr, err := clerkUser.Get(s.Context, r.Header.Get("x-user-subject"))
+	userId, err := s.getUserId(r)
 	if err != nil {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
 
-	company, err := s.GetCompanyInfo(usr.ID)
+	company, err := s.GetCompanyInfo(userId)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -79,8 +94,7 @@ func (s *System) CreateCompany(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
-	clerk.SetKey(s.Config.Clerk.Key)
-	usr, err := clerkUser.Get(s.Context, r.Header.Get("x-user-subject"))
+	userId, err := s.getUserId(r)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -100,7 +114,7 @@ func (s *System) CreateCompany(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
-	if err := s.CreateCompanyDB(c.Name, c.Domain, usr.ID); err != nil {
+	if err := s.CreateCompanyDB(c.Name, c.Domain, userId); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -119,8 +133,7 @@ func (s *System) UpdateCompany(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	clerk.SetKey(s.Config.Clerk.Key)
-	_, err := clerkUser.Get(s.Context, r.Header.Get("x-user-subject"))
+	_, err := s.getUserId(r)
 	if err != nil {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
@@ -130,7 +143,8 @@ func (s *System) UpdateCompany(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *System) GetCompanyLimits(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("x-flags-timestamp", strconv.FormatInt(time.Now().Unix(), 10))
+	ts := strconv.FormatInt(time.Now().Unix(), 10)
+	w.Header().Set("x-flags-timestamp", ts)
 	s.Context = r.Context()
 
 	if r.Header.Get("x-user-subject") == "" {
@@ -140,14 +154,13 @@ func (s *System) GetCompanyLimits(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	clerk.SetKey(s.Config.Clerk.Key)
-	usr, err := clerkUser.Get(s.Context, r.Header.Get("x-user-subject"))
+	userId, err := s.getUserId(r)
 	if err != nil {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
 
-	companyId, err := s.GetCompanyId(usr.ID)
+	companyId, err := s.GetCompanyId(userId)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -158,36 +171,6 @@ func (s *System) GetCompanyLimits(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-
-	//projectLimits, err := s.GetProjectLimits(userSubject)
-	//if err != nil {
-	//	w.WriteHeader(http.StatusInternalServerError)
-	//	return
-	//}
-	//
-	//userLimits, err := s.GetUserLimits(userSubject)
-	//if err != nil {
-	//	w.WriteHeader(http.StatusInternalServerError)
-	//	return
-	//}
-	//
-	//agentLimits, err := s.GetAgentLimits(userSubject)
-	//if err != nil {
-	//	w.WriteHeader(http.StatusInternalServerError)
-	//	return
-	//}
-	//
-	//if userLimits == nil || projectLimits == nil {
-	//	w.WriteHeader(http.StatusNotFound)
-	//	return
-	//}
-	//
-	//// This is a dummy response
-	//limits := Limits{
-	//	Projects: *projectLimits,
-	//	Users:    *userLimits,
-	//	Agents:   *agentLimits,
-	//}
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(&limits); err != nil {
@@ -250,14 +233,13 @@ func (s *System) GetCompanyUsers(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	clerk.SetKey(s.Config.Clerk.Key)
-	usr, err := clerkUser.Get(s.Context, r.Header.Get("x-user-subject"))
+	userId, err := s.getUserId(r)
 	if err != nil {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
 
-	companyId, err := s.GetCompanyId(usr.ID)
+	companyId, err := s.GetCompanyId(userId)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -288,14 +270,13 @@ func (s *System) UpdateCompanyImage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	clerk.SetKey(s.Config.Clerk.Key)
-	usr, err := clerkUser.Get(s.Context, r.Header.Get("x-user-subject"))
+	userId, err := s.getUserId(r)
 	if err != nil {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
 
-	companyId, err := s.GetCompanyId(usr.ID)
+	companyId, err := s.GetCompanyId(userId)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -389,14 +370,13 @@ func (s *System) UpgradeCompany(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	clerk.SetKey(s.Config.Clerk.Key)
-	usr, err := clerkUser.Get(s.Context, r.Header.Get("x-user-subject"))
+	userId, err := s.getUserId(r)
 	if err != nil {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
 
-	companyId, err := s.GetCompanyId(usr.ID)
+	companyId, err := s.GetCompanyId(userId)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
