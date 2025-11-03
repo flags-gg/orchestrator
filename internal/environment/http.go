@@ -334,6 +334,10 @@ func (s *System) GetEnvironment(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
+	if environment == nil {
+		w.WriteHeader(http.StatusNotFound)
+		return
+	}
 
 	environment.SecretMenu = &sm
 	w.Header().Set("Content-Type", "application/json")

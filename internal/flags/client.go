@@ -24,7 +24,7 @@ func (s *System) GetClientFlagsFromDB(environmentId string) ([]Flag, error) {
 	}()
 
 	var flags []Flag
- rows, err := client.Query(s.Context, `
+	rows, err := client.Query(s.Context, `
     SELECT
         flags.id,
         flags.name,
@@ -173,9 +173,9 @@ func (s *System) PromoteFlagInDB(flagId string) error {
 
 	// 1) Get source flag info
 	var (
-		flagName           string
-		enabled            bool
-		agentIdInt         int
+		flagName            string
+		enabled             bool
+		agentIdInt          int
 		sourceEnvironmentId int
 	)
 	err = client.QueryRow(s.Context, `
@@ -233,7 +233,7 @@ func (s *System) CreateFlagInDB(flag flagCreate) error {
           (SELECT id FROM public.agent WHERE agent_id = $2),
           (SELECT id FROM public.environment WHERE env_id = $3))`, flag.Name, flag.AgentId, flag.EnvironmentId)
 	if err != nil {
-		return s.Config.Bugfixes.Logger.Errorf("failed to delete flag: %v", err)
+		return s.Config.Bugfixes.Logger.Errorf("failed to create flag: %v", err)
 	}
 
 	return nil
