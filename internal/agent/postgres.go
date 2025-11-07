@@ -3,11 +3,12 @@ package agent
 import (
 	"context"
 	"errors"
+	"strings"
+
 	"github.com/bugfixes/go-bugfixes/logs"
 	"github.com/flags-gg/orchestrator/internal/environment"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
-	"strings"
 )
 
 type ProjectInfo struct {
@@ -137,7 +138,8 @@ func (s *System) GetAgents(companyId string) ([]*Agent, error) {
       payment_plans.agents,
       agent.agent_id,
       payment_plans.environments,
-      project.name AS ProjectName
+      project.name AS ProjectName,
+      project.project_id as ProjectId
     FROM public.agent
       JOIN public.project ON agent.project_id = project.id
       JOIN public.company ON project.company_id = company.id
@@ -155,15 +157,15 @@ func (s *System) GetAgents(companyId string) ([]*Agent, error) {
 	for rows.Next() {
 		agent := &Agent{}
 		projectInfo := &ProjectInfo{}
-		if err := rows.Scan(&agent.Id, &agent.Name, &agent.RequestLimit, &agent.AgentId, &agent.EnvironmentLimit, &projectInfo.Name); err != nil {
+		if err := rows.Scan(&agent.Id, &agent.Name, &agent.RequestLimit, &agent.AgentId, &agent.EnvironmentLimit, &projectInfo.Name, &projectInfo.Id); err != nil {
 			return nil, s.Config.Bugfixes.Logger.Errorf("Failed to scan database rows: %v", err)
 		}
 
-		envs, err := environment.NewSystem(s.Config).SetContext(s.Context).GetAgentEnvironmentsFromDB(agent.AgentId, companyId)
-		if err != nil {
-			return nil, s.Config.Bugfixes.Logger.Errorf("Failed to get agent environments: %v", err)
-		}
-		agent.Environments = envs
+		//envs, err := environment.NewSystem(s.Config).SetContext(s.Context).GetAgentEnvironmentsFromDB(agent.AgentId, companyId)
+		//if err != nil {
+		//	return nil, s.Config.Bugfixes.Logger.Errorf("Failed to get agent environments: %v", err)
+		//}
+		//agent.Environments = envs
 		agent.ProjectInfo = projectInfo
 
 		agents = append(agents, agent)

@@ -19,6 +19,7 @@ type Environment struct {
 	Id            string                 `json:"id"`
 	Name          string                 `json:"name"`
 	EnvironmentId string                 `json:"environment_id"`
+	AgentId       string                 `json:"agent_id"`
 	Enabled       bool                   `json:"enabled"`
 	Level         int                    `json:"level"`
 	CanPromote    bool                   `json:"canPromote"`

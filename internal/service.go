@@ -75,8 +75,6 @@ func (s *Service) startHTTP(errChan chan error) {
 	mux.HandleFunc("GET /environments", environment.NewSystem(s.Config).GetEnvironments)
 
 	// Flags
-	mux.HandleFunc("GET /v1/flags", flags.NewSystem(s.Config).GetAgentFlags)                           // temp whilst apis update
-	mux.HandleFunc("GET /flags", flags.NewSystem(s.Config).GetAgentFlags)                              // used by the library
 	mux.HandleFunc("GET /environment/{environmentId}/flags", flags.NewSystem(s.Config).GetClientFlags) // used by the frontend
 	mux.HandleFunc("POST /flag", flags.NewSystem(s.Config).CreateFlags)
 	mux.HandleFunc("PATCH /flag/{flagId}", flags.NewSystem(s.Config).UpdateFlags)
@@ -84,9 +82,11 @@ func (s *Service) startHTTP(errChan chan error) {
 	mux.HandleFunc("DELETE /flag/{flagId}", flags.NewSystem(s.Config).DeleteFlags)
 	mux.HandleFunc("POST /flag/{flagId}/promote", flags.NewSystem(s.Config).PromoteFlag)
 
-	// OFREP (OpenFeature Remote Evaluation Protocol)
+	// Client
 	mux.HandleFunc("POST /ofrep/v1/evaluate/flags/{key}", flags.NewOFREPSystem(s.Config).EvaluateSingleFlag)
 	mux.HandleFunc("POST /ofrep/v1/evaluate/flags", flags.NewOFREPSystem(s.Config).EvaluateBulkFlags)
+	mux.HandleFunc("GET /v1/flags", flags.NewSystem(s.Config).GetAgentFlags)
+	mux.HandleFunc("GET /flags", flags.NewSystem(s.Config).GetAgentFlags)
 
 	// API Key Management
 	mux.HandleFunc("POST /api-key/generate", flags.NewAPIKeyHTTPSystem(s.Config).GenerateAPIKeyHandler)
