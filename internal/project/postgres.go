@@ -4,10 +4,11 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"strings"
+
 	"github.com/flags-gg/orchestrator/internal/agent"
 	"github.com/flags-gg/orchestrator/internal/environment"
 	"github.com/google/uuid"
-	"strings"
 )
 
 type Project struct {
@@ -160,7 +161,7 @@ func (s *System) CreateProjectInDB(companyId, projectName string) (*Project, err
 		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to create default agent: %v", err)
 	}
 
-	_, err = environment.NewSystem(s.Config).CreateEnvironmentInDB("Default Env", agentDetails.AgentId)
+	_, err = environment.NewSystem(s.Config).CreateEnvironmentInDB("Development", agentDetails.AgentId)
 	if err != nil {
 		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to create default environment: %v", err)
 	}
