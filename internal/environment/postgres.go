@@ -172,9 +172,11 @@ func (s *System) GetEnvironmentsFromDB(companyId string) ([]*Environment, error)
 
 	rows, err := client.Query(s.Context, `
     SELECT
+        env.id as Id,
 		env.env_id AS EnvId,
   		env.name AS EnvName,
   		agent.name AS AgentName,
+  		agent.agent_id as AgentId,
   		project.name AS ProjectName
 	FROM environment AS env
 		JOIN agent ON agent.id = env.agent_id
@@ -192,7 +194,7 @@ func (s *System) GetEnvironmentsFromDB(companyId string) ([]*Environment, error)
 	var environments []*Environment
 	for rows.Next() {
 		environment := &Environment{}
-		if err := rows.Scan(&environment.EnvironmentId, &environment.Name, &environment.AgentName, &environment.ProjectName); err != nil {
+		if err := rows.Scan(&environment.Id, &environment.EnvironmentId, &environment.Name, &environment.AgentName, &environment.AgentId, &environment.ProjectName); err != nil {
 			return nil, s.Config.Bugfixes.Logger.Errorf("Failed to scan database rows: %v", err)
 		}
 
