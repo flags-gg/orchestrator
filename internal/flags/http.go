@@ -22,8 +22,10 @@ type SecretMenu struct {
 	Styles   []SecretMenuStyle `json:"styles,omitempty"`
 }
 type Details struct {
-	Name string `json:"name"`
-	ID   string `json:"id"`
+	Name        string `json:"name"`
+	ID          string `json:"id"`
+	LastChanged string `json:"lastChanged,omitempty"`
+	Promoted    bool   `json:"promoted,omitempty"`
 }
 type Flag struct {
 	Enabled bool    `json:"enabled"`
@@ -57,6 +59,21 @@ func NewSystem(cfg *ConfigBuilder.Config) *System {
 func (s *System) SetContext(ctx context.Context) *System {
 	s.Context = ctx
 	return s
+}
+
+// getUserId returns the user ID, using dev mode config if in development, otherwise Clerk
+func (s *System) getUserId(r *http.Request) (string, error) {
+	if s.Config.Local.Development && s.Config.Clerk.DevUser != "" {
+		return s.Config.Clerk.DevUser, nil
+	}
+
+	// Production mode: use Clerk authentication
+	clerk.SetKey(s.Config.Clerk.Key)
+	usr, err := clerkUser.Get(s.Context, r.Header.Get("x-user-subject"))
+	if err != nil {
+		return "", err
+	}
+	return usr.ID, nil
 }
 
 func (s *System) GetAgentFlags(w http.ResponseWriter, r *http.Request) {
@@ -106,14 +123,13 @@ func (s *System) GetClientFlags(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	clerk.SetKey(s.Config.Clerk.Key)
-	usr, err := clerkUser.Get(s.Context, r.Header.Get("x-user-subject"))
+	userId, err := s.getUserId(r)
 	if err != nil {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
 
-	companyId, err := company.NewSystem(s.Config).SetContext(s.Context).GetCompanyId(usr.ID)
+	companyId, err := company.NewSystem(s.Config).SetContext(s.Context).GetCompanyId(userId)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -146,14 +162,13 @@ func (s *System) CreateFlags(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	clerk.SetKey(s.Config.Clerk.Key)
-	usr, err := clerkUser.Get(s.Context, r.Header.Get("x-user-subject"))
+	userId, err := s.getUserId(r)
 	if err != nil {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
 
-	companyId, err := company.NewSystem(s.Config).SetContext(s.Context).GetCompanyId(usr.ID)
+	companyId, err := company.NewSystem(s.Config).SetContext(s.Context).GetCompanyId(userId)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -188,14 +203,13 @@ func (s *System) UpdateFlags(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	clerk.SetKey(s.Config.Clerk.Key)
-	usr, err := clerkUser.Get(s.Context, r.Header.Get("x-user-subject"))
+	userId, err := s.getUserId(r)
 	if err != nil {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
 
-	companyId, err := company.NewSystem(s.Config).SetContext(s.Context).GetCompanyId(usr.ID)
+	companyId, err := company.NewSystem(s.Config).SetContext(s.Context).GetCompanyId(userId)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -234,6 +248,45 @@ func (s *System) UpdateFlags(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
+func (s *System) PromoteFlag(w http.ResponseWriter, r *http.Request) {
+	s.Context = r.Context()
+
+	if r.Header.Get("x-user-subject") == "" {
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
+	userId, err := s.getUserId(r)
+	if err != nil {
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
+	companyId, err := company.NewSystem(s.Config).SetContext(s.Context).GetCompanyId(userId)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	if companyId == "" {
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
+	flagId := r.PathValue("flagId")
+	if flagId == "" {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	if err := s.PromoteFlagInDB(flagId); err != nil {
+		_ = s.Config.Bugfixes.Logger.Errorf("Failed to promote flag: %v", err)
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+}
+
 func (s *System) EditFlag(w http.ResponseWriter, r *http.Request) {
 	s.Context = r.Context()
 
@@ -242,14 +295,13 @@ func (s *System) EditFlag(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	clerk.SetKey(s.Config.Clerk.Key)
-	usr, err := clerkUser.Get(s.Context, r.Header.Get("x-user-subject"))
+	userId, err := s.getUserId(r)
 	if err != nil {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
 
-	companyId, err := company.NewSystem(s.Config).SetContext(s.Context).GetCompanyId(usr.ID)
+	companyId, err := company.NewSystem(s.Config).SetContext(s.Context).GetCompanyId(userId)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -287,14 +339,13 @@ func (s *System) DeleteFlags(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	clerk.SetKey(s.Config.Clerk.Key)
-	usr, err := clerkUser.Get(s.Context, r.Header.Get("x-user-subject"))
+	userId, err := s.getUserId(r)
 	if err != nil {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
 
-	companyId, err := company.NewSystem(s.Config).SetContext(s.Context).GetCompanyId(usr.ID)
+	companyId, err := company.NewSystem(s.Config).SetContext(s.Context).GetCompanyId(userId)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
