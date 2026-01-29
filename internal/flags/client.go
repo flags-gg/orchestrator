@@ -20,7 +20,7 @@ func (s *System) GetClientFlagsFromDB(ctx context.Context, environmentId string)
 	}
 	defer func() {
 		if err := client.Close(ctx); err != nil {
-			s.Config.Bugfixes.Logger.Fatalf("failed to close database connection: %v", err)
+			_ = s.Config.Bugfixes.Logger.Errorf("failed to close database connection: %v", err)
 		}
 	}()
 
@@ -74,7 +74,7 @@ func (s *System) UpdateFlagInDB(ctx context.Context, flag Flag) error {
 	}
 	defer func() {
 		if err := client.Close(ctx); err != nil {
-			s.Config.Bugfixes.Logger.Fatalf("failed to close database connection: %v", err)
+			_ = s.Config.Bugfixes.Logger.Errorf("failed to close database connection: %v", err)
 		}
 	}()
 
@@ -102,7 +102,7 @@ func (s *System) EditFlagInDB(ctx context.Context, cr FlagNameChangeRequest) err
 	}
 	defer func() {
 		if err := client.Close(ctx); err != nil {
-			s.Config.Bugfixes.Logger.Fatalf("failed to close database connection: %v", err)
+			_ = s.Config.Bugfixes.Logger.Errorf("failed to close database connection: %v", err)
 		}
 	}()
 
@@ -125,7 +125,7 @@ func (s *System) DeleteFlagFromDB(ctx context.Context, flag Flag) error {
 	}
 	defer func() {
 		if err := client.Close(ctx); err != nil {
-			s.Config.Bugfixes.Logger.Fatalf("failed to close database connection: %v", err)
+			_ = s.Config.Bugfixes.Logger.Errorf("failed to close database connection: %v", err)
 		}
 	}()
 
@@ -144,7 +144,7 @@ func (s *System) DeleteAllFlagsForEnv(ctx context.Context, envId string) error {
 	}
 	defer func() {
 		if err := client.Close(ctx); err != nil {
-			s.Config.Bugfixes.Logger.Fatalf("failed to close database connection: %v", err)
+			_ = s.Config.Bugfixes.Logger.Errorf("failed to close database connection: %v", err)
 		}
 	}()
 
@@ -168,7 +168,7 @@ func (s *System) PromoteFlagInDB(ctx context.Context, flagId string) error {
 	}
 	defer func() {
 		if err := client.Close(ctx); err != nil {
-			s.Config.Bugfixes.Logger.Fatalf("failed to close database connection: %v", err)
+			_ = s.Config.Bugfixes.Logger.Errorf("failed to close database connection: %v", err)
 		}
 	}()
 
@@ -220,7 +220,7 @@ func (s *System) CreateFlagInDB(ctx context.Context, flag flagCreate) error {
 	}
 	defer func() {
 		if err := client.Close(ctx); err != nil {
-			s.Config.Bugfixes.Logger.Fatalf("failed to close database connection: %v", err)
+			_ = s.Config.Bugfixes.Logger.Errorf("failed to close database connection: %v", err)
 		}
 	}()
 

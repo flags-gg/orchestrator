@@ -129,7 +129,7 @@ func (s *System) GetEnvironmentSecretMenu(ctx context.Context, environmentId str
 	}
 	defer func() {
 		if err := client.Close(ctx); err != nil {
-			logs.Fatalf("Failed to close database connection: %v", err)
+			_ = logs.Errorf("Failed to close database connection: %v", err)
 		}
 	}()
 
@@ -191,7 +191,7 @@ func (s *System) GetSecretMenuFromDB(ctx context.Context, menuId string) (Secret
 	}
 	defer func() {
 		if err := client.Close(ctx); err != nil {
-			logs.Fatalf("Failed to close database connection: %v", err)
+			_ = logs.Errorf("Failed to close database connection: %v", err)
 		}
 	}()
 
@@ -257,7 +257,7 @@ func (s *System) UpdateSecretMenuSequenceInDB(ctx context.Context, menuId string
 	}
 	defer func() {
 		if err := client.Close(ctx); err != nil {
-			logs.Fatalf("Failed to close database connection: %v", err)
+			_ = logs.Errorf("Failed to close database connection: %v", err)
 		}
 	}()
 
@@ -282,7 +282,7 @@ func (s *System) UpdateSecretMenuStateInDB(ctx context.Context, menuId string) e
 	}
 	defer func() {
 		if err := client.Close(ctx); err != nil {
-			logs.Fatalf("Failed to close database connection: %v", err)
+			_ = logs.Errorf("Failed to close database connection: %v", err)
 		}
 	}()
 
@@ -306,7 +306,7 @@ func (s *System) UpdateSecretMenuStyleInDB(ctx context.Context, menuId string, s
 	}
 	defer func() {
 		if err := client.Close(ctx); err != nil {
-			logs.Fatalf("Failed to close database connection: %v", err)
+			_ = logs.Errorf("Failed to close database connection: %v", err)
 		}
 	}()
 
@@ -373,7 +373,7 @@ func (s *System) CreateSecretMenuInDB(ctx context.Context, environmentId string,
 	}
 	defer func() {
 		if err := client.Close(ctx); err != nil {
-			logs.Fatalf("Failed to close database connection: %v", err)
+			_ = logs.Errorf("Failed to close database connection: %v", err)
 		}
 	}()
 
@@ -448,7 +448,7 @@ func (s *System) DeleteSecretMenuForEnv(ctx context.Context, envId string) error
 	}
 	defer func() {
 		if err := client.Close(ctx); err != nil {
-			logs.Fatalf("Failed to close database connection: %v", err)
+			_ = logs.Errorf("Failed to close database connection: %v", err)
 		}
 	}()
 
@@ -480,7 +480,7 @@ func (s *System) GetSecretMenuStyleFromDB(ctx context.Context, menuId string) (S
 	}
 	defer func() {
 		if err := client.Close(ctx); err != nil {
-			logs.Fatalf("Failed to close database connection: %v", err)
+			_ = logs.Errorf("Failed to close database connection: %v", err)
 		}
 	}()
 

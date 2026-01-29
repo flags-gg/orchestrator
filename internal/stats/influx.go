@@ -106,7 +106,7 @@ func (s *System) GetAgentEnvironmentStats(ctx context.Context, agentId string, t
 
 	defer func() {
 		if err := result.Close(); err != nil {
-			s.Config.Bugfixes.Logger.Fatalf("Failed to close query result: %v", err)
+			_ = s.Config.Bugfixes.Logger.Errorf("Failed to close query result: %v", err)
 		}
 	}()
 

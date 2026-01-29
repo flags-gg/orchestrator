@@ -37,7 +37,7 @@ func (s *System) CreateAgentForProject(ctx context.Context, name, projectId stri
 	}
 	defer func() {
 		if err := client.Close(ctx); err != nil {
-			logs.Fatalf("Failed to close database connection: %v", err)
+			_ = logs.Errorf("Failed to close database connection: %v", err)
 		}
 	}()
 
@@ -69,7 +69,7 @@ func (s *System) GetAgentDetails(ctx context.Context, agentId, companyId string)
 	}
 	defer func() {
 		if err := client.Close(ctx); err != nil {
-			logs.Fatalf("Failed to close database connection: %v", err)
+			_ = logs.Errorf("Failed to close database connection: %v", err)
 		}
 	}()
 
@@ -127,7 +127,7 @@ func (s *System) GetAgents(ctx context.Context, companyId string) ([]*Agent, err
 	}
 	defer func() {
 		if err := client.Close(ctx); err != nil {
-			s.Config.Bugfixes.Logger.Fatalf("Failed to close database connection: %v", err)
+			_ = s.Config.Bugfixes.Logger.Errorf("Failed to close database connection: %v", err)
 		}
 	}()
 
@@ -184,7 +184,7 @@ func (s *System) GetAgentsForProject(ctx context.Context, companyId, projectId s
 	}
 	defer func() {
 		if err := client.Close(ctx); err != nil {
-			s.Config.Bugfixes.Logger.Fatalf("Failed to close database connection: %v", err)
+			_ = s.Config.Bugfixes.Logger.Errorf("Failed to close database connection: %v", err)
 		}
 	}()
 
@@ -240,7 +240,7 @@ func (s *System) ValidateAgentWithEnvironment(ctx context.Context, agentId, proj
 	}
 	defer func() {
 		if err := client.Close(ctx); err != nil {
-			s.Config.Bugfixes.Logger.Fatalf("Failed to close database connection: %v", err)
+			_ = s.Config.Bugfixes.Logger.Errorf("Failed to close database connection: %v", err)
 		}
 	}()
 
@@ -276,7 +276,7 @@ func (s *System) ValidateAgentWithoutEnvironment(ctx context.Context, agentId, p
 	}
 	defer func() {
 		if err := client.Close(ctx); err != nil {
-			s.Config.Bugfixes.Logger.Fatalf("Failed to close database connection: %v", err)
+			_ = s.Config.Bugfixes.Logger.Errorf("Failed to close database connection: %v", err)
 		}
 	}()
 
@@ -308,7 +308,7 @@ func (s *System) CreateAgentInDB(ctx context.Context, name, projectId string) (*
 	}
 	defer func() {
 		if err := client.Close(ctx); err != nil {
-			s.Config.Bugfixes.Logger.Fatalf("Failed to close database connection: %v", err)
+			_ = s.Config.Bugfixes.Logger.Errorf("Failed to close database connection: %v", err)
 		}
 	}()
 
@@ -346,7 +346,7 @@ func (s *System) UpdateAgentDetails(ctx context.Context, agent Agent) error {
 	}
 	defer func() {
 		if err := client.Close(ctx); err != nil {
-			s.Config.Bugfixes.Logger.Fatalf("Failed to close database connection: %v", err)
+			_ = s.Config.Bugfixes.Logger.Errorf("Failed to close database connection: %v", err)
 		}
 	}()
 
@@ -371,7 +371,7 @@ func (s *System) DeleteAgentFromDB(ctx context.Context, agentId string) error {
 	}
 	defer func() {
 		if err := client.Close(ctx); err != nil {
-			s.Config.Bugfixes.Logger.Fatalf("Failed to close database connection: %v", err)
+			_ = s.Config.Bugfixes.Logger.Errorf("Failed to close database connection: %v", err)
 		}
 	}()
 
@@ -395,7 +395,7 @@ func (s *System) DeleteAllAgentsForProject(ctx context.Context, projectId string
 	}
 	defer func() {
 		if err := client.Close(ctx); err != nil {
-			s.Config.Bugfixes.Logger.Fatalf("Failed to close database connection: %v", err)
+			_ = s.Config.Bugfixes.Logger.Errorf("Failed to close database connection: %v", err)
 		}
 	}()
 

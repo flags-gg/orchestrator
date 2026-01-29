@@ -93,9 +93,7 @@ func (s *System) GetUser(w http.ResponseWriter, r *http.Request) {
 	if dbuser != nil {
 		user = dbuser
 		user.Created = true
-	}
-
-	if user == nil {
+	} else {
 		user.Id = &usr.ID
 		user.Email = &usr.EmailAddresses[0].EmailAddress
 		user.FirstName = usr.FirstName

@@ -28,7 +28,7 @@ func (s *System) GetAgentFlagsFromDB(ctx context.Context, projectId, agentId, en
 		if client != nil {
 			if err := client.Close(ctx); err != nil {
 				//stats.NewSystem(s.Config).AddAgentError(projectId, agentId, environmentId)
-				s.Config.Bugfixes.Logger.Fatalf("Failed to close database connection: %v", err)
+				_ = s.Config.Bugfixes.Logger.Errorf("Failed to close database connection: %v", err)
 			}
 		}
 	}()
@@ -196,7 +196,7 @@ func (s *System) GetDefaultEnvironment(ctx context.Context, projectId, agentId s
 	}
 	defer func() {
 		if err := client.Close(ctx); err != nil {
-			s.Config.Bugfixes.Logger.Fatalf("Failed to close database connection: %v", err)
+			_ = s.Config.Bugfixes.Logger.Errorf("Failed to close database connection: %v", err)
 		}
 	}()
 
