@@ -3,7 +3,6 @@ package user
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"net/http"
 
 	"github.com/clerk/clerk-sdk-go/v2"
@@ -67,6 +66,7 @@ func (s *System) CreateUser(w http.ResponseWriter, r *http.Request) {
 	if err := s.CreateUserDetails(ctx, userSubject, fd.KnownAs, fd.Email, fd.First, fd.Last, fd.Location, 1); err != nil {
 		_ = s.Config.Bugfixes.Logger.Errorf("Failed to create user details: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
+		return
 	}
 
 	w.WriteHeader(http.StatusOK)
@@ -100,10 +100,15 @@ func (s *System) GetUser(w http.ResponseWriter, r *http.Request) {
 		user.LastName = usr.LastName
 	}
 
-	if err := json.NewEncoder(w).Encode(user); err != nil {
+	buf, err := json.Marshal(user)
+	if err != nil {
 		_ = s.Config.Bugfixes.Logger.Errorf("Failed to encode user details: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if _, err := w.Write(buf); err != nil {
+		_ = s.Config.Bugfixes.Logger.Errorf("Failed to write response: %v", err)
 	}
 }
 
@@ -161,23 +166,20 @@ func (s *System) GetUserNotifications(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if notifications == nil {
-		if err := json.NewEncoder(w).Encode(n); err != nil {
-			_ = s.Config.Bugfixes.Logger.Errorf("Failed to encode user notifications: %v", err)
-			w.WriteHeader(http.StatusInternalServerError)
-			return
-		}
-		return
+	if notifications != nil {
+		n.Notifications = notifications
 	}
 
-	n.Notifications = notifications
-	if err := json.NewEncoder(w).Encode(n); err != nil {
+	buf, err := json.Marshal(n)
+	if err != nil {
 		_ = s.Config.Bugfixes.Logger.Errorf("Failed to encode user notifications: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-
-	w.WriteHeader(http.StatusOK)
+	w.Header().Set("Content-Type", "application/json")
+	if _, err := w.Write(buf); err != nil {
+		_ = s.Config.Bugfixes.Logger.Errorf("Failed to write response: %v", err)
+	}
 }
 
 func (s *System) UpdateUserNotification(w http.ResponseWriter, r *http.Request) {
@@ -304,7 +306,6 @@ func (s *System) UploadThing(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-	_ = fmt.Sprintf("Response: %v", bd)
 
 	w.WriteHeader(http.StatusOK)
 }
@@ -335,6 +336,7 @@ func (s *System) UpdateUserImage(w http.ResponseWriter, r *http.Request) {
 	if err := s.UpdateUserImageInDB(ctx, usr.ID, imageChange.Image); err != nil {
 		_ = s.Config.Bugfixes.Logger.Errorf("Failed to update project: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
+		return
 	}
 
 	w.WriteHeader(http.StatusOK)
