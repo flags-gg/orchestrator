@@ -11,7 +11,7 @@ require (
 	github.com/clerk/clerk-sdk-go/v2 v2.5.1
 	github.com/docker/go-connections v0.6.0
 	github.com/flags-gg/go-flags v0.5.2
-	github.com/golang-jwt/jwt/v5 v5.3.0
+	github.com/golang-jwt/jwt/v5 v5.3.1
 	github.com/golang-migrate/migrate/v4 v4.19.1
 	github.com/google/uuid v1.6.0
 	github.com/influxdata/influxdb-client-go/v2 v2.14.0
