@@ -43,7 +43,7 @@ func (s *System) GetPrices(ctx context.Context) ([]Price, error) {
 	}
 	defer func() {
 		if err := client.Close(ctx); err != nil {
-			s.Config.Bugfixes.Logger.Fatalf("Failed to close database connection: %v", err)
+			_ = s.Config.Bugfixes.Logger.Errorf("Failed to close database connection: %v", err)
 		}
 	}()
 
@@ -68,6 +68,10 @@ func (s *System) GetPrices(ctx context.Context) ([]Price, error) {
 		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to query database: %v", err)
 	}
 	defer rows.Close()
+	if rows.Err() != nil {
+		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to query database: %v", err)
+	}
+
 	for rows.Next() {
 		var price Price
 		var popular bool
@@ -103,7 +107,7 @@ func (s *System) GetPrice(ctx context.Context, title string) (Price, error) {
 	}
 	defer func() {
 		if err := client.Close(ctx); err != nil {
-			s.Config.Bugfixes.Logger.Fatalf("Failed to close database connection: %v", err)
+			_ = s.Config.Bugfixes.Logger.Errorf("Failed to close database connection: %v", err)
 		}
 	}()
 

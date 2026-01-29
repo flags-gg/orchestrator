@@ -53,7 +53,7 @@ func (s *System) CreateUserDetails(ctx context.Context, subject, knownAs, email,
 	}
 	defer func() {
 		if err := client.Close(ctx); err != nil {
-			s.Config.Bugfixes.Logger.Fatalf("Failed to close database connection: %v", err)
+			_ = s.Config.Bugfixes.Logger.Errorf("Failed to close database connection: %v", err)
 		}
 	}()
 
@@ -89,7 +89,7 @@ func (s *System) RetrieveUserDetailsDB(ctx context.Context, subject string) (*Us
 	}
 	defer func() {
 		if err := client.Close(ctx); err != nil {
-			s.Config.Bugfixes.Logger.Fatalf("Failed to close database connection: %v", err)
+			_ = s.Config.Bugfixes.Logger.Errorf("Failed to close database connection: %v", err)
 		}
 	}()
 
@@ -154,7 +154,7 @@ func (s *System) RetrieveUserNotifications(ctx context.Context, subject string) 
 	}
 	defer func() {
 		if err := client.Close(ctx); err != nil {
-			s.Config.Bugfixes.Logger.Fatalf("Failed to close database connection: %v", err)
+			_ = s.Config.Bugfixes.Logger.Errorf("Failed to close database connection: %v", err)
 		}
 	}()
 
@@ -177,6 +177,9 @@ func (s *System) RetrieveUserNotifications(ctx context.Context, subject string) 
 		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to query database: %v", err)
 	}
 	defer rows.Close()
+	if rows.Err() != nil {
+		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to query database: %v", err)
+	}
 
 	var notifications []Notification
 	for rows.Next() {
@@ -200,7 +203,7 @@ func (s *System) MarkNotificationAsRead(ctx context.Context, subject, notificati
 	}
 	defer func() {
 		if err := client.Close(ctx); err != nil {
-			s.Config.Bugfixes.Logger.Fatalf("Failed to close database connection: %v", err)
+			_ = s.Config.Bugfixes.Logger.Errorf("Failed to close database connection: %v", err)
 		}
 	}()
 
@@ -227,7 +230,7 @@ func (s *System) DeleteUserNotificationInDB(ctx context.Context, subject, notifi
 	}
 	defer func() {
 		if err := client.Close(ctx); err != nil {
-			s.Config.Bugfixes.Logger.Fatalf("Failed to close database connection: %v", err)
+			_ = s.Config.Bugfixes.Logger.Errorf("Failed to close database connection: %v", err)
 		}
 	}()
 
@@ -256,7 +259,7 @@ func (s *System) UpdateUserImageInDB(ctx context.Context, subject string, image 
 	}
 	defer func() {
 		if err := client.Close(ctx); err != nil {
-			s.Config.Bugfixes.Logger.Fatalf("Failed to close database connection: %v", err)
+			_ = s.Config.Bugfixes.Logger.Errorf("Failed to close database connection: %v", err)
 		}
 	}()
 
@@ -279,7 +282,7 @@ func (s *System) UpdateUserDetailsDB(ctx context.Context, subject, knownAs, emai
 	}
 	defer func() {
 		if err := client.Close(ctx); err != nil {
-			s.Config.Bugfixes.Logger.Fatalf("Failed to close database connection: %v", err)
+			_ = s.Config.Bugfixes.Logger.Errorf("Failed to close database connection: %v", err)
 		}
 	}()
 
@@ -309,7 +312,7 @@ func (s *System) DeleteUserInDB(ctx context.Context, subject string) error {
 	}
 	defer func() {
 		if err := client.Close(ctx); err != nil {
-			s.Config.Bugfixes.Logger.Fatalf("Failed to close database connection: %v", err)
+			_ = s.Config.Bugfixes.Logger.Errorf("Failed to close database connection: %v", err)
 		}
 	}()
 

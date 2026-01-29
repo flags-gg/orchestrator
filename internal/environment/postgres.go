@@ -22,7 +22,7 @@ func (s *System) CreateEnvironmentInDB(ctx context.Context, name, agentId string
 	}
 	defer func() {
 		if err := client.Close(ctx); err != nil {
-			s.Config.Bugfixes.Logger.Fatalf("Failed to close database connection: %v", err)
+			_ = s.Config.Bugfixes.Logger.Errorf("Failed to close database connection: %v", err)
 		}
 	}()
 
@@ -67,7 +67,7 @@ func (s *System) GetEnvironmentFromDB(ctx context.Context, envId, companyId stri
 	}
 	defer func() {
 		if err := client.Close(ctx); err != nil {
-			s.Config.Bugfixes.Logger.Fatalf("Failed to close database connection: %v", err)
+			_ = s.Config.Bugfixes.Logger.Errorf("Failed to close database connection: %v", err)
 		}
 	}()
 
@@ -114,7 +114,7 @@ func (s *System) GetAgentEnvironmentsFromDB(ctx context.Context, agentId, compan
 	}
 	defer func() {
 		if err := client.Close(ctx); err != nil {
-			s.Config.Bugfixes.Logger.Fatalf("Failed to close database connection: %v", err)
+			_ = s.Config.Bugfixes.Logger.Errorf("Failed to close database connection: %v", err)
 		}
 	}()
 
@@ -143,6 +143,9 @@ func (s *System) GetAgentEnvironmentsFromDB(ctx context.Context, agentId, compan
 		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to query database: %v", err)
 	}
 	defer rows.Close()
+	if rows.Err() != nil {
+		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to query database: %v", err)
+	}
 
 	var environments []*Environment
 	for rows.Next() {
@@ -167,7 +170,7 @@ func (s *System) GetEnvironmentsFromDB(ctx context.Context, companyId string) ([
 	}
 	defer func() {
 		if err := client.Close(ctx); err != nil {
-			s.Config.Bugfixes.Logger.Fatalf("Failed to close database connection: %v", err)
+			_ = s.Config.Bugfixes.Logger.Errorf("Failed to close database connection: %v", err)
 		}
 	}()
 
@@ -191,6 +194,9 @@ func (s *System) GetEnvironmentsFromDB(ctx context.Context, companyId string) ([
 		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to query database: %v", err)
 	}
 	defer rows.Close()
+	if rows.Err() != nil {
+		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to query database: %v", err)
+	}
 
 	var environments []*Environment
 	for rows.Next() {
@@ -215,7 +221,7 @@ func (s *System) UpdateEnvironmentInDB(ctx context.Context, env Environment) err
 	}
 	defer func() {
 		if err := client.Close(ctx); err != nil {
-			s.Config.Bugfixes.Logger.Fatalf("Failed to close database connection: %v", err)
+			_ = s.Config.Bugfixes.Logger.Errorf("Failed to close database connection: %v", err)
 		}
 	}()
 
@@ -240,7 +246,7 @@ func (s *System) CloneEnvironmentInDB(ctx context.Context, envId, newEnvId, agen
 	}
 	defer func() {
 		if err := client.Close(ctx); err != nil {
-			s.Config.Bugfixes.Logger.Fatalf("Failed to close database connection: %v", err)
+			_ = s.Config.Bugfixes.Logger.Errorf("Failed to close database connection: %v", err)
 		}
 	}()
 
@@ -304,7 +310,7 @@ func (s *System) LinkChildEnvironmentInDB(ctx context.Context, parentEnvId, chil
 	}
 	defer func() {
 		if err := client.Close(ctx); err != nil {
-			s.Config.Bugfixes.Logger.Fatalf("Failed to close database connection: %v", err)
+			_ = s.Config.Bugfixes.Logger.Errorf("Failed to close database connection: %v", err)
 		}
 	}()
 
@@ -344,7 +350,7 @@ func (s *System) DeleteEnvironmentFromDB(ctx context.Context, envId string) erro
 	}
 	defer func() {
 		if err := client.Close(ctx); err != nil {
-			s.Config.Bugfixes.Logger.Fatalf("Failed to close database connection: %v", err)
+			_ = s.Config.Bugfixes.Logger.Errorf("Failed to close database connection: %v", err)
 		}
 	}()
 
@@ -375,7 +381,7 @@ func (s *System) DeleteAllEnvironmentsForAgent(ctx context.Context, agentId stri
 	}
 	defer func() {
 		if err := client.Close(ctx); err != nil {
-			s.Config.Bugfixes.Logger.Fatalf("Failed to close database connection: %v", err)
+			_ = s.Config.Bugfixes.Logger.Errorf("Failed to close database connection: %v", err)
 		}
 	}()
 
@@ -392,6 +398,10 @@ func (s *System) DeleteAllEnvironmentsForAgent(ctx context.Context, agentId stri
 		return s.Config.Bugfixes.Logger.Errorf("Failed to get environments from database: %v", err)
 	}
 	defer rows.Close()
+	if rows.Err() != nil {
+		return s.Config.Bugfixes.Logger.Errorf("Failed to get environments from database: %v", err)
+	}
+
 	for rows.Next() {
 		var envId string
 		if err := rows.Scan(&envId); err != nil {

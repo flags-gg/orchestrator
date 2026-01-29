@@ -71,7 +71,7 @@ func (s *System) GetProjectLimits(ctx context.Context, userSubject string) (*Pro
 	}
 	defer func() {
 		if err := client.Close(ctx); err != nil {
-			s.Config.Bugfixes.Logger.Fatalf("Failed to close database connection: %v", err)
+			_ = s.Config.Bugfixes.Logger.Errorf("Failed to close database connection: %v", err)
 		}
 	}()
 
@@ -116,7 +116,7 @@ func (s *System) GetUserLimits(ctx context.Context, userSubject string) (*Users,
 	}
 	defer func() {
 		if err := client.Close(ctx); err != nil {
-			s.Config.Bugfixes.Logger.Fatalf("Failed to close database connection: %v", err)
+			_ = s.Config.Bugfixes.Logger.Errorf("Failed to close database connection: %v", err)
 		}
 	}()
 
@@ -158,7 +158,7 @@ func (s *System) GetAgentLimits(ctx context.Context, companyId string) (*Agents,
 	}
 	defer func() {
 		if err := client.Close(ctx); err != nil {
-			s.Config.Bugfixes.Logger.Fatalf("Failed to close database connection: %v", err)
+			_ = s.Config.Bugfixes.Logger.Errorf("Failed to close database connection: %v", err)
 		}
 	}()
 
@@ -191,6 +191,10 @@ func (s *System) GetAgentLimits(ctx context.Context, companyId string) (*Agents,
 	}
 	defer rows.Close()
 	a.Used = []AgentsUsed{}
+
+	if rows.Err() != nil {
+		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to query database: %v", err)
+	}
 
 	// Iterate over the result set
 	for rows.Next() {
@@ -227,7 +231,7 @@ func (s *System) GetCompanyId(ctx context.Context, userSubject string) (string, 
 	}
 	defer func() {
 		if err := client.Close(ctx); err != nil {
-			s.Config.Bugfixes.Logger.Fatalf("Failed to close database connection: %v", err)
+			_ = s.Config.Bugfixes.Logger.Errorf("Failed to close database connection: %v", err)
 		}
 	}()
 
@@ -270,7 +274,7 @@ func (s *System) GetCompanyInfo(ctx context.Context, userSubject string) (*Detai
 	}
 	defer func() {
 		if err := client.Close(ctx); err != nil {
-			s.Config.Bugfixes.Logger.Fatalf("Failed to close database connection: %v", err)
+			_ = s.Config.Bugfixes.Logger.Errorf("Failed to close database connection: %v", err)
 		}
 	}()
 
@@ -340,7 +344,7 @@ func (s *System) GetCompanyBasedOnDomain(ctx context.Context, domain, inviteCode
 	}
 	defer func() {
 		if err := client.Close(ctx); err != nil {
-			s.Config.Bugfixes.Logger.Fatalf("Failed to close database connection: %v", err)
+			_ = s.Config.Bugfixes.Logger.Errorf("Failed to close database connection: %v", err)
 		}
 	}()
 
@@ -372,7 +376,7 @@ func (s *System) AttachUserToCompanyDB(ctx context.Context, userSubject string) 
 	}
 	defer func() {
 		if err := client.Close(ctx); err != nil {
-			s.Config.Bugfixes.Logger.Fatalf("Failed to close database connection: %v", err)
+			_ = s.Config.Bugfixes.Logger.Errorf("Failed to close database connection: %v", err)
 		}
 	}()
 
@@ -409,7 +413,7 @@ func (s *System) CreateCompanyDB(ctx context.Context, name, domain, userSubject 
 	}
 	defer func() {
 		if err := client.Close(ctx); err != nil {
-			s.Config.Bugfixes.Logger.Fatalf("Failed to close database connection: %v", err)
+			_ = s.Config.Bugfixes.Logger.Errorf("Failed to close database connection: %v", err)
 		}
 	}()
 
@@ -470,7 +474,7 @@ func (s *System) GetCompanyUsersFromDB(ctx context.Context, companyId string) ([
 	}
 	defer func() {
 		if err := client.Close(ctx); err != nil {
-			logs.Fatalf("Failed to close database connection: %v", err)
+			_ = logs.Errorf("Failed to close database connection: %v", err)
 		}
 	}()
 
@@ -491,6 +495,10 @@ func (s *System) GetCompanyUsersFromDB(ctx context.Context, companyId string) ([
 		if errors.Is(err, pgx.ErrNoRows) {
 			return users, nil
 		}
+		return users, s.Config.Bugfixes.Logger.Errorf("Failed to query database: %v", err)
+	}
+
+	if err := rows.Err(); err != nil {
 		return users, s.Config.Bugfixes.Logger.Errorf("Failed to query database: %v", err)
 	}
 
@@ -518,7 +526,7 @@ func (s *System) GetLimits(ctx context.Context, companyId string) (Limits, error
 	}
 	defer func() {
 		if err := client.Close(ctx); err != nil {
-			s.Config.Bugfixes.Logger.Fatalf("Failed to close database connection: %v", err)
+			_ = s.Config.Bugfixes.Logger.Errorf("Failed to close database connection: %v", err)
 		}
 	}()
 
@@ -573,7 +581,7 @@ func (s *System) UpdateCompanyImageInDB(ctx context.Context, companyId, image st
 	}
 	defer func() {
 		if err := client.Close(ctx); err != nil {
-			s.Config.Bugfixes.Logger.Fatalf("Failed to close database connection: %v", err)
+			_ = s.Config.Bugfixes.Logger.Errorf("Failed to close database connection: %v", err)
 		}
 	}()
 
@@ -596,7 +604,7 @@ func (s *System) GetInviteCodeFromDB(ctx context.Context, companyId string) (str
 	}
 	defer func() {
 		if err := client.Close(ctx); err != nil {
-			s.Config.Bugfixes.Logger.Fatalf("Failed to close database connection: %v", err)
+			_ = s.Config.Bugfixes.Logger.Errorf("Failed to close database connection: %v", err)
 		}
 	}()
 
@@ -622,7 +630,7 @@ func (s *System) UpgradeCompanyInDB(ctx context.Context, companyId, stripeSessio
 	}
 	defer func() {
 		if err := client.Close(ctx); err != nil {
-			s.Config.Bugfixes.Logger.Fatalf("Failed to close database connection: %v", err)
+			_ = s.Config.Bugfixes.Logger.Errorf("Failed to close database connection: %v", err)
 		}
 	}()
 

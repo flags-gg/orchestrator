@@ -19,7 +19,7 @@ func (s *OFREPSystem) GetSingleFlagFromDB(ctx context.Context, projectId, agentI
 	defer func() {
 		if client != nil {
 			if err := client.Close(ctx); err != nil {
-				s.Config.Bugfixes.Logger.Fatalf("Failed to close database connection: %v", err)
+				_ = s.Config.Bugfixes.Logger.Errorf("Failed to close database connection: %v", err)
 			}
 		}
 	}()
