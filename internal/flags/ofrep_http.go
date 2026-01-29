@@ -1,7 +1,6 @@
 package flags
 
 import (
-	"context"
 	"encoding/json"
 	"net/http"
 	"strconv"
@@ -78,20 +77,13 @@ type BulkEvaluationResponse struct {
 
 // OFREPSystem handles OFREP endpoints
 type OFREPSystem struct {
-	Config  *ConfigBuilder.Config
-	Context context.Context
+	Config *ConfigBuilder.Config
 }
 
 func NewOFREPSystem(cfg *ConfigBuilder.Config) *OFREPSystem {
 	return &OFREPSystem{
-		Config:  cfg,
-		Context: context.Background(),
+		Config: cfg,
 	}
-}
-
-func (s *OFREPSystem) SetContext(ctx context.Context) *OFREPSystem {
-	s.Context = ctx
-	return s
 }
 
 // extractCredentials gets credentials from X-API-Key (JWT) or individual headers
@@ -121,7 +113,7 @@ func (s *OFREPSystem) extractCredentials(r *http.Request) (projectId, agentId, e
 func (s *OFREPSystem) EvaluateSingleFlag(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("x-flags-timestamp", strconv.FormatInt(time.Now().Unix(), 10))
-	s.Context = r.Context()
+	ctx := r.Context()
 
 	flagKey := r.PathValue("key")
 	if flagKey == "" {
@@ -142,7 +134,7 @@ func (s *OFREPSystem) EvaluateSingleFlag(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	flag, err := s.GetSingleFlagFromDB(projectId, agentId, environmentId, flagKey)
+	flag, err := s.GetSingleFlagFromDB(ctx, projectId, agentId, environmentId, flagKey)
 	if err != nil {
 		s.sendErrorResponse(w, flagKey, ErrorGeneral, "Failed to retrieve flag", http.StatusInternalServerError)
 		return
@@ -178,7 +170,7 @@ func (s *OFREPSystem) EvaluateSingleFlag(w http.ResponseWriter, r *http.Request)
 func (s *OFREPSystem) EvaluateBulkFlags(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("x-flags-timestamp", strconv.FormatInt(time.Now().Unix(), 10))
-	s.Context = r.Context()
+	ctx := r.Context()
 
 	var req BulkEvaluationRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -199,8 +191,7 @@ func (s *OFREPSystem) EvaluateBulkFlags(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	flagSystem := NewSystem(s.Config).SetContext(s.Context)
-	flags, err := flagSystem.GetAgentFlagsFromDB(projectId, agentId, environmentId)
+	flags, err := NewSystem(s.Config).GetAgentFlagsFromDB(ctx, projectId, agentId, environmentId)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		_ = json.NewEncoder(w).Encode(BulkEvaluationResponse{

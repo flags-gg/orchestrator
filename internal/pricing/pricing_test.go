@@ -5,13 +5,14 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"github.com/bugfixes/go-bugfixes/logs"
-	"github.com/docker/go-connections/nat"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"testing"
 	"time"
+
+	"github.com/bugfixes/go-bugfixes/logs"
+	"github.com/docker/go-connections/nat"
 
 	ConfigBuilder "github.com/keloran/go-config"
 	_ "github.com/lib/pq"
@@ -143,7 +144,6 @@ func TestGetCompanyPricing(t *testing.T) {
 	}()
 
 	system := setupTestSystem(t)
-	system.SetContext(c)
 
 	tests := []struct {
 		name              string
@@ -214,7 +214,6 @@ func TestGetGeneralPricing(t *testing.T) {
 	}()
 
 	system := setupTestSystem(t)
-	system.SetContext(c)
 
 	t.Run("Success", func(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, "/pricing/general", nil)
@@ -270,7 +269,6 @@ func TestGetSpecificPrices(t *testing.T) {
 	}()
 
 	system := setupTestSystem(t)
-	system.SetContext(c)
 
 	tests := []struct {
 		name       string
@@ -316,11 +314,11 @@ func TestGetSpecificPrices(t *testing.T) {
 			var price Price
 			switch tt.planType {
 			case "startup":
-				price = system.GetStartup()
+				price = system.GetStartup(c)
 			case "pro":
-				price = system.GetPro()
+				price = system.GetPro(c)
 			case "enterprise":
-				price = system.GetEnterprise()
+				price = system.GetEnterprise(c)
 			}
 
 			tt.checkPrice(t, price)

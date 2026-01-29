@@ -3,10 +3,11 @@ package secretmenu
 import (
 	"database/sql"
 	"encoding/json"
+	"net/http"
+
 	"github.com/clerk/clerk-sdk-go/v2"
 	clerkUser "github.com/clerk/clerk-sdk-go/v2/user"
 	"github.com/flags-gg/orchestrator/internal/company"
-	"net/http"
 
 	flagsService "github.com/flags-gg/go-flags"
 )
@@ -29,7 +30,7 @@ func (s *System) getUserId(r *http.Request) (string, error) {
 
 	// Production mode: use Clerk authentication
 	clerk.SetKey(s.Config.Clerk.Key)
-	usr, err := clerkUser.Get(s.Context, r.Header.Get("x-user-subject"))
+	usr, err := clerkUser.Get(r.Context(), r.Header.Get("x-user-subject"))
 	if err != nil {
 		return "", err
 	}
@@ -37,7 +38,7 @@ func (s *System) getUserId(r *http.Request) (string, error) {
 }
 
 func (s *System) GetSecretMenu(w http.ResponseWriter, r *http.Request) {
-	s.Context = r.Context()
+	ctx := r.Context()
 
 	if r.Header.Get("x-user-subject") == "" {
 		w.WriteHeader(http.StatusUnauthorized)
@@ -50,7 +51,7 @@ func (s *System) GetSecretMenu(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	companyId, err := company.NewSystem(s.Config).SetContext(s.Context).GetCompanyId(userId)
+	companyId, err := company.NewSystem(s.Config).GetCompanyId(ctx, userId)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -62,7 +63,7 @@ func (s *System) GetSecretMenu(w http.ResponseWriter, r *http.Request) {
 	}
 
 	menuId := r.PathValue("menuId")
-	secretMenu, err := s.GetSecretMenuFromDB(menuId)
+	secretMenu, err := s.GetSecretMenuFromDB(ctx, menuId)
 	if err != nil {
 		_ = s.Config.Bugfixes.Logger.Errorf("Failed to get secret menu: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -78,7 +79,7 @@ func (s *System) GetSecretMenu(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *System) CreateSecretMenu(w http.ResponseWriter, r *http.Request) {
-	s.Context = r.Context()
+	ctx := r.Context()
 
 	if r.Header.Get("x-user-subject") == "" {
 		w.WriteHeader(http.StatusUnauthorized)
@@ -91,7 +92,7 @@ func (s *System) CreateSecretMenu(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	companyId, err := company.NewSystem(s.Config).SetContext(s.Context).GetCompanyId(userId)
+	companyId, err := company.NewSystem(s.Config).GetCompanyId(ctx, userId)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -110,7 +111,7 @@ func (s *System) CreateSecretMenu(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	menuId, styleId, err := s.CreateSecretMenuInDB(envId, menuUpdate)
+	menuId, styleId, err := s.CreateSecretMenuInDB(ctx, envId, menuUpdate)
 	if err != nil {
 		_ = s.Config.Bugfixes.Logger.Errorf("Failed to create secret menu: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -130,7 +131,7 @@ func (s *System) CreateSecretMenu(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *System) UpdateSecretMenuState(w http.ResponseWriter, r *http.Request) {
-	s.Context = r.Context()
+	ctx := r.Context()
 
 	if r.Header.Get("x-user-subject") == "" {
 		w.WriteHeader(http.StatusUnauthorized)
@@ -143,7 +144,7 @@ func (s *System) UpdateSecretMenuState(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	companyId, err := company.NewSystem(s.Config).SetContext(s.Context).GetCompanyId(userId)
+	companyId, err := company.NewSystem(s.Config).GetCompanyId(ctx, userId)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -155,7 +156,7 @@ func (s *System) UpdateSecretMenuState(w http.ResponseWriter, r *http.Request) {
 	}
 
 	menuId := r.PathValue("menuId")
-	if err := s.UpdateSecretMenuStateInDB(menuId); err != nil {
+	if err := s.UpdateSecretMenuStateInDB(ctx, menuId); err != nil {
 		_ = s.Config.Bugfixes.Logger.Errorf("Failed to update secret menu: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -165,7 +166,7 @@ func (s *System) UpdateSecretMenuState(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *System) UpdateSecretMenuSequence(w http.ResponseWriter, r *http.Request) {
-	s.Context = r.Context()
+	ctx := r.Context()
 
 	if r.Header.Get("x-user-subject") == "" {
 		w.WriteHeader(http.StatusUnauthorized)
@@ -178,7 +179,7 @@ func (s *System) UpdateSecretMenuSequence(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	companyId, err := company.NewSystem(s.Config).SetContext(s.Context).GetCompanyId(userId)
+	companyId, err := company.NewSystem(s.Config).GetCompanyId(ctx, userId)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -197,7 +198,7 @@ func (s *System) UpdateSecretMenuSequence(w http.ResponseWriter, r *http.Request
 	}
 
 	menuId := r.PathValue("menuId")
-	if err := s.UpdateSecretMenuSequenceInDB(menuId, menuUpdate); err != nil {
+	if err := s.UpdateSecretMenuSequenceInDB(ctx, menuId, menuUpdate); err != nil {
 		_ = s.Config.Bugfixes.Logger.Errorf("Failed to update secret menu: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -211,7 +212,7 @@ func (s *System) UpdateSecretMenuSequence(w http.ResponseWriter, r *http.Request
 }
 
 func (s *System) UpdateSecretMenuStyle(w http.ResponseWriter, r *http.Request) {
-	s.Context = r.Context()
+	ctx := r.Context()
 
 	flags := flagsService.NewClient(flagsService.WithAuth(flagsService.Auth{
 		ProjectID:     s.Config.ProjectProperties["flags_project"].(string),
@@ -234,7 +235,7 @@ func (s *System) UpdateSecretMenuStyle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	companyId, err := company.NewSystem(s.Config).SetContext(s.Context).GetCompanyId(userId)
+	companyId, err := company.NewSystem(s.Config).GetCompanyId(ctx, userId)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -316,7 +317,7 @@ func (s *System) UpdateSecretMenuStyle(w http.ResponseWriter, r *http.Request) {
 	menuUpdate.CustomStyle.SQLHeader = sql.NullString{String: string(b), Valid: true}
 
 	menuId := r.PathValue("menuId")
-	if err := s.UpdateSecretMenuStyleInDB(menuId, menuUpdate); err != nil {
+	if err := s.UpdateSecretMenuStyleInDB(ctx, menuId, menuUpdate); err != nil {
 		_ = s.Config.Bugfixes.Logger.Errorf("Failed to update secret menu: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -330,7 +331,7 @@ func (s *System) UpdateSecretMenuStyle(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *System) GetSecretMenuStyle(w http.ResponseWriter, r *http.Request) {
-	s.Context = r.Context()
+	ctx := r.Context()
 
 	flags := flagsService.NewClient(flagsService.WithAuth(flagsService.Auth{
 		ProjectID:     s.Config.ProjectProperties["flags_project"].(string),
@@ -353,7 +354,7 @@ func (s *System) GetSecretMenuStyle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	companyId, err := company.NewSystem(s.Config).SetContext(s.Context).GetCompanyId(userId)
+	companyId, err := company.NewSystem(s.Config).GetCompanyId(ctx, userId)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -365,7 +366,7 @@ func (s *System) GetSecretMenuStyle(w http.ResponseWriter, r *http.Request) {
 	}
 
 	menuId := r.PathValue("menuId")
-	secretMenu, err := s.GetSecretMenuStyleFromDB(menuId)
+	secretMenu, err := s.GetSecretMenuStyleFromDB(ctx, menuId)
 	if err != nil {
 		_ = s.Config.Bugfixes.Logger.Errorf("Failed to get secret menu: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)

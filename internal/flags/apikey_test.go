@@ -122,7 +122,6 @@ func TestOFREPWithJWTAPIKey(t *testing.T) {
 	}()
 
 	_, ofrepSystem := setupTestSystem(t)
-	ofrepSystem.SetContext(ctx)
 
 	// Generate a JWT API key
 	apiKeySystem := NewAPIKeySystem(ofrepSystem.Config)
@@ -193,7 +192,6 @@ func TestOFREPFallbackToIndividualHeaders(t *testing.T) {
 	}()
 
 	_, ofrepSystem := setupTestSystem(t)
-	ofrepSystem.SetContext(ctx)
 
 	// Test that individual headers still work
 	body, _ := json.Marshal(EvaluationRequest{

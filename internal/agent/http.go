@@ -1,7 +1,6 @@
 package agent
 
 import (
-	"context"
 	"encoding/json"
 	"net/http"
 
@@ -21,20 +20,13 @@ type Details struct {
 }
 
 type System struct {
-	Config  *ConfigBuilder.Config
-	Context context.Context
+	Config *ConfigBuilder.Config
 }
 
 func NewSystem(cfg *ConfigBuilder.Config) *System {
 	return &System{
-		Config:  cfg,
-		Context: context.Background(),
+		Config: cfg,
 	}
-}
-
-func (s *System) SetContext(ctx context.Context) *System {
-	s.Context = ctx
-	return s
 }
 
 // getUserId returns the user ID, using dev mode config if in development, otherwise Clerk
@@ -45,7 +37,7 @@ func (s *System) getUserId(r *http.Request) (string, error) {
 
 	// Production mode: use Clerk authentication
 	clerk.SetKey(s.Config.Clerk.Key)
-	usr, err := clerkUser.Get(s.Context, r.Header.Get("x-user-subject"))
+	usr, err := clerkUser.Get(r.Context(), r.Header.Get("x-user-subject"))
 	if err != nil {
 		return "", err
 	}
@@ -53,10 +45,11 @@ func (s *System) getUserId(r *http.Request) (string, error) {
 }
 
 func (s *System) GetAgentsRequest(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
 	type Agents struct {
 		Agents []*Agent `json:"agents"`
 	}
-	s.Context = r.Context()
 
 	userId, err := s.getUserId(r)
 	if err != nil {
@@ -64,7 +57,7 @@ func (s *System) GetAgentsRequest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	companyId, err := company.NewSystem(s.Config).SetContext(s.Context).GetCompanyId(userId)
+	companyId, err := company.NewSystem(s.Config).GetCompanyId(ctx, userId)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -75,7 +68,7 @@ func (s *System) GetAgentsRequest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	agents, err := s.GetAgents(companyId)
+	agents, err := s.GetAgents(ctx, companyId)
 	if err != nil {
 		w.WriteHeader(http.StatusNoContent)
 		return
@@ -92,10 +85,11 @@ func (s *System) GetAgentsRequest(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *System) GetProjectAgents(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
 	type Agents struct {
 		Agents []*Agent `json:"agents"`
 	}
-	s.Context = r.Context()
 
 	userId, err := s.getUserId(r)
 	if err != nil {
@@ -103,7 +97,7 @@ func (s *System) GetProjectAgents(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	companyId, err := company.NewSystem(s.Config).SetContext(s.Context).GetCompanyId(userId)
+	companyId, err := company.NewSystem(s.Config).GetCompanyId(ctx, userId)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -115,7 +109,7 @@ func (s *System) GetProjectAgents(w http.ResponseWriter, r *http.Request) {
 	}
 
 	projectId := r.PathValue("projectId")
-	agents, err := s.GetAgentsForProject(companyId, projectId)
+	agents, err := s.GetAgentsForProject(ctx, companyId, projectId)
 	if err != nil {
 		w.WriteHeader(http.StatusNoContent)
 		return
@@ -132,7 +126,7 @@ func (s *System) GetProjectAgents(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *System) GetAgent(w http.ResponseWriter, r *http.Request) {
-	s.Context = r.Context()
+	ctx := r.Context()
 
 	userId, err := s.getUserId(r)
 	if err != nil {
@@ -140,7 +134,7 @@ func (s *System) GetAgent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	companyId, err := company.NewSystem(s.Config).SetContext(s.Context).GetCompanyId(userId)
+	companyId, err := company.NewSystem(s.Config).GetCompanyId(ctx, userId)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -151,7 +145,7 @@ func (s *System) GetAgent(w http.ResponseWriter, r *http.Request) {
 	}
 
 	agentId := r.PathValue("agentId")
-	details, err := s.GetAgentDetails(agentId, companyId)
+	details, err := s.GetAgentDetails(ctx, agentId, companyId)
 	if err != nil {
 		w.WriteHeader(http.StatusNoContent)
 		return
@@ -165,7 +159,7 @@ func (s *System) GetAgent(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *System) UpdateAgent(w http.ResponseWriter, r *http.Request) {
-	s.Context = r.Context()
+	ctx := r.Context()
 
 	userId, err := s.getUserId(r)
 	if err != nil {
@@ -173,7 +167,7 @@ func (s *System) UpdateAgent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	companyId, err := company.NewSystem(s.Config).SetContext(s.Context).GetCompanyId(userId)
+	companyId, err := company.NewSystem(s.Config).GetCompanyId(ctx, userId)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -195,7 +189,7 @@ func (s *System) UpdateAgent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := s.UpdateAgentDetails(agent); err != nil {
+	if err := s.UpdateAgentDetails(ctx, agent); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -204,15 +198,14 @@ func (s *System) UpdateAgent(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *System) DeleteAgent(w http.ResponseWriter, r *http.Request) {
-	s.Context = r.Context()
-
+	ctx := r.Context()
 	userId, err := s.getUserId(r)
 	if err != nil {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
 
-	companyId, err := company.NewSystem(s.Config).SetContext(s.Context).GetCompanyId(userId)
+	companyId, err := company.NewSystem(s.Config).GetCompanyId(ctx, userId)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -224,12 +217,12 @@ func (s *System) DeleteAgent(w http.ResponseWriter, r *http.Request) {
 	}
 
 	agentId := r.PathValue("agentId")
-	if err := environment.NewSystem(s.Config).SetContext(s.Context).DeleteAllEnvironmentsForAgent(agentId); err != nil {
+	if err := environment.NewSystem(s.Config).DeleteAllEnvironmentsForAgent(ctx, agentId); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
-	if err := s.DeleteAgentFromDB(agentId); err != nil {
+	if err := s.DeleteAgentFromDB(ctx, agentId); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -238,7 +231,7 @@ func (s *System) DeleteAgent(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *System) CreateAgent(w http.ResponseWriter, r *http.Request) {
-	s.Context = r.Context()
+	ctx := r.Context()
 
 	userId, err := s.getUserId(r)
 	if err != nil {
@@ -246,7 +239,7 @@ func (s *System) CreateAgent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	companyId, err := company.NewSystem(s.Config).SetContext(s.Context).GetCompanyId(userId)
+	companyId, err := company.NewSystem(s.Config).GetCompanyId(ctx, userId)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -264,13 +257,13 @@ func (s *System) CreateAgent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	agentId, err := s.CreateAgentForProject(agent.Name, projectId)
+	agentId, err := s.CreateAgentForProject(ctx, agent.Name, projectId)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
-	_, err = environment.NewSystem(s.Config).SetContext(s.Context).CreateEnvironmentInDB("Default Env", agentId)
+	_, err = environment.NewSystem(s.Config).CreateEnvironmentInDB(ctx, "Default Env", agentId)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return

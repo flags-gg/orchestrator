@@ -1,14 +1,15 @@
 package flags
 
 import (
+	"context"
 	"errors"
 	"strings"
 
 	"github.com/jackc/pgx/v5"
 )
 
-func (s *OFREPSystem) GetSingleFlagFromDB(projectId, agentId, environmentId, flagKey string) (*Flag, error) {
-	client, err := s.Config.Database.GetPGXClient(s.Context)
+func (s *OFREPSystem) GetSingleFlagFromDB(ctx context.Context, projectId, agentId, environmentId, flagKey string) (*Flag, error) {
+	client, err := s.Config.Database.GetPGXClient(ctx)
 	if err != nil {
 		if strings.Contains(err.Error(), "operation was canceled") {
 			return nil, nil
@@ -17,15 +18,14 @@ func (s *OFREPSystem) GetSingleFlagFromDB(projectId, agentId, environmentId, fla
 	}
 	defer func() {
 		if client != nil {
-			if err := client.Close(s.Context); err != nil {
+			if err := client.Close(ctx); err != nil {
 				s.Config.Bugfixes.Logger.Fatalf("Failed to close database connection: %v", err)
 			}
 		}
 	}()
 
 	if environmentId == "" {
-		flagSystem := NewSystem(s.Config).SetContext(s.Context)
-		envId, err := flagSystem.GetDefaultEnvironment(projectId, agentId)
+		envId, err := NewSystem(s.Config).GetDefaultEnvironment(ctx, projectId, agentId)
 		if err != nil {
 			return nil, s.Config.Bugfixes.Logger.Errorf("Failed to get default environment: %v", err)
 		}
@@ -37,7 +37,7 @@ func (s *OFREPSystem) GetSingleFlagFromDB(projectId, agentId, environmentId, fla
 	var flagId string
 	var lastChanged string
 
-	err = client.QueryRow(s.Context, `
+	err = client.QueryRow(ctx, `
     SELECT
       flags.id AS FlagId,
       flags.name AS FlagName,

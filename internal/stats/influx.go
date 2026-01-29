@@ -4,8 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	influxdb2 "github.com/influxdata/influxdb-client-go/v2"
 	"time"
+
+	influxdb2 "github.com/influxdata/influxdb-client-go/v2"
 )
 
 type Environment struct {
@@ -83,7 +84,7 @@ func (s *System) AddAgentError(companyId, agentId, environmentId string) {
 	writeClient.Flush()
 }
 
-func (s *System) GetAgentEnvironmentStats(agentId string, timePeriod int) (*AgentStat, error) {
+func (s *System) GetAgentEnvironmentStats(ctx context.Context, agentId string, timePeriod int) (*AgentStat, error) {
 	client := influxdb2.NewClient(s.Config.Influx.Host, s.Config.Influx.Token)
 	queryAPI := client.QueryAPI(s.Config.Influx.Org)
 
@@ -95,7 +96,7 @@ func (s *System) GetAgentEnvironmentStats(agentId string, timePeriod int) (*Agen
     |> group(columns: ["agent_id", "environment_id", "_field"])
     |> aggregateWindow(every: 1d, fn: sum, createEmpty: false)
     |> yield(name: "dailyCounts")`, s.Config.Influx.Bucket, timePeriod, agentId)
-	result, err := queryAPI.Query(s.Context, query)
+	result, err := queryAPI.Query(ctx, query)
 	if err != nil {
 		if err.Error() == "context canceled" || errors.Is(err, context.Canceled) {
 			return nil, nil
@@ -177,12 +178,12 @@ func (s *System) GetAgentEnvironmentStats(agentId string, timePeriod int) (*Agen
 	return agentStat, nil
 }
 
-func (s *System) GetAgentsStatsFromInflux(companyId string) (*AgentsStats, error) {
+func (s *System) GetAgentsStatsFromInflux(ctx context.Context, companyId string) (*AgentsStats, error) {
 	client := influxdb2.NewClient(s.Config.Influx.Host, s.Config.Influx.Token)
 	queryAPI := client.QueryAPI(s.Config.Influx.Org)
 
 	query := fmt.Sprintf(`from(bucket:"%s")|> range(start: -1d)|> filter(fn: (r) => r._measurement == "agent" and r.company_id == "%s")`, s.Config.Influx.Bucket, companyId)
-	result, err := queryAPI.Query(s.Context, query)
+	result, err := queryAPI.Query(ctx, query)
 	if err != nil {
 		return nil, err
 	}

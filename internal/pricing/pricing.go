@@ -1,10 +1,12 @@
 package pricing
 
 import (
+	"context"
 	"database/sql"
+	"strings"
+
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
-	"strings"
 )
 
 type Extra struct {
@@ -31,8 +33,8 @@ type Price struct {
 	Stripe       Stripe  `json:"stripe,omitempty"`
 }
 
-func (s *System) GetPrices() ([]Price, error) {
-	client, err := s.Config.Database.GetPGXClient(s.Context)
+func (s *System) GetPrices(ctx context.Context) ([]Price, error) {
+	client, err := s.Config.Database.GetPGXClient(ctx)
 	if err != nil {
 		if strings.Contains(err.Error(), "operation was canceled") {
 			return nil, nil
@@ -40,13 +42,13 @@ func (s *System) GetPrices() ([]Price, error) {
 		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
 	}
 	defer func() {
-		if err := client.Close(s.Context); err != nil {
+		if err := client.Close(ctx); err != nil {
 			s.Config.Bugfixes.Logger.Fatalf("Failed to close database connection: %v", err)
 		}
 	}()
 
 	var prices []Price
-	rows, err := client.Query(s.Context, `
+	rows, err := client.Query(ctx, `
     SELECT
       payment_plans.name,
       payment_plans.price,
@@ -91,8 +93,8 @@ func (s *System) GetPrices() ([]Price, error) {
 	return prices, nil
 }
 
-func (s *System) GetPrice(title string) (Price, error) {
-	client, err := s.Config.Database.GetPGXClient(s.Context)
+func (s *System) GetPrice(ctx context.Context, title string) (Price, error) {
+	client, err := s.Config.Database.GetPGXClient(ctx)
 	if err != nil {
 		if strings.Contains(err.Error(), "operation was canceled") {
 			return Price{}, nil
@@ -100,14 +102,14 @@ func (s *System) GetPrice(title string) (Price, error) {
 		return Price{}, s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
 	}
 	defer func() {
-		if err := client.Close(s.Context); err != nil {
+		if err := client.Close(ctx); err != nil {
 			s.Config.Bugfixes.Logger.Fatalf("Failed to close database connection: %v", err)
 		}
 	}()
 
 	var price Price
 	var stripe Stripe
-	row := client.QueryRow(s.Context, `
+	row := client.QueryRow(ctx, `
     SELECT
       payment_plans.name,
       payment_plans.price,
@@ -129,8 +131,8 @@ func (s *System) GetPrice(title string) (Price, error) {
 	return price, nil
 }
 
-func (s *System) GetFree() Price {
-	price, err := s.GetPrice("free")
+func (s *System) GetFree(ctx context.Context) Price {
+	price, err := s.GetPrice(ctx, "free")
 	if err != nil {
 		_ = s.Config.Bugfixes.Logger.Errorf("Failed to get free price: %v", err)
 		return Price{}
@@ -139,8 +141,8 @@ func (s *System) GetFree() Price {
 	return price
 }
 
-func (s *System) GetStartup() Price {
-	price, err := s.GetPrice("startup")
+func (s *System) GetStartup(ctx context.Context) Price {
+	price, err := s.GetPrice(ctx, "startup")
 	if err != nil {
 		_ = s.Config.Bugfixes.Logger.Errorf("Failed to get startup price: %v", err)
 		return Price{}
@@ -154,8 +156,8 @@ func (s *System) GetStartup() Price {
 	return price
 }
 
-func (s *System) GetPro() Price {
-	price, err := s.GetPrice("pro")
+func (s *System) GetPro(ctx context.Context) Price {
+	price, err := s.GetPrice(ctx, "pro")
 	if err != nil {
 		_ = s.Config.Bugfixes.Logger.Errorf("Failed to get startup price: %v", err)
 		return Price{}
@@ -168,8 +170,8 @@ func (s *System) GetPro() Price {
 	return price
 }
 
-func (s *System) GetEnterprise() Price {
-	price, err := s.GetPrice("enterprise")
+func (s *System) GetEnterprise(ctx context.Context) Price {
+	price, err := s.GetPrice(ctx, "enterprise")
 	if err != nil {
 		_ = s.Config.Bugfixes.Logger.Errorf("Failed to get startup price: %v", err)
 		return Price{}

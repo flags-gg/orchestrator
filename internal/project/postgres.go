@@ -21,8 +21,8 @@ type Project struct {
 	Enabled    bool   `json:"enabled"`
 }
 
-func (s *System) GetProjectsFromDB(companyId string) ([]Project, error) {
-	client, err := s.Config.Database.GetPGXClient(s.Context)
+func (s *System) GetProjectsFromDB(ctx context.Context, companyId string) ([]Project, error) {
+	client, err := s.Config.Database.GetPGXClient(ctx)
 	if err != nil {
 		if strings.Contains(err.Error(), "operation was canceled") {
 			return nil, nil
@@ -30,12 +30,12 @@ func (s *System) GetProjectsFromDB(companyId string) ([]Project, error) {
 		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
 	}
 	defer func() {
-		if err := client.Close(s.Context); err != nil {
+		if err := client.Close(ctx); err != nil {
 			s.Config.Bugfixes.Logger.Fatalf("Failed to close database connection: %v", err)
 		}
 	}()
 
-	rows, err := client.Query(s.Context, `
+	rows, err := client.Query(ctx, `
     SELECT DISTINCT
       project.id,
       project.project_id,
@@ -79,8 +79,8 @@ func (s *System) GetProjectsFromDB(companyId string) ([]Project, error) {
 	return projects, nil
 }
 
-func (s *System) GetProjectFromDB(companyId, projectId string) (*Project, error) {
-	client, err := s.Config.Database.GetPGXClient(s.Context)
+func (s *System) GetProjectFromDB(ctx context.Context, companyId, projectId string) (*Project, error) {
+	client, err := s.Config.Database.GetPGXClient(ctx)
 	if err != nil {
 		if strings.Contains(err.Error(), "operation was canceled") {
 			return nil, nil
@@ -88,14 +88,14 @@ func (s *System) GetProjectFromDB(companyId, projectId string) (*Project, error)
 		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
 	}
 	defer func() {
-		if err := client.Close(s.Context); err != nil {
+		if err := client.Close(ctx); err != nil {
 			s.Config.Bugfixes.Logger.Fatalf("Failed to close database connection: %v", err)
 		}
 	}()
 
 	var project Project
 	var pLogo sql.NullString
-	if err := client.QueryRow(s.Context, `
+	if err := client.QueryRow(ctx, `
         SELECT
           project.name,
           project.id,
@@ -123,8 +123,8 @@ func (s *System) GetProjectFromDB(companyId, projectId string) (*Project, error)
 	return &project, nil
 }
 
-func (s *System) CreateProjectInDB(companyId, projectName string) (*Project, error) {
-	client, err := s.Config.Database.GetPGXClient(s.Context)
+func (s *System) CreateProjectInDB(ctx context.Context, companyId, projectName string) (*Project, error) {
+	client, err := s.Config.Database.GetPGXClient(ctx)
 	if err != nil {
 		if strings.Contains(err.Error(), "operation was canceled") {
 			return nil, nil
@@ -132,7 +132,7 @@ func (s *System) CreateProjectInDB(companyId, projectName string) (*Project, err
 		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
 	}
 	defer func() {
-		if err := client.Close(s.Context); err != nil {
+		if err := client.Close(ctx); err != nil {
 			s.Config.Bugfixes.Logger.Fatalf("Failed to close database connection: %v", err)
 		}
 	}()
@@ -140,7 +140,7 @@ func (s *System) CreateProjectInDB(companyId, projectName string) (*Project, err
 	// create the project
 	projectId := uuid.New().String()
 	var insertedProjectId string
-	if err := client.QueryRow(s.Context, `
+	if err := client.QueryRow(ctx, `
       INSERT INTO public.project (
           company_id,
           project_id,
@@ -156,12 +156,12 @@ func (s *System) CreateProjectInDB(companyId, projectName string) (*Project, err
 	}
 
 	// create the default agent
-	agentDetails, err := agent.NewSystem(s.Config).CreateAgentInDB("Default Agent", projectId)
+	agentDetails, err := agent.NewSystem(s.Config).CreateAgentInDB(ctx, "Default Agent", projectId)
 	if err != nil {
 		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to create default agent: %v", err)
 	}
 
-	_, err = environment.NewSystem(s.Config).CreateEnvironmentInDB("Development", agentDetails.AgentId)
+	_, err = environment.NewSystem(s.Config).CreateEnvironmentInDB(ctx, "Development", agentDetails.AgentId)
 	if err != nil {
 		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to create default environment: %v", err)
 	}
@@ -173,8 +173,8 @@ func (s *System) CreateProjectInDB(companyId, projectName string) (*Project, err
 	}, nil
 }
 
-func (s *System) UpdateProjectInDB(projectId, projectName string, enabled bool) (*Project, error) {
-	client, err := s.Config.Database.GetPGXClient(s.Context)
+func (s *System) UpdateProjectInDB(ctx context.Context, projectId, projectName string, enabled bool) (*Project, error) {
+	client, err := s.Config.Database.GetPGXClient(ctx)
 	if err != nil {
 		if strings.Contains(err.Error(), "operation was canceled") {
 			return nil, nil
@@ -182,12 +182,12 @@ func (s *System) UpdateProjectInDB(projectId, projectName string, enabled bool) 
 		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
 	}
 	defer func() {
-		if err := client.Close(s.Context); err != nil {
+		if err := client.Close(ctx); err != nil {
 			s.Config.Bugfixes.Logger.Fatalf("Failed to close database connection: %v", err)
 		}
 	}()
 
-	if _, err := client.Exec(s.Context, `
+	if _, err := client.Exec(ctx, `
       UPDATE public.project
       SET name = $1, enabled = $2
       WHERE project_id = $3`, projectName, enabled, projectId); err != nil {
@@ -201,8 +201,8 @@ func (s *System) UpdateProjectInDB(projectId, projectName string, enabled bool) 
 	}, nil
 }
 
-func (s *System) DeleteProjectInDB(projectId string) error {
-	client, err := s.Config.Database.GetPGXClient(s.Context)
+func (s *System) DeleteProjectInDB(ctx context.Context, projectId string) error {
+	client, err := s.Config.Database.GetPGXClient(ctx)
 	if err != nil {
 		if strings.Contains(err.Error(), "operation was canceled") {
 			return nil
@@ -210,12 +210,12 @@ func (s *System) DeleteProjectInDB(projectId string) error {
 		return s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
 	}
 	defer func() {
-		if err := client.Close(s.Context); err != nil {
+		if err := client.Close(ctx); err != nil {
 			s.Config.Bugfixes.Logger.Fatalf("Failed to close database connection: %v", err)
 		}
 	}()
 
-	if _, err := client.Exec(s.Context, `
+	if _, err := client.Exec(ctx, `
       DELETE FROM public.project
       WHERE project_id = $1`, projectId); err != nil {
 		return s.Config.Bugfixes.Logger.Errorf("Failed to delete project in database: %v", err)
@@ -224,8 +224,8 @@ func (s *System) DeleteProjectInDB(projectId string) error {
 	return nil
 }
 
-func (s *System) UpdateProjectImageInDB(projectId, logo string) error {
-	client, err := s.Config.Database.GetPGXClient(s.Context)
+func (s *System) UpdateProjectImageInDB(ctx context.Context, projectId, logo string) error {
+	client, err := s.Config.Database.GetPGXClient(ctx)
 	if err != nil {
 		if strings.Contains(err.Error(), "operation was canceled") {
 			return nil
@@ -233,12 +233,12 @@ func (s *System) UpdateProjectImageInDB(projectId, logo string) error {
 		return s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
 	}
 	defer func() {
-		if err := client.Close(s.Context); err != nil {
+		if err := client.Close(ctx); err != nil {
 			s.Config.Bugfixes.Logger.Fatalf("Failed to close database connection: %v", err)
 		}
 	}()
 
-	if _, err := client.Exec(s.Context, `
+	if _, err := client.Exec(ctx, `
       UPDATE public.project
       SET logo = $1
       WHERE project_id = $2`, logo, projectId); err != nil {
@@ -253,10 +253,10 @@ type AgentLimits struct {
 	AgentsUsed    int `json:"used"`
 }
 
-func (s *System) GetLimitsFromDB(companyId, projectId string) (AgentLimits, error) {
+func (s *System) GetLimitsFromDB(ctx context.Context, companyId, projectId string) (AgentLimits, error) {
 	var limits AgentLimits
 
-	client, err := s.Config.Database.GetPGXClient(s.Context)
+	client, err := s.Config.Database.GetPGXClient(ctx)
 	if err != nil {
 		if strings.Contains(err.Error(), "operation was canceled") {
 			return limits, nil
@@ -264,12 +264,12 @@ func (s *System) GetLimitsFromDB(companyId, projectId string) (AgentLimits, erro
 		return limits, s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
 	}
 	defer func() {
-		if err := client.Close(s.Context); err != nil {
+		if err := client.Close(ctx); err != nil {
 			s.Config.Bugfixes.Logger.Fatalf("Failed to close database connection: %v", err)
 		}
 	}()
 
-	if err := client.QueryRow(s.Context, `
+	if err := client.QueryRow(ctx, `
     SELECT
 		pp.agents,
 		(

@@ -1,7 +1,6 @@
 package environment
 
 import (
-	"context"
 	"encoding/json"
 	"net/http"
 
@@ -30,20 +29,13 @@ type Environment struct {
 }
 
 type System struct {
-	Config  *ConfigBuilder.Config
-	Context context.Context
+	Config *ConfigBuilder.Config
 }
 
 func NewSystem(cfg *ConfigBuilder.Config) *System {
 	return &System{
-		Config:  cfg,
-		Context: context.Background(),
+		Config: cfg,
 	}
-}
-
-func (s *System) SetContext(ctx context.Context) *System {
-	s.Context = ctx
-	return s
 }
 
 // getUserId returns the user ID, using dev mode config if in development, otherwise Clerk
@@ -54,7 +46,7 @@ func (s *System) getUserId(r *http.Request) (string, error) {
 
 	// Production mode: use Clerk authentication
 	clerk.SetKey(s.Config.Clerk.Key)
-	usr, err := clerkUser.Get(s.Context, r.Header.Get("x-user-subject"))
+	usr, err := clerkUser.Get(r.Context(), r.Header.Get("x-user-subject"))
 	if err != nil {
 		return "", err
 	}
@@ -65,7 +57,7 @@ func (s *System) GetAgentEnvironments(w http.ResponseWriter, r *http.Request) {
 	type Environments struct {
 		Environments []*Environment `json:"environments"`
 	}
-	s.Context = r.Context()
+	ctx := r.Context()
 
 	userId, err := s.getUserId(r)
 	if err != nil {
@@ -73,7 +65,7 @@ func (s *System) GetAgentEnvironments(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	companyId, err := company.NewSystem(s.Config).SetContext(s.Context).GetCompanyId(userId)
+	companyId, err := company.NewSystem(s.Config).GetCompanyId(ctx, userId)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -84,7 +76,7 @@ func (s *System) GetAgentEnvironments(w http.ResponseWriter, r *http.Request) {
 	}
 
 	agentId := r.PathValue("agentId")
-	environments, err := s.GetAgentEnvironmentsFromDB(agentId, companyId)
+	environments, err := s.GetAgentEnvironmentsFromDB(ctx, agentId, companyId)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -103,7 +95,7 @@ func (s *System) GetEnvironments(w http.ResponseWriter, r *http.Request) {
 	type Environments struct {
 		Environments []*Environment `json:"environments"`
 	}
-	s.Context = r.Context()
+	ctx := r.Context()
 
 	userId, err := s.getUserId(r)
 	if err != nil {
@@ -111,7 +103,7 @@ func (s *System) GetEnvironments(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	companyId, err := company.NewSystem(s.Config).SetContext(s.Context).GetCompanyId(userId)
+	companyId, err := company.NewSystem(s.Config).GetCompanyId(ctx, userId)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -120,7 +112,7 @@ func (s *System) GetEnvironments(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
-	environments, err := s.GetEnvironmentsFromDB(companyId)
+	environments, err := s.GetEnvironmentsFromDB(ctx, companyId)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -136,7 +128,7 @@ func (s *System) GetEnvironments(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *System) CreateAgentEnvironment(w http.ResponseWriter, r *http.Request) {
-	s.Context = r.Context()
+	ctx := r.Context()
 
 	userId, err := s.getUserId(r)
 	if err != nil {
@@ -144,7 +136,7 @@ func (s *System) CreateAgentEnvironment(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	companyId, err := company.NewSystem(s.Config).SetContext(s.Context).GetCompanyId(userId)
+	companyId, err := company.NewSystem(s.Config).GetCompanyId(ctx, userId)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -165,7 +157,7 @@ func (s *System) CreateAgentEnvironment(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	_, err = s.CreateEnvironmentInDB(env.Name, agentId)
+	_, err = s.CreateEnvironmentInDB(ctx, env.Name, agentId)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -175,7 +167,7 @@ func (s *System) CreateAgentEnvironment(w http.ResponseWriter, r *http.Request) 
 }
 
 func (s *System) CloneAgentEnvironment(w http.ResponseWriter, r *http.Request) {
-	s.Context = r.Context()
+	ctx := r.Context()
 
 	userId, err := s.getUserId(r)
 	if err != nil {
@@ -183,7 +175,7 @@ func (s *System) CloneAgentEnvironment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	companyId, err := company.NewSystem(s.Config).SetContext(s.Context).GetCompanyId(userId)
+	companyId, err := company.NewSystem(s.Config).GetCompanyId(ctx, userId)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -213,12 +205,12 @@ func (s *System) CloneAgentEnvironment(w http.ResponseWriter, r *http.Request) {
 		EnvironmentId: newEnvId,
 	}
 
-	if err := s.CloneEnvironmentInDB(environmentId, newEnvId, agentId, cloneRequest.Name); err != nil {
+	if err := s.CloneEnvironmentInDB(ctx, environmentId, newEnvId, agentId, cloneRequest.Name); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 	// Link the cloned environment as a child of the source in the promotion chain
-	if err := s.LinkChildEnvironmentInDB(environmentId, newEnvId, agentId); err != nil {
+	if err := s.LinkChildEnvironmentInDB(ctx, environmentId, newEnvId, agentId); err != nil {
 		_ = s.Config.Bugfixes.Logger.Errorf("Failed to link child environment: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -232,7 +224,7 @@ func (s *System) CloneAgentEnvironment(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *System) UpdateEnvironment(w http.ResponseWriter, r *http.Request) {
-	s.Context = r.Context()
+	ctx := r.Context()
 
 	userId, err := s.getUserId(r)
 	if err != nil {
@@ -240,7 +232,7 @@ func (s *System) UpdateEnvironment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	companyId, err := company.NewSystem(s.Config).SetContext(s.Context).GetCompanyId(userId)
+	companyId, err := company.NewSystem(s.Config).GetCompanyId(ctx, userId)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -261,7 +253,7 @@ func (s *System) UpdateEnvironment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := s.UpdateEnvironmentInDB(env); err != nil {
+	if err := s.UpdateEnvironmentInDB(ctx, env); err != nil {
 		_ = s.Config.Bugfixes.Logger.Errorf("Failed to update environment: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -270,7 +262,7 @@ func (s *System) UpdateEnvironment(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *System) DeleteEnvironment(w http.ResponseWriter, r *http.Request) {
-	s.Context = r.Context()
+	ctx := r.Context()
 
 	userId, err := s.getUserId(r)
 	if err != nil {
@@ -278,7 +270,7 @@ func (s *System) DeleteEnvironment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	companyId, err := company.NewSystem(s.Config).SetContext(s.Context).GetCompanyId(userId)
+	companyId, err := company.NewSystem(s.Config).GetCompanyId(ctx, userId)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -289,13 +281,13 @@ func (s *System) DeleteEnvironment(w http.ResponseWriter, r *http.Request) {
 	}
 
 	environmentId := r.PathValue("environmentId")
-	if err := flags.NewSystem(s.Config).SetContext(r.Context()).DeleteAllFlagsForEnv(environmentId); err != nil {
+	if err := flags.NewSystem(s.Config).DeleteAllFlagsForEnv(ctx, environmentId); err != nil {
 		_ = s.Config.Bugfixes.Logger.Errorf("Failed to delete flags: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
-	if err := s.DeleteEnvironmentFromDB(environmentId); err != nil {
+	if err := s.DeleteEnvironmentFromDB(ctx, environmentId); err != nil {
 		_ = s.Config.Bugfixes.Logger.Errorf("Failed to delete environment: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 	}
@@ -304,7 +296,7 @@ func (s *System) DeleteEnvironment(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *System) GetEnvironment(w http.ResponseWriter, r *http.Request) {
-	s.Context = r.Context()
+	ctx := r.Context()
 
 	userId, err := s.getUserId(r)
 	if err != nil {
@@ -312,7 +304,7 @@ func (s *System) GetEnvironment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	companyId, err := company.NewSystem(s.Config).SetContext(s.Context).GetCompanyId(userId)
+	companyId, err := company.NewSystem(s.Config).GetCompanyId(ctx, userId)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -324,13 +316,13 @@ func (s *System) GetEnvironment(w http.ResponseWriter, r *http.Request) {
 
 	environmentId := r.PathValue("environmentId")
 
-	sm, err := secretmenu.NewSystem(s.Config).SetContext(s.Context).GetEnvironmentSecretMenu(environmentId)
+	sm, err := secretmenu.NewSystem(s.Config).GetEnvironmentSecretMenu(ctx, environmentId)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
-	environment, err := s.GetEnvironmentFromDB(environmentId, companyId)
+	environment, err := s.GetEnvironmentFromDB(ctx, environmentId, companyId)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return

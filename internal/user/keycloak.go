@@ -3,13 +3,14 @@ package user
 import (
 	"context"
 	"errors"
+	"strings"
+
 	"github.com/Nerzal/gocloak/v13"
 	"github.com/bugfixes/go-bugfixes/logs"
-	"strings"
 )
 
-func (s *System) GetKeycloakDetails(subject string) (*gocloak.User, error) {
-	client, token, err := s.Config.Keycloak.GetClient(s.Context)
+func (s *System) GetKeycloakDetails(ctx context.Context, subject string) (*gocloak.User, error) {
+	client, token, err := s.Config.Keycloak.GetClient(ctx)
 	if err != nil {
 		if strings.Contains(err.Error(), "ingress.local") {
 			logs.Fatalf("DNS error killing process: %v", err)
@@ -23,7 +24,7 @@ func (s *System) GetKeycloakDetails(subject string) (*gocloak.User, error) {
 		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to get keycloak client: %v", err)
 	}
 
-	user, err := client.GetUserByID(s.Context, token.AccessToken, s.Config.Keycloak.Realm, subject)
+	user, err := client.GetUserByID(ctx, token.AccessToken, s.Config.Keycloak.Realm, subject)
 	if err != nil {
 		if err.Error() == "context canceled" || errors.Is(err, context.Canceled) {
 			return nil, nil
@@ -35,8 +36,8 @@ func (s *System) GetKeycloakDetails(subject string) (*gocloak.User, error) {
 	return user, nil
 }
 
-func (s *System) DeleteUserInKeycloak(subject string) error {
-	client, token, err := s.Config.Keycloak.GetClient(s.Context)
+func (s *System) DeleteUserInKeycloak(ctx context.Context, subject string) error {
+	client, token, err := s.Config.Keycloak.GetClient(ctx)
 	if err != nil {
 		if strings.Contains(err.Error(), "ingress.local") {
 			logs.Fatalf("DNS error killing process: %v", err)
@@ -50,7 +51,7 @@ func (s *System) DeleteUserInKeycloak(subject string) error {
 		return s.Config.Bugfixes.Logger.Errorf("Failed to get keycloak client: %v", err)
 	}
 
-	err = client.DeleteUser(s.Context, token.AccessToken, s.Config.Keycloak.Realm, subject)
+	err = client.DeleteUser(ctx, token.AccessToken, s.Config.Keycloak.Realm, subject)
 	if err != nil {
 		if err.Error() == "context canceled" || errors.Is(err, context.Canceled) {
 			return nil

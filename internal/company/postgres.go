@@ -4,12 +4,13 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"strings"
+
 	"github.com/bugfixes/go-bugfixes/logs"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/stripe/stripe-go"
 	"github.com/stripe/stripe-go/checkout/session"
-	"strings"
 )
 
 type Agents struct {
@@ -58,10 +59,10 @@ type Details struct {
 	PaymentPlan PlanDetails `json:"payment_plan,omitempty"`
 }
 
-func (s *System) GetProjectLimits(userSubject string) (*Projects, error) {
+func (s *System) GetProjectLimits(ctx context.Context, userSubject string) (*Projects, error) {
 	p := &Projects{}
 
-	client, err := s.Config.Database.GetPGXClient(s.Context)
+	client, err := s.Config.Database.GetPGXClient(ctx)
 	if err != nil {
 		if strings.Contains(err.Error(), "operation was canceled") {
 			return nil, nil
@@ -69,12 +70,12 @@ func (s *System) GetProjectLimits(userSubject string) (*Projects, error) {
 		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
 	}
 	defer func() {
-		if err := client.Close(s.Context); err != nil {
+		if err := client.Close(ctx); err != nil {
 			s.Config.Bugfixes.Logger.Fatalf("Failed to close database connection: %v", err)
 		}
 	}()
 
-	if err := client.QueryRow(s.Context, `
+	if err := client.QueryRow(ctx, `
     WITH user_company AS (
         SELECT c.id AS company_id, c.allowed_projects
         FROM public.company c
@@ -100,13 +101,13 @@ func (s *System) GetProjectLimits(userSubject string) (*Projects, error) {
 	return p, nil
 }
 
-func (s *System) GetUserLimits(userSubject string) (*Users, error) {
+func (s *System) GetUserLimits(ctx context.Context, userSubject string) (*Users, error) {
 	u := &Users{
 		Allowed:   1,
 		Activated: 1,
 	}
 
-	client, err := s.Config.Database.GetPGXClient(s.Context)
+	client, err := s.Config.Database.GetPGXClient(ctx)
 	if err != nil {
 		if strings.Contains(err.Error(), "operation was canceled") {
 			return nil, nil
@@ -114,12 +115,12 @@ func (s *System) GetUserLimits(userSubject string) (*Users, error) {
 		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
 	}
 	defer func() {
-		if err := client.Close(s.Context); err != nil {
+		if err := client.Close(ctx); err != nil {
 			s.Config.Bugfixes.Logger.Fatalf("Failed to close database connection: %v", err)
 		}
 	}()
 
-	if err := client.QueryRow(s.Context, `
+	if err := client.QueryRow(ctx, `
     WITH user_company AS (
         SELECT c.id AS company_id, c.allowed_members
         FROM public.company c
@@ -145,10 +146,10 @@ func (s *System) GetUserLimits(userSubject string) (*Users, error) {
 	return u, nil
 }
 
-func (s *System) GetAgentLimits(companyId string) (*Agents, error) {
+func (s *System) GetAgentLimits(ctx context.Context, companyId string) (*Agents, error) {
 	a := &Agents{}
 
-	client, err := s.Config.Database.GetPGXClient(s.Context)
+	client, err := s.Config.Database.GetPGXClient(ctx)
 	if err != nil {
 		if strings.Contains(err.Error(), "operation was canceled") {
 			return nil, nil
@@ -156,13 +157,13 @@ func (s *System) GetAgentLimits(companyId string) (*Agents, error) {
 		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
 	}
 	defer func() {
-		if err := client.Close(s.Context); err != nil {
+		if err := client.Close(ctx); err != nil {
 			s.Config.Bugfixes.Logger.Fatalf("Failed to close database connection: %v", err)
 		}
 	}()
 
 	// Prepare the query
-	rows, err := client.Query(s.Context, `
+	rows, err := client.Query(ctx, `
     WITH user_company AS (
 		SELECT 
 			c.id AS company_id, 
@@ -216,8 +217,8 @@ func (s *System) GetAgentLimits(companyId string) (*Agents, error) {
 	return a, nil
 }
 
-func (s *System) GetCompanyId(userSubject string) (string, error) {
-	client, err := s.Config.Database.GetPGXClient(s.Context)
+func (s *System) GetCompanyId(ctx context.Context, userSubject string) (string, error) {
+	client, err := s.Config.Database.GetPGXClient(ctx)
 	if err != nil {
 		if strings.Contains(err.Error(), "operation was canceled") {
 			return "", nil
@@ -225,13 +226,13 @@ func (s *System) GetCompanyId(userSubject string) (string, error) {
 		return "", s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
 	}
 	defer func() {
-		if err := client.Close(s.Context); err != nil {
+		if err := client.Close(ctx); err != nil {
 			s.Config.Bugfixes.Logger.Fatalf("Failed to close database connection: %v", err)
 		}
 	}()
 
 	var companyId string
-	if err := client.QueryRow(s.Context, `
+	if err := client.QueryRow(ctx, `
     SELECT
       public.company.company_id
     FROM public.company
@@ -250,8 +251,8 @@ func (s *System) GetCompanyId(userSubject string) (string, error) {
 	return companyId, nil
 }
 
-func (s *System) GetCompanyInfo(userSubject string) (*Details, error) {
-	companyId, err := s.GetCompanyId(userSubject)
+func (s *System) GetCompanyInfo(ctx context.Context, userSubject string) (*Details, error) {
+	companyId, err := s.GetCompanyId(ctx, userSubject)
 	if err != nil {
 		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to get company id: %v", err)
 	}
@@ -260,7 +261,7 @@ func (s *System) GetCompanyInfo(userSubject string) (*Details, error) {
 	company := &Company{}
 	paymentPlan := &PlanDetails{}
 
-	client, err := s.Config.Database.GetPGXClient(s.Context)
+	client, err := s.Config.Database.GetPGXClient(ctx)
 	if err != nil {
 		if strings.Contains(err.Error(), "operation was canceled") {
 			return nil, nil
@@ -268,12 +269,12 @@ func (s *System) GetCompanyInfo(userSubject string) (*Details, error) {
 		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
 	}
 	defer func() {
-		if err := client.Close(s.Context); err != nil {
+		if err := client.Close(ctx); err != nil {
 			s.Config.Bugfixes.Logger.Fatalf("Failed to close database connection: %v", err)
 		}
 	}()
 
-	if err := client.QueryRow(s.Context, `
+	if err := client.QueryRow(ctx, `
     SELECT
 		c.company_id,
   		c.name AS companyName,
@@ -329,8 +330,8 @@ func (s *System) GetCompanyInfo(userSubject string) (*Details, error) {
 	return details, nil
 }
 
-func (s *System) GetCompanyBasedOnDomain(domain, inviteCode string) (bool, error) {
-	client, err := s.Config.Database.GetPGXClient(s.Context)
+func (s *System) GetCompanyBasedOnDomain(ctx context.Context, domain, inviteCode string) (bool, error) {
+	client, err := s.Config.Database.GetPGXClient(ctx)
 	if err != nil {
 		if strings.Contains(err.Error(), "operation was canceled") {
 			return false, nil
@@ -338,13 +339,13 @@ func (s *System) GetCompanyBasedOnDomain(domain, inviteCode string) (bool, error
 		return false, s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
 	}
 	defer func() {
-		if err := client.Close(s.Context); err != nil {
+		if err := client.Close(ctx); err != nil {
 			s.Config.Bugfixes.Logger.Fatalf("Failed to close database connection: %v", err)
 		}
 	}()
 
 	var companyId string
-	if err := client.QueryRow(s.Context, `
+	if err := client.QueryRow(ctx, `
     SELECT company_id
 	FROM company
 	WHERE domain = $1 OR invite_code = $2`, domain, inviteCode).Scan(&companyId); err != nil {
@@ -361,8 +362,8 @@ func (s *System) GetCompanyBasedOnDomain(domain, inviteCode string) (bool, error
 	return true, nil
 }
 
-func (s *System) AttachUserToCompanyDB(userSubject string) error {
-	client, err := s.Config.Database.GetPGXClient(s.Context)
+func (s *System) AttachUserToCompanyDB(ctx context.Context, userSubject string) error {
+	client, err := s.Config.Database.GetPGXClient(ctx)
 	if err != nil {
 		if strings.Contains(err.Error(), "operation was canceled") {
 			return nil
@@ -370,12 +371,12 @@ func (s *System) AttachUserToCompanyDB(userSubject string) error {
 		return s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
 	}
 	defer func() {
-		if err := client.Close(s.Context); err != nil {
+		if err := client.Close(ctx); err != nil {
 			s.Config.Bugfixes.Logger.Fatalf("Failed to close database connection: %v", err)
 		}
 	}()
 
-	_, err = client.Exec(s.Context, `
+	_, err = client.Exec(ctx, `
     INSERT INTO public.company_user (
         company_id,
         user_id
@@ -387,7 +388,7 @@ func (s *System) AttachUserToCompanyDB(userSubject string) error {
 		return s.Config.Bugfixes.Logger.Errorf("Failed to insert user into database: %v", err)
 	}
 
-	_, err = client.Exec(s.Context, `
+	_, err = client.Exec(ctx, `
 		UPDATE public.user
 		SET onboarded = true
 		WHERE subject = $1`, userSubject)
@@ -398,8 +399,8 @@ func (s *System) AttachUserToCompanyDB(userSubject string) error {
 	return nil
 }
 
-func (s *System) CreateCompanyDB(name, domain, userSubject string) error {
-	client, err := s.Config.Database.GetPGXClient(s.Context)
+func (s *System) CreateCompanyDB(ctx context.Context, name, domain, userSubject string) error {
+	client, err := s.Config.Database.GetPGXClient(ctx)
 	if err != nil {
 		if strings.Contains(err.Error(), "operation was canceled") {
 			return nil
@@ -407,7 +408,7 @@ func (s *System) CreateCompanyDB(name, domain, userSubject string) error {
 		return s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
 	}
 	defer func() {
-		if err := client.Close(s.Context); err != nil {
+		if err := client.Close(ctx); err != nil {
 			s.Config.Bugfixes.Logger.Fatalf("Failed to close database connection: %v", err)
 		}
 	}()
@@ -417,7 +418,7 @@ func (s *System) CreateCompanyDB(name, domain, userSubject string) error {
 	apiKey := uuid.New().String()
 	apiSecret := uuid.New().String()
 
-	if _, err := client.Exec(s.Context, `
+	if _, err := client.Exec(ctx, `
     INSERT INTO public.company (
         name,
         domain,
@@ -436,7 +437,7 @@ func (s *System) CreateCompanyDB(name, domain, userSubject string) error {
 		return s.Config.Bugfixes.Logger.Errorf("Failed to insert company into database: %v", err)
 	}
 
-	if _, err := client.Exec(s.Context, `
+	if _, err := client.Exec(ctx, `
     INSERT INTO public.company_user (
         company_id,
         user_id
@@ -457,10 +458,10 @@ type User struct {
 	KnownAs   string `json:"known_as"`
 }
 
-func (s *System) GetCompanyUsersFromDB(companyId string) ([]User, error) {
+func (s *System) GetCompanyUsersFromDB(ctx context.Context, companyId string) ([]User, error) {
 	var users []User
 
-	client, err := s.Config.Database.GetPGXClient(s.Context)
+	client, err := s.Config.Database.GetPGXClient(ctx)
 	if err != nil {
 		if strings.Contains(err.Error(), "operation was canceled") {
 			return users, nil
@@ -468,12 +469,12 @@ func (s *System) GetCompanyUsersFromDB(companyId string) ([]User, error) {
 		return users, s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
 	}
 	defer func() {
-		if err := client.Close(s.Context); err != nil {
+		if err := client.Close(ctx); err != nil {
 			logs.Fatalf("Failed to close database connection: %v", err)
 		}
 	}()
 
-	rows, err := client.Query(s.Context, `
+	rows, err := client.Query(ctx, `
     SELECT
         u.subject,
         u.first_name,
@@ -505,10 +506,10 @@ func (s *System) GetCompanyUsersFromDB(companyId string) ([]User, error) {
 	return users, nil
 }
 
-func (s *System) GetLimits(companyId string) (Limits, error) {
+func (s *System) GetLimits(ctx context.Context, companyId string) (Limits, error) {
 	var limits Limits
 
-	client, err := s.Config.Database.GetPGXClient(s.Context)
+	client, err := s.Config.Database.GetPGXClient(ctx)
 	if err != nil {
 		if strings.Contains(err.Error(), "operation was canceled") {
 			return limits, nil
@@ -516,12 +517,12 @@ func (s *System) GetLimits(companyId string) (Limits, error) {
 		return limits, s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
 	}
 	defer func() {
-		if err := client.Close(s.Context); err != nil {
+		if err := client.Close(ctx); err != nil {
 			s.Config.Bugfixes.Logger.Fatalf("Failed to close database connection: %v", err)
 		}
 	}()
 
-	if err := client.QueryRow(s.Context, `
+	if err := client.QueryRow(ctx, `
     SELECT
 		pp.price,
 		pp.name,
@@ -562,8 +563,8 @@ func (s *System) GetLimits(companyId string) (Limits, error) {
 	return limits, nil
 }
 
-func (s *System) UpdateCompanyImageInDB(companyId, image string) error {
-	client, err := s.Config.Database.GetPGXClient(s.Context)
+func (s *System) UpdateCompanyImageInDB(ctx context.Context, companyId, image string) error {
+	client, err := s.Config.Database.GetPGXClient(ctx)
 	if err != nil {
 		if strings.Contains(err.Error(), "operation was canceled") {
 			return nil
@@ -571,12 +572,12 @@ func (s *System) UpdateCompanyImageInDB(companyId, image string) error {
 		return s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
 	}
 	defer func() {
-		if err := client.Close(s.Context); err != nil {
+		if err := client.Close(ctx); err != nil {
 			s.Config.Bugfixes.Logger.Fatalf("Failed to close database connection: %v", err)
 		}
 	}()
 
-	if _, err := client.Exec(s.Context, `UPDATE public.company
+	if _, err := client.Exec(ctx, `UPDATE public.company
 		SET logo = $1
 		WHERE company_id = $2`, image, companyId); err != nil {
 		return s.Config.Bugfixes.Logger.Errorf("Failed to update project in database: %v", err)
@@ -585,8 +586,8 @@ func (s *System) UpdateCompanyImageInDB(companyId, image string) error {
 	return nil
 }
 
-func (s *System) GetInviteCodeFromDB(companyId string) (string, error) {
-	client, err := s.Config.Database.GetPGXClient(s.Context)
+func (s *System) GetInviteCodeFromDB(ctx context.Context, companyId string) (string, error) {
+	client, err := s.Config.Database.GetPGXClient(ctx)
 	if err != nil {
 		if strings.Contains(err.Error(), "operation was canceled") {
 			return "", nil
@@ -594,13 +595,13 @@ func (s *System) GetInviteCodeFromDB(companyId string) (string, error) {
 		return "", s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
 	}
 	defer func() {
-		if err := client.Close(s.Context); err != nil {
+		if err := client.Close(ctx); err != nil {
 			s.Config.Bugfixes.Logger.Fatalf("Failed to close database connection: %v", err)
 		}
 	}()
 
 	var inviteCode sql.NullString
-	if err := client.QueryRow(s.Context, `
+	if err := client.QueryRow(ctx, `
     SELECT
       invite_code
     FROM public.company
@@ -611,8 +612,8 @@ func (s *System) GetInviteCodeFromDB(companyId string) (string, error) {
 	return inviteCode.String, nil
 }
 
-func (s *System) UpgradeCompanyInDB(companyId, stripeSessionId string) error {
-	client, err := s.Config.Database.GetPGXClient(s.Context)
+func (s *System) UpgradeCompanyInDB(ctx context.Context, companyId, stripeSessionId string) error {
+	client, err := s.Config.Database.GetPGXClient(ctx)
 	if err != nil {
 		if strings.Contains(err.Error(), "operation was canceled") {
 			return nil
@@ -620,7 +621,7 @@ func (s *System) UpgradeCompanyInDB(companyId, stripeSessionId string) error {
 		return s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
 	}
 	defer func() {
-		if err := client.Close(s.Context); err != nil {
+		if err := client.Close(ctx); err != nil {
 			s.Config.Bugfixes.Logger.Fatalf("Failed to close database connection: %v", err)
 		}
 	}()
@@ -637,7 +638,7 @@ func (s *System) UpgradeCompanyInDB(companyId, stripeSessionId string) error {
 		return s.Config.Bugfixes.Logger.Errorf("Failed to get price id from metadata")
 	}
 
-	_, err = client.Exec(s.Context, `
+	_, err = client.Exec(ctx, `
     UPDATE public.company
     SET
       payment_plan_id = (

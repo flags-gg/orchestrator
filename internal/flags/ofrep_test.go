@@ -193,7 +193,6 @@ func TestOFREPSingleFlagEvaluation(t *testing.T) {
 	}()
 
 	_, ofrepSystem := setupTestSystem(t)
-	ofrepSystem.SetContext(ctx)
 
 	tests := []struct {
 		name           string
@@ -308,7 +307,6 @@ func TestOFREPBulkFlagEvaluation(t *testing.T) {
 	}()
 
 	_, ofrepSystem := setupTestSystem(t)
-	ofrepSystem.SetContext(ctx)
 
 	tests := []struct {
 		name           string
@@ -388,8 +386,6 @@ func TestOFREPAndStandardEndpointsReturnSameFlags(t *testing.T) {
 	}()
 
 	standardSystem, ofrepSystem := setupTestSystem(t)
-	standardSystem.SetContext(ctx)
-	ofrepSystem.SetContext(ctx)
 
 	projectId := "test-project-1"
 	agentId := "test-agent-1"
@@ -467,7 +463,6 @@ func TestOFREPAPIKeyAuthentication(t *testing.T) {
 	}()
 
 	_, ofrepSystem := setupTestSystem(t)
-	ofrepSystem.SetContext(ctx)
 
 	// Generate JWT API keys
 	apiKeySystem := NewAPIKeySystem(ofrepSystem.Config)
@@ -561,7 +556,6 @@ func TestOFREPCaseInsensitiveFlagLookup(t *testing.T) {
 	}()
 
 	_, ofrepSystem := setupTestSystem(t)
-	ofrepSystem.SetContext(ctx)
 
 	tests := []struct {
 		name        string

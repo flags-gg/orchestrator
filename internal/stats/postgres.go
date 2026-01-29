@@ -3,20 +3,21 @@ package stats
 import (
 	"context"
 	"errors"
+	"strings"
+
 	"github.com/bugfixes/go-bugfixes/logs"
 	"github.com/jackc/pgx/v5"
-	"strings"
 )
 
-func (s *System) GetNamesForData(data *AgentStat) (*AgentStat, error) {
-	agentName, err := s.GetAgentName(data.ID)
+func (s *System) GetNamesForData(ctx context.Context, data *AgentStat) (*AgentStat, error) {
+	agentName, err := s.GetAgentName(ctx, data.ID)
 	if err != nil {
 		return data, err
 	}
 	data.Name = agentName
 
 	for j, env := range data.Environments {
-		environmentName, err := s.GetEnvironmentName(env.Id)
+		environmentName, err := s.GetEnvironmentName(ctx, env.Id)
 		if err != nil {
 			return data, err
 		}
@@ -27,8 +28,8 @@ func (s *System) GetNamesForData(data *AgentStat) (*AgentStat, error) {
 	return data, nil
 }
 
-func (s *System) GetAgentName(agentId string) (string, error) {
-	client, err := s.Config.Database.GetPGXClient(s.Context)
+func (s *System) GetAgentName(ctx context.Context, agentId string) (string, error) {
+	client, err := s.Config.Database.GetPGXClient(ctx)
 	if err != nil {
 		if strings.Contains(err.Error(), "operation was canceled") {
 			return "", nil
@@ -36,13 +37,13 @@ func (s *System) GetAgentName(agentId string) (string, error) {
 		return "", s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
 	}
 	defer func() {
-		if err := client.Close(s.Context); err != nil {
+		if err := client.Close(ctx); err != nil {
 			s.Config.Bugfixes.Logger.Fatalf("Failed to close database connection: %v", err)
 		}
 	}()
 
 	var agentName string
-	if err := client.QueryRow(s.Context, `
+	if err := client.QueryRow(ctx, `
     SELECT agent.name AS AgentName
     FROM public.agent AS agent
     WHERE agent_id = $1`, agentId).Scan(&agentName); err != nil {
@@ -59,8 +60,8 @@ func (s *System) GetAgentName(agentId string) (string, error) {
 	return agentName, nil
 }
 
-func (s *System) GetEnvironmentName(environmentId string) (string, error) {
-	client, err := s.Config.Database.GetPGXClient(s.Context)
+func (s *System) GetEnvironmentName(ctx context.Context, environmentId string) (string, error) {
+	client, err := s.Config.Database.GetPGXClient(ctx)
 	if err != nil {
 		if strings.Contains(err.Error(), "operation was canceled") {
 			return "", nil
@@ -68,13 +69,13 @@ func (s *System) GetEnvironmentName(environmentId string) (string, error) {
 		return "", s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
 	}
 	defer func() {
-		if err := client.Close(s.Context); err != nil {
+		if err := client.Close(ctx); err != nil {
 			s.Config.Bugfixes.Logger.Fatalf("Failed to close database connection: %v", err)
 		}
 	}()
 
 	var envName string
-	if err := client.QueryRow(s.Context, `
+	if err := client.QueryRow(ctx, `
     SELECT env.name AS EnvName
     FROM public.environment AS env
     WHERE env_id = $1`, environmentId).Scan(&envName); err != nil {

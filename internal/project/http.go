@@ -1,32 +1,26 @@
 package project
 
 import (
-	"context"
 	"encoding/json"
+	"net/http"
+	"strconv"
+	"time"
+
 	"github.com/clerk/clerk-sdk-go/v2"
 	clerkUser "github.com/clerk/clerk-sdk-go/v2/user"
 	"github.com/flags-gg/orchestrator/internal/agent"
 	"github.com/flags-gg/orchestrator/internal/company"
 	ConfigBuilder "github.com/keloran/go-config"
-	"net/http"
-	"strconv"
-	"time"
 )
 
 type System struct {
-	Config  *ConfigBuilder.Config
-	Context context.Context
+	Config *ConfigBuilder.Config
 }
 
 func NewSystem(cfg *ConfigBuilder.Config) *System {
 	return &System{
 		Config: cfg,
 	}
-}
-
-func (s *System) SetContext(ctx context.Context) *System {
-	s.Context = ctx
-	return s
 }
 
 // getUserId returns the user ID, using dev mode config if in development, otherwise Clerk
@@ -37,7 +31,7 @@ func (s *System) getUserId(r *http.Request) (string, error) {
 
 	// Production mode: use Clerk authentication
 	clerk.SetKey(s.Config.Clerk.Key)
-	usr, err := clerkUser.Get(s.Context, r.Header.Get("x-user-subject"))
+	usr, err := clerkUser.Get(r.Context(), r.Header.Get("x-user-subject"))
 	if err != nil {
 		return "", err
 	}
@@ -46,7 +40,7 @@ func (s *System) getUserId(r *http.Request) (string, error) {
 
 func (s *System) GetProjects(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("x-flags-timestamp", strconv.FormatInt(time.Now().Unix(), 10))
-	s.Context = r.Context()
+	ctx := r.Context()
 
 	type Projects struct {
 		Projects []Project `json:"projects"`
@@ -66,13 +60,13 @@ func (s *System) GetProjects(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	companyId, err := company.NewSystem(s.Config).SetContext(s.Context).GetCompanyId(userId)
+	companyId, err := company.NewSystem(s.Config).GetCompanyId(ctx, userId)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
-	pro, err := s.GetProjectsFromDB(companyId)
+	pro, err := s.GetProjectsFromDB(ctx, companyId)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -87,7 +81,7 @@ func (s *System) GetProjects(w http.ResponseWriter, r *http.Request) {
 
 func (s *System) GetProject(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("x-flags-timestamp", strconv.FormatInt(time.Now().Unix(), 10))
-	s.Context = r.Context()
+	ctx := r.Context()
 
 	if r.Header.Get("x-user-subject") == "" {
 		if err := json.NewEncoder(w).Encode(&Project{}); err != nil {
@@ -102,13 +96,13 @@ func (s *System) GetProject(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	companyId, err := company.NewSystem(s.Config).SetContext(s.Context).GetCompanyId(userId)
+	companyId, err := company.NewSystem(s.Config).GetCompanyId(ctx, userId)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
-	proj, err := s.GetProjectFromDB(companyId, r.PathValue("projectId"))
+	proj, err := s.GetProjectFromDB(ctx, companyId, r.PathValue("projectId"))
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -122,7 +116,7 @@ func (s *System) GetProject(w http.ResponseWriter, r *http.Request) {
 
 func (s *System) CreateProject(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("x-flags-timestamp", strconv.FormatInt(time.Now().Unix(), 10))
-	s.Context = r.Context()
+	ctx := r.Context()
 
 	if r.Header.Get("x-user-subject") == "" {
 		if err := json.NewEncoder(w).Encode(&Project{}); err != nil {
@@ -132,7 +126,7 @@ func (s *System) CreateProject(w http.ResponseWriter, r *http.Request) {
 	}
 
 	clerk.SetKey(s.Config.Clerk.Key)
-	usr, err := clerkUser.Get(s.Context, r.Header.Get("x-user-subject"))
+	usr, err := clerkUser.Get(ctx, r.Header.Get("x-user-subject"))
 	if err != nil {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
@@ -148,19 +142,19 @@ func (s *System) CreateProject(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	companyId, err := company.NewSystem(s.Config).SetContext(s.Context).GetCompanyId(usr.ID)
+	companyId, err := company.NewSystem(s.Config).GetCompanyId(ctx, usr.ID)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
-	createdProject, err := s.CreateProjectInDB(companyId, proj.Name)
+	createdProject, err := s.CreateProjectInDB(ctx, companyId, proj.Name)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
-	projDetails, err := s.GetProjectFromDB(companyId, createdProject.ProjectID)
+	projDetails, err := s.GetProjectFromDB(ctx, companyId, createdProject.ProjectID)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -174,7 +168,7 @@ func (s *System) CreateProject(w http.ResponseWriter, r *http.Request) {
 
 func (s *System) UpdateProject(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("x-flags-timestamp", strconv.FormatInt(time.Now().Unix(), 10))
-	s.Context = r.Context()
+	ctx := r.Context()
 
 	if r.Header.Get("x-user-subject") == "" {
 		if err := json.NewEncoder(w).Encode(&Project{}); err != nil {
@@ -191,7 +185,7 @@ func (s *System) UpdateProject(w http.ResponseWriter, r *http.Request) {
 	}
 
 	clerk.SetKey(s.Config.Clerk.Key)
-	_, err := clerkUser.Get(s.Context, r.Header.Get("x-user-subject"))
+	_, err := clerkUser.Get(ctx, r.Header.Get("x-user-subject"))
 	if err != nil {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
@@ -204,7 +198,7 @@ func (s *System) UpdateProject(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if _, err := s.UpdateProjectInDB(projectId, proj.Name, proj.Enabled); err != nil {
+	if _, err := s.UpdateProjectInDB(ctx, projectId, proj.Name, proj.Enabled); err != nil {
 		_ = s.Config.Bugfixes.Logger.Errorf("Failed to update project: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 	}
@@ -214,7 +208,7 @@ func (s *System) UpdateProject(w http.ResponseWriter, r *http.Request) {
 
 func (s *System) DeleteProject(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("x-flags-timestamp", strconv.FormatInt(time.Now().Unix(), 10))
-	s.Context = r.Context()
+	ctx := r.Context()
 
 	if r.Header.Get("x-user-subject") == "" {
 		if err := json.NewEncoder(w).Encode(&Project{}); err != nil {
@@ -231,18 +225,18 @@ func (s *System) DeleteProject(w http.ResponseWriter, r *http.Request) {
 	projectId := r.PathValue("projectId")
 
 	clerk.SetKey(s.Config.Clerk.Key)
-	_, err := clerkUser.Get(s.Context, r.Header.Get("x-user-subject"))
+	_, err := clerkUser.Get(ctx, r.Header.Get("x-user-subject"))
 	if err != nil {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
 
-	if err := agent.NewSystem(s.Config).SetContext(r.Context()).DeleteAllAgentsForProject(projectId); err != nil {
+	if err := agent.NewSystem(s.Config).DeleteAllAgentsForProject(ctx, projectId); err != nil {
 		_ = s.Config.Bugfixes.Logger.Errorf("Failed to update project: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 	}
 
-	if err := s.DeleteProjectInDB(projectId); err != nil {
+	if err := s.DeleteProjectInDB(ctx, projectId); err != nil {
 		_ = s.Config.Bugfixes.Logger.Errorf("Failed to update project: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 	}
@@ -252,7 +246,7 @@ func (s *System) DeleteProject(w http.ResponseWriter, r *http.Request) {
 
 func (s *System) UpdateProjectImage(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("x-flags-timestamp", strconv.FormatInt(time.Now().Unix(), 10))
-	s.Context = r.Context()
+	ctx := r.Context()
 
 	if r.Header.Get("x-user-subject") == "" {
 		if err := json.NewEncoder(w).Encode(&Project{}); err != nil {
@@ -272,13 +266,13 @@ func (s *System) UpdateProjectImage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	clerk.SetKey(s.Config.Clerk.Key)
-	_, err := clerkUser.Get(s.Context, r.Header.Get("x-user-subject"))
+	_, err := clerkUser.Get(ctx, r.Header.Get("x-user-subject"))
 	if err != nil {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
 
-	if err := s.UpdateProjectImageInDB(projectId, imageChange.Image); err != nil {
+	if err := s.UpdateProjectImageInDB(ctx, projectId, imageChange.Image); err != nil {
 		_ = s.Config.Bugfixes.Logger.Errorf("Failed to update project: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 	}
@@ -287,7 +281,7 @@ func (s *System) UpdateProjectImage(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *System) GetLimits(w http.ResponseWriter, r *http.Request) {
-	s.Context = r.Context()
+	ctx := r.Context()
 
 	if r.Header.Get("x-user-subject") == "" {
 		w.WriteHeader(http.StatusUnauthorized)
@@ -300,7 +294,7 @@ func (s *System) GetLimits(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	companyId, err := company.NewSystem(s.Config).SetContext(s.Context).GetCompanyId(userId)
+	companyId, err := company.NewSystem(s.Config).GetCompanyId(ctx, userId)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -312,7 +306,7 @@ func (s *System) GetLimits(w http.ResponseWriter, r *http.Request) {
 
 	projectId := r.PathValue("projectId")
 
-	limits, err := s.GetLimitsFromDB(companyId, projectId)
+	limits, err := s.GetLimitsFromDB(ctx, companyId, projectId)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
