@@ -68,6 +68,10 @@ func (s *System) GetPrices(ctx context.Context) ([]Price, error) {
 		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to query database: %v", err)
 	}
 	defer rows.Close()
+	if rows.Err() != nil {
+		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to query database: %v", err)
+	}
+
 	for rows.Next() {
 		var price Price
 		var popular bool

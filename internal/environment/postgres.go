@@ -143,6 +143,9 @@ func (s *System) GetAgentEnvironmentsFromDB(ctx context.Context, agentId, compan
 		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to query database: %v", err)
 	}
 	defer rows.Close()
+	if rows.Err() != nil {
+		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to query database: %v", err)
+	}
 
 	var environments []*Environment
 	for rows.Next() {
@@ -191,6 +194,9 @@ func (s *System) GetEnvironmentsFromDB(ctx context.Context, companyId string) ([
 		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to query database: %v", err)
 	}
 	defer rows.Close()
+	if rows.Err() != nil {
+		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to query database: %v", err)
+	}
 
 	var environments []*Environment
 	for rows.Next() {
@@ -392,6 +398,10 @@ func (s *System) DeleteAllEnvironmentsForAgent(ctx context.Context, agentId stri
 		return s.Config.Bugfixes.Logger.Errorf("Failed to get environments from database: %v", err)
 	}
 	defer rows.Close()
+	if rows.Err() != nil {
+		return s.Config.Bugfixes.Logger.Errorf("Failed to get environments from database: %v", err)
+	}
+
 	for rows.Next() {
 		var envId string
 		if err := rows.Scan(&envId); err != nil {

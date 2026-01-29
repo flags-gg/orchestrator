@@ -192,6 +192,10 @@ func (s *System) GetAgentLimits(ctx context.Context, companyId string) (*Agents,
 	defer rows.Close()
 	a.Used = []AgentsUsed{}
 
+	if rows.Err() != nil {
+		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to query database: %v", err)
+	}
+
 	// Iterate over the result set
 	for rows.Next() {
 		var projectID string // Adjust the type if necessary
@@ -491,6 +495,10 @@ func (s *System) GetCompanyUsersFromDB(ctx context.Context, companyId string) ([
 		if errors.Is(err, pgx.ErrNoRows) {
 			return users, nil
 		}
+		return users, s.Config.Bugfixes.Logger.Errorf("Failed to query database: %v", err)
+	}
+
+	if err := rows.Err(); err != nil {
 		return users, s.Config.Bugfixes.Logger.Errorf("Failed to query database: %v", err)
 	}
 

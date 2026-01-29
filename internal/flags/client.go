@@ -53,6 +53,10 @@ func (s *System) GetClientFlagsFromDB(ctx context.Context, environmentId string)
 		}
 		return nil, s.Config.Bugfixes.Logger.Errorf("failed to get flags: %v", err)
 	}
+	defer rows.Close()
+	if rows.Err() != nil {
+		return nil, s.Config.Bugfixes.Logger.Errorf("failed to get flags: %v", err)
+	}
 	for rows.Next() {
 		flag := Flag{}
 		details := Details{}

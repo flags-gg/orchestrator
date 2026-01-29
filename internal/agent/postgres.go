@@ -152,6 +152,9 @@ func (s *System) GetAgents(ctx context.Context, companyId string) ([]*Agent, err
 		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to query database: %v", err)
 	}
 	defer rows.Close()
+	if rows.Err() != nil {
+		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to query database: %v", err)
+	}
 
 	var agents []*Agent
 	for rows.Next() {
@@ -222,6 +225,10 @@ func (s *System) GetAgentsForProject(ctx context.Context, companyId, projectId s
 
 	agentsMap := make(map[string]*Agent)
 	agentOrder := make([]string, 0)
+
+	if rows.Err() != nil {
+		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to query database: %v", err)
+	}
 
 	for rows.Next() {
 		var agentId, agentName, agentAgentId string
@@ -472,6 +479,11 @@ func (s *System) DeleteAllAgentsForProject(ctx context.Context, projectId string
 		return s.Config.Bugfixes.Logger.Errorf("Failed to query database: %v", err)
 	}
 	defer rows.Close()
+
+	if rows.Err() != nil {
+		return s.Config.Bugfixes.Logger.Errorf("Failed to query database: %v", err)
+	}
+
 	for rows.Next() {
 		agent := &Agent{}
 		if err := rows.Scan(&agent.AgentId); err != nil {

@@ -177,6 +177,9 @@ func (s *System) RetrieveUserNotifications(ctx context.Context, subject string) 
 		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to query database: %v", err)
 	}
 	defer rows.Close()
+	if rows.Err() != nil {
+		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to query database: %v", err)
+	}
 
 	var notifications []Notification
 	for rows.Next() {

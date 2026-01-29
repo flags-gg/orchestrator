@@ -91,6 +91,9 @@ func (s *System) GetAgentFlagsFromDB(ctx context.Context, projectId, agentId, en
 
 		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to query database: %v", err)
 	}
+	if rows.Err() != nil {
+		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to query database: %v", err)
+	}
 
 	for rows.Next() {
 		var flagName string

@@ -60,6 +60,9 @@ func (s *System) GetProjectsFromDB(ctx context.Context, companyId string) ([]Pro
 		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to query database: %v", err)
 	}
 	defer rows.Close()
+	if rows.Err() != nil {
+		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to query database: %v", err)
+	}
 
 	var projects []Project
 	for rows.Next() {
