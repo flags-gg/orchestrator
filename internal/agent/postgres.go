@@ -194,13 +194,24 @@ func (s *System) GetAgentsForProject(ctx context.Context, companyId, projectId s
       agent.name AS AgentName,
       payment_plans.requests,
       agent.agent_id,
-      payment_plans.environments
+      payment_plans.environments,
+      env.id AS EnvId,
+      env.name AS EnvName,
+      env.env_id,
+      env.enabled AS EnvEnabled,
+      env.level,
+      EXISTS (
+        SELECT 1 FROM public.environment_chain ec
+        WHERE ec.parent_environment_id = env.id AND ec.agent_id = env.agent_id
+      ) AS can_promote
     FROM public.agent
       JOIN public.project ON agent.project_id = project.id
       JOIN public.company ON project.company_id = company.id
       JOIN public.payment_plans ON payment_plans.id = company.payment_plan_id
+      LEFT JOIN public.environment AS env ON env.agent_id = agent.id
     WHERE company.company_id = $1
-        AND project.project_id = $2`, companyId, projectId)
+      AND project.project_id = $2
+    ORDER BY agent.id, env.level ASC`, companyId, projectId)
 	if err != nil {
 		if err.Error() == "context canceled" || errors.Is(err, context.Canceled) {
 			return nil, nil
@@ -209,20 +220,69 @@ func (s *System) GetAgentsForProject(ctx context.Context, companyId, projectId s
 	}
 	defer rows.Close()
 
-	var agents []*Agent
+	agentsMap := make(map[string]*Agent)
+	agentOrder := make([]string, 0)
+
 	for rows.Next() {
-		agent := &Agent{}
-		if err := rows.Scan(&agent.Id, &agent.Name, &agent.RequestLimit, &agent.AgentId, &agent.EnvironmentLimit); err != nil {
+		var agentId, agentName, agentAgentId string
+		var requestLimit, envLimit int
+		var envId, envName, envEnvId *string
+		var envEnabled *bool
+		var envLevel *int
+		var canPromote *bool
+
+		if err := rows.Scan(
+			&agentId,
+			&agentName,
+			&requestLimit,
+			&agentAgentId,
+			&envLimit,
+			&envId,
+			&envName,
+			&envEnvId,
+			&envEnabled,
+			&envLevel,
+			&canPromote,
+		); err != nil {
 			return nil, s.Config.Bugfixes.Logger.Errorf("Failed to scan database rows: %v", err)
 		}
 
-		envs, err := environment.NewSystem(s.Config).GetAgentEnvironmentsFromDB(ctx, agent.AgentId, companyId)
-		if err != nil {
-			return nil, s.Config.Bugfixes.Logger.Errorf("Failed to get agent environments: %v", err)
+		agent, exists := agentsMap[agentAgentId]
+		if !exists {
+			agent = &Agent{
+				Id:               agentId,
+				Name:             agentName,
+				RequestLimit:     requestLimit,
+				AgentId:          agentAgentId,
+				EnvironmentLimit: envLimit,
+				Environments:     []*environment.Environment{},
+			}
+			agentsMap[agentAgentId] = agent
+			agentOrder = append(agentOrder, agentAgentId)
 		}
-		agent.Environments = envs
 
-		agents = append(agents, agent)
+		if envId != nil && *envId != "" {
+			env := &environment.Environment{
+				Id:            *envId,
+				EnvironmentId: *envEnvId,
+				Name:          *envName,
+			}
+			if envEnabled != nil {
+				env.Enabled = *envEnabled
+			}
+			if envLevel != nil {
+				env.Level = *envLevel
+			}
+			if canPromote != nil {
+				env.CanPromote = *canPromote
+			}
+			agent.Environments = append(agent.Environments, env)
+		}
+	}
+
+	agents := make([]*Agent, 0, len(agentOrder))
+	for _, agentId := range agentOrder {
+		agents = append(agents, agentsMap[agentId])
 	}
 
 	return agents, nil
