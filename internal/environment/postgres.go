@@ -4,15 +4,16 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
+
 	"github.com/flags-gg/orchestrator/internal/flags"
 	"github.com/flags-gg/orchestrator/internal/secretmenu"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
-	"strings"
 )
 
-func (s *System) CreateEnvironmentInDB(name, agentId string) (*Environment, error) {
-	client, err := s.Config.Database.GetPGXClient(s.Context)
+func (s *System) CreateEnvironmentInDB(ctx context.Context, name, agentId string) (*Environment, error) {
+	client, err := s.Config.Database.GetPGXClient(ctx)
 	if err != nil {
 		if strings.Contains(err.Error(), "operation was canceled") {
 			return nil, nil
@@ -20,7 +21,7 @@ func (s *System) CreateEnvironmentInDB(name, agentId string) (*Environment, erro
 		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
 	}
 	defer func() {
-		if err := client.Close(s.Context); err != nil {
+		if err := client.Close(ctx); err != nil {
 			s.Config.Bugfixes.Logger.Fatalf("Failed to close database connection: %v", err)
 		}
 	}()
@@ -28,7 +29,7 @@ func (s *System) CreateEnvironmentInDB(name, agentId string) (*Environment, erro
 	envId := uuid.New().String()
 	var insertedEnvId string
 
-	if err := client.QueryRow(s.Context, `
+	if err := client.QueryRow(ctx, `
       WITH agent_row AS (
         SELECT id FROM public.agent WHERE agent_id = $1
       ), next_level AS (
@@ -56,8 +57,8 @@ func (s *System) CreateEnvironmentInDB(name, agentId string) (*Environment, erro
 	}, nil
 }
 
-func (s *System) GetEnvironmentFromDB(envId, companyId string) (*Environment, error) {
-	client, err := s.Config.Database.GetPGXClient(s.Context)
+func (s *System) GetEnvironmentFromDB(ctx context.Context, envId, companyId string) (*Environment, error) {
+	client, err := s.Config.Database.GetPGXClient(ctx)
 	if err != nil {
 		if strings.Contains(err.Error(), "operation was canceled") {
 			return nil, nil
@@ -65,13 +66,13 @@ func (s *System) GetEnvironmentFromDB(envId, companyId string) (*Environment, er
 		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
 	}
 	defer func() {
-		if err := client.Close(s.Context); err != nil {
+		if err := client.Close(ctx); err != nil {
 			s.Config.Bugfixes.Logger.Fatalf("Failed to close database connection: %v", err)
 		}
 	}()
 
 	environment := &Environment{}
-	if err := client.QueryRow(s.Context, `
+	if err := client.QueryRow(ctx, `
     SELECT
       env.id,
       env.name,
@@ -103,8 +104,8 @@ func (s *System) GetEnvironmentFromDB(envId, companyId string) (*Environment, er
 	return environment, nil
 }
 
-func (s *System) GetAgentEnvironmentsFromDB(agentId, companyId string) ([]*Environment, error) {
-	client, err := s.Config.Database.GetPGXClient(s.Context)
+func (s *System) GetAgentEnvironmentsFromDB(ctx context.Context, agentId, companyId string) ([]*Environment, error) {
+	client, err := s.Config.Database.GetPGXClient(ctx)
 	if err != nil {
 		if strings.Contains(err.Error(), "operation was canceled") {
 			return nil, nil
@@ -112,12 +113,12 @@ func (s *System) GetAgentEnvironmentsFromDB(agentId, companyId string) ([]*Envir
 		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
 	}
 	defer func() {
-		if err := client.Close(s.Context); err != nil {
+		if err := client.Close(ctx); err != nil {
 			s.Config.Bugfixes.Logger.Fatalf("Failed to close database connection: %v", err)
 		}
 	}()
 
-	rows, err := client.Query(s.Context, `
+	rows, err := client.Query(ctx, `
     SELECT
       env.id,
       env.name,
@@ -156,8 +157,8 @@ func (s *System) GetAgentEnvironmentsFromDB(agentId, companyId string) ([]*Envir
 	return environments, nil
 }
 
-func (s *System) GetEnvironmentsFromDB(companyId string) ([]*Environment, error) {
-	client, err := s.Config.Database.GetPGXClient(s.Context)
+func (s *System) GetEnvironmentsFromDB(ctx context.Context, companyId string) ([]*Environment, error) {
+	client, err := s.Config.Database.GetPGXClient(ctx)
 	if err != nil {
 		if strings.Contains(err.Error(), "operation was canceled") {
 			return nil, nil
@@ -165,12 +166,12 @@ func (s *System) GetEnvironmentsFromDB(companyId string) ([]*Environment, error)
 		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
 	}
 	defer func() {
-		if err := client.Close(s.Context); err != nil {
+		if err := client.Close(ctx); err != nil {
 			s.Config.Bugfixes.Logger.Fatalf("Failed to close database connection: %v", err)
 		}
 	}()
 
-	rows, err := client.Query(s.Context, `
+	rows, err := client.Query(ctx, `
     SELECT
         env.id as Id,
 		env.env_id AS EnvId,
@@ -204,8 +205,8 @@ func (s *System) GetEnvironmentsFromDB(companyId string) ([]*Environment, error)
 	return environments, nil
 }
 
-func (s *System) UpdateEnvironmentInDB(env Environment) error {
-	client, err := s.Config.Database.GetPGXClient(s.Context)
+func (s *System) UpdateEnvironmentInDB(ctx context.Context, env Environment) error {
+	client, err := s.Config.Database.GetPGXClient(ctx)
 	if err != nil {
 		if strings.Contains(err.Error(), "operation was canceled") {
 			return nil
@@ -213,12 +214,12 @@ func (s *System) UpdateEnvironmentInDB(env Environment) error {
 		return s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
 	}
 	defer func() {
-		if err := client.Close(s.Context); err != nil {
+		if err := client.Close(ctx); err != nil {
 			s.Config.Bugfixes.Logger.Fatalf("Failed to close database connection: %v", err)
 		}
 	}()
 
-	_, err = client.Exec(s.Context, `
+	_, err = client.Exec(ctx, `
     UPDATE public.environment
     SET name = $1, enabled = $3
     WHERE env_id = $2`, env.Name, env.EnvironmentId, env.Enabled)
@@ -229,8 +230,8 @@ func (s *System) UpdateEnvironmentInDB(env Environment) error {
 	return nil
 }
 
-func (s *System) CloneEnvironmentInDB(envId, newEnvId, agentId, name string) error {
-	client, err := s.Config.Database.GetPGXClient(s.Context)
+func (s *System) CloneEnvironmentInDB(ctx context.Context, envId, newEnvId, agentId, name string) error {
+	client, err := s.Config.Database.GetPGXClient(ctx)
 	if err != nil {
 		if strings.Contains(err.Error(), "operation was canceled") {
 			return nil
@@ -238,18 +239,18 @@ func (s *System) CloneEnvironmentInDB(envId, newEnvId, agentId, name string) err
 		return s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
 	}
 	defer func() {
-		if err := client.Close(s.Context); err != nil {
+		if err := client.Close(ctx); err != nil {
 			s.Config.Bugfixes.Logger.Fatalf("Failed to close database connection: %v", err)
 		}
 	}()
 
-	flagsToClone, err := flags.NewSystem(s.Config).SetContext(s.Context).GetClientFlagsFromDB(envId)
+	flagsToClone, err := flags.NewSystem(s.Config).GetClientFlagsFromDB(ctx, envId)
 	if err != nil {
 		return s.Config.Bugfixes.Logger.Errorf("Failed to get flags: %v", err)
 	}
 
 	var agentIdInt int
-	if err := client.QueryRow(s.Context, `
+	if err := client.QueryRow(ctx, `
     SELECT id FROM public.agent WHERE agent_id = $1`, agentId).Scan(&agentIdInt); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return s.Config.Bugfixes.Logger.Errorf("Failed to get agent id: %v", err)
@@ -258,7 +259,7 @@ func (s *System) CloneEnvironmentInDB(envId, newEnvId, agentId, name string) err
 	}
 
 	var envIdInt int
-	if err := client.QueryRow(s.Context, `
+	if err := client.QueryRow(ctx, `
     WITH next_level AS (
       SELECT COALESCE(MAX(level) + 1, 0) AS lvl FROM public.environment WHERE agent_id = $1
     )
@@ -283,7 +284,7 @@ func (s *System) CloneEnvironmentInDB(envId, newEnvId, agentId, name string) err
 	}
 	if insertVars != "" {
 		insertVars = insertVars[:len(insertVars)-1] // Remove last comma
-		_, err := client.Exec(s.Context, fmt.Sprintf(`INSERT INTO public.flag (name, agent_id, environment_id, enabled) VALUES %s`, insertVars))
+		_, err := client.Exec(ctx, fmt.Sprintf(`INSERT INTO public.flag (name, agent_id, environment_id, enabled) VALUES %s`, insertVars))
 		if err != nil {
 			return s.Config.Bugfixes.Logger.Errorf("Failed to insert flags into database: %v", err)
 		}
@@ -293,8 +294,8 @@ func (s *System) CloneEnvironmentInDB(envId, newEnvId, agentId, name string) err
 	return nil
 }
 
-func (s *System) LinkChildEnvironmentInDB(parentEnvId, childEnvId, agentId string) error {
-	client, err := s.Config.Database.GetPGXClient(s.Context)
+func (s *System) LinkChildEnvironmentInDB(ctx context.Context, parentEnvId, childEnvId, agentId string) error {
+	client, err := s.Config.Database.GetPGXClient(ctx)
 	if err != nil {
 		if strings.Contains(err.Error(), "operation was canceled") {
 			return nil
@@ -302,7 +303,7 @@ func (s *System) LinkChildEnvironmentInDB(parentEnvId, childEnvId, agentId strin
 		return s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
 	}
 	defer func() {
-		if err := client.Close(s.Context); err != nil {
+		if err := client.Close(ctx); err != nil {
 			s.Config.Bugfixes.Logger.Fatalf("Failed to close database connection: %v", err)
 		}
 	}()
@@ -313,17 +314,17 @@ func (s *System) LinkChildEnvironmentInDB(parentEnvId, childEnvId, agentId strin
 		parentEnvIdInt int
 		childEnvIdInt  int
 	)
-	if err := client.QueryRow(s.Context, `SELECT id FROM public.agent WHERE agent_id = $1`, agentId).Scan(&agentIdInt); err != nil {
+	if err := client.QueryRow(ctx, `SELECT id FROM public.agent WHERE agent_id = $1`, agentId).Scan(&agentIdInt); err != nil {
 		return s.Config.Bugfixes.Logger.Errorf("Failed to resolve agent: %v", err)
 	}
-	if err := client.QueryRow(s.Context, `SELECT id FROM public.environment WHERE env_id = $1`, parentEnvId).Scan(&parentEnvIdInt); err != nil {
+	if err := client.QueryRow(ctx, `SELECT id FROM public.environment WHERE env_id = $1`, parentEnvId).Scan(&parentEnvIdInt); err != nil {
 		return s.Config.Bugfixes.Logger.Errorf("Failed to resolve parent environment: %v", err)
 	}
-	if err := client.QueryRow(s.Context, `SELECT id FROM public.environment WHERE env_id = $1`, childEnvId).Scan(&childEnvIdInt); err != nil {
+	if err := client.QueryRow(ctx, `SELECT id FROM public.environment WHERE env_id = $1`, childEnvId).Scan(&childEnvIdInt); err != nil {
 		return s.Config.Bugfixes.Logger.Errorf("Failed to resolve child environment: %v", err)
 	}
 
-	_, err = client.Exec(s.Context, `
+	_, err = client.Exec(ctx, `
 		INSERT INTO public.environment_chain (agent_id, parent_environment_id, child_environment_id)
 		VALUES ($1, $2, $3)
 		ON CONFLICT (agent_id, parent_environment_id) DO UPDATE SET child_environment_id = EXCLUDED.child_environment_id`, agentIdInt, parentEnvIdInt, childEnvIdInt)
@@ -333,8 +334,8 @@ func (s *System) LinkChildEnvironmentInDB(parentEnvId, childEnvId, agentId strin
 	return nil
 }
 
-func (s *System) DeleteEnvironmentFromDB(envId string) error {
-	client, err := s.Config.Database.GetPGXClient(s.Context)
+func (s *System) DeleteEnvironmentFromDB(ctx context.Context, envId string) error {
+	client, err := s.Config.Database.GetPGXClient(ctx)
 	if err != nil {
 		if strings.Contains(err.Error(), "operation was canceled") {
 			return nil
@@ -342,19 +343,19 @@ func (s *System) DeleteEnvironmentFromDB(envId string) error {
 		return s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
 	}
 	defer func() {
-		if err := client.Close(s.Context); err != nil {
+		if err := client.Close(ctx); err != nil {
 			s.Config.Bugfixes.Logger.Fatalf("Failed to close database connection: %v", err)
 		}
 	}()
 
-	if err := flags.NewSystem(s.Config).SetContext(s.Context).DeleteAllFlagsForEnv(envId); err != nil {
+	if err := flags.NewSystem(s.Config).DeleteAllFlagsForEnv(ctx, envId); err != nil {
 		return s.Config.Bugfixes.Logger.Errorf("Failed to delete flags: %v", err)
 	}
-	if err := secretmenu.NewSystem(s.Config).SetContext(s.Context).DeleteSecretMenuForEnv(envId); err != nil {
+	if err := secretmenu.NewSystem(s.Config).DeleteSecretMenuForEnv(ctx, envId); err != nil {
 		return s.Config.Bugfixes.Logger.Errorf("Failed to delete secret menus: %v", err)
 	}
 
-	_, err = client.Exec(s.Context, `
+	_, err = client.Exec(ctx, `
     DELETE FROM public.environment
     WHERE env_id = $1`, envId)
 	if err != nil {
@@ -364,8 +365,8 @@ func (s *System) DeleteEnvironmentFromDB(envId string) error {
 	return nil
 }
 
-func (s *System) DeleteAllEnvironmentsForAgent(agentId string) error {
-	client, err := s.Config.Database.GetPGXClient(s.Context)
+func (s *System) DeleteAllEnvironmentsForAgent(ctx context.Context, agentId string) error {
+	client, err := s.Config.Database.GetPGXClient(ctx)
 	if err != nil {
 		if strings.Contains(err.Error(), "operation was canceled") {
 			return nil
@@ -373,13 +374,13 @@ func (s *System) DeleteAllEnvironmentsForAgent(agentId string) error {
 		return s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
 	}
 	defer func() {
-		if err := client.Close(s.Context); err != nil {
+		if err := client.Close(ctx); err != nil {
 			s.Config.Bugfixes.Logger.Fatalf("Failed to close database connection: %v", err)
 		}
 	}()
 
 	var environmentIds []string
-	rows, err := client.Query(s.Context, `
+	rows, err := client.Query(ctx, `
     SELECT env_id
     FROM public.environment
     WHERE agent_id = (
@@ -400,11 +401,11 @@ func (s *System) DeleteAllEnvironmentsForAgent(agentId string) error {
 	}
 
 	for _, envId := range environmentIds {
-		if err := flags.NewSystem(s.Config).SetContext(s.Context).DeleteAllFlagsForEnv(envId); err != nil {
+		if err := flags.NewSystem(s.Config).DeleteAllFlagsForEnv(ctx, envId); err != nil {
 			return s.Config.Bugfixes.Logger.Errorf("Failed to delete flags: %v", err)
 		}
 
-		if err := s.DeleteEnvironmentFromDB(envId); err != nil {
+		if err := s.DeleteEnvironmentFromDB(ctx, envId); err != nil {
 			return s.Config.Bugfixes.Logger.Errorf("Failed to delete environment from database: %v", err)
 		}
 	}

@@ -5,17 +5,18 @@ import (
 	"crypto/rand"
 	"database/sql"
 	"errors"
-	"github.com/jackc/pgx/v5"
 	"math/big"
 	"strings"
+
+	"github.com/jackc/pgx/v5"
 )
 
-func (s *System) GetAgentFlagsFromDB(projectId, agentId, environmentId string) (*AgentResponse, error) {
+func (s *System) GetAgentFlagsFromDB(ctx context.Context, projectId, agentId, environmentId string) (*AgentResponse, error) {
 	res := &AgentResponse{
 		IntervalAllowed: 60,
 	}
 
-	client, err := s.Config.Database.GetPGXClient(s.Context)
+	client, err := s.Config.Database.GetPGXClient(ctx)
 	if err != nil {
 		//stats.NewSystem(s.Config).AddAgentError(projectId, agentId, environmentId)
 		if strings.Contains(err.Error(), "operation was canceled") {
@@ -25,7 +26,7 @@ func (s *System) GetAgentFlagsFromDB(projectId, agentId, environmentId string) (
 	}
 	defer func() {
 		if client != nil {
-			if err := client.Close(s.Context); err != nil {
+			if err := client.Close(ctx); err != nil {
 				//stats.NewSystem(s.Config).AddAgentError(projectId, agentId, environmentId)
 				s.Config.Bugfixes.Logger.Fatalf("Failed to close database connection: %v", err)
 			}
@@ -33,7 +34,7 @@ func (s *System) GetAgentFlagsFromDB(projectId, agentId, environmentId string) (
 	}()
 
 	if environmentId == "" {
-		envId, err := s.GetDefaultEnvironment(projectId, agentId)
+		envId, err := s.GetDefaultEnvironment(ctx, projectId, agentId)
 		if err != nil {
 			return nil, s.Config.Bugfixes.Logger.Errorf("Failed to get default environment: %v", err)
 		}
@@ -52,7 +53,7 @@ func (s *System) GetAgentFlagsFromDB(projectId, agentId, environmentId string) (
 	var menuHeader sql.NullString
 	var intervalAllowed int
 
-	rows, err := client.Query(s.Context, `
+	rows, err := client.Query(ctx, `
     SELECT
       flags.name AS FlagName,
       flags.enabled AS FlagEnabled,
@@ -185,8 +186,8 @@ func (s *System) GetAgentFlagsFromDB(projectId, agentId, environmentId string) (
 	return res, nil
 }
 
-func (s *System) GetDefaultEnvironment(projectId, agentId string) (string, error) {
-	client, err := s.Config.Database.GetPGXClient(s.Context)
+func (s *System) GetDefaultEnvironment(ctx context.Context, projectId, agentId string) (string, error) {
+	client, err := s.Config.Database.GetPGXClient(ctx)
 	if err != nil {
 		if strings.Contains(err.Error(), "operation was canceled") {
 			return "", nil
@@ -194,13 +195,13 @@ func (s *System) GetDefaultEnvironment(projectId, agentId string) (string, error
 		return "", s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
 	}
 	defer func() {
-		if err := client.Close(s.Context); err != nil {
+		if err := client.Close(ctx); err != nil {
 			s.Config.Bugfixes.Logger.Fatalf("Failed to close database connection: %v", err)
 		}
 	}()
 
 	var envId string
-	err = client.QueryRow(s.Context, `
+	err = client.QueryRow(ctx, `
     SELECT env.env_id
     FROM public.environment AS env
       JOIN public.agent ON env.agent_id = agent.id

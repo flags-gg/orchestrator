@@ -1,7 +1,6 @@
 package company
 
 import (
-	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -18,7 +17,6 @@ import (
 
 type System struct {
 	Config    *ConfigBuilder.Config
-	Context   context.Context
 	CompanyID string
 }
 
@@ -37,11 +35,6 @@ func NewSystem(cfg *ConfigBuilder.Config) *System {
 	}
 }
 
-func (s *System) SetContext(ctx context.Context) *System {
-	s.Context = ctx
-	return s
-}
-
 // getUserId returns the user ID, using dev mode config if in development, otherwise Clerk
 func (s *System) getUserId(r *http.Request) (string, error) {
 	if s.Config.Local.Development && s.Config.Clerk.DevUser != "" {
@@ -50,7 +43,7 @@ func (s *System) getUserId(r *http.Request) (string, error) {
 
 	// Production mode: use Clerk authentication
 	clerk.SetKey(s.Config.Clerk.Key)
-	usr, err := clerkUser.Get(s.Context, r.Header.Get("x-user-subject"))
+	usr, err := clerkUser.Get(r.Context(), r.Header.Get("x-user-subject"))
 	if err != nil {
 		return "", err
 	}
@@ -58,8 +51,8 @@ func (s *System) getUserId(r *http.Request) (string, error) {
 }
 
 func (s *System) GetCompany(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
 	w.Header().Set("x-flags-timestamp", strconv.FormatInt(time.Now().Unix(), 10))
-	s.Context = r.Context()
 
 	if r.Header.Get("x-user-subject") == "" {
 		if err := json.NewEncoder(w).Encode(&Company{}); err != nil {
@@ -74,7 +67,7 @@ func (s *System) GetCompany(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	company, err := s.GetCompanyInfo(userId)
+	company, err := s.GetCompanyInfo(ctx, userId)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -87,8 +80,8 @@ func (s *System) GetCompany(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *System) CreateCompany(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
 	w.Header().Set("x-flags-timestamp", strconv.FormatInt(time.Now().Unix(), 10))
-	s.Context = r.Context()
 
 	if r.Header.Get("x-user-subject") == "" {
 		w.WriteHeader(http.StatusUnauthorized)
@@ -114,7 +107,7 @@ func (s *System) CreateCompany(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
-	if err := s.CreateCompanyDB(c.Name, c.Domain, userId); err != nil {
+	if err := s.CreateCompanyDB(ctx, c.Name, c.Domain, userId); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -124,7 +117,6 @@ func (s *System) CreateCompany(w http.ResponseWriter, r *http.Request) {
 
 func (s *System) UpdateCompany(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("x-flags-timestamp", strconv.FormatInt(time.Now().Unix(), 10))
-	s.Context = r.Context()
 
 	if r.Header.Get("x-user-subject") == "" {
 		if err := json.NewEncoder(w).Encode(&Company{}); err != nil {
@@ -143,9 +135,9 @@ func (s *System) UpdateCompany(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *System) GetCompanyLimits(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
 	ts := strconv.FormatInt(time.Now().Unix(), 10)
 	w.Header().Set("x-flags-timestamp", ts)
-	s.Context = r.Context()
 
 	if r.Header.Get("x-user-subject") == "" {
 		if err := json.NewEncoder(w).Encode(&Company{}); err != nil {
@@ -160,13 +152,13 @@ func (s *System) GetCompanyLimits(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	companyId, err := s.GetCompanyId(userId)
+	companyId, err := s.GetCompanyId(ctx, userId)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
-	limits, err := s.GetLimits(companyId)
+	limits, err := s.GetLimits(ctx, companyId)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -179,8 +171,8 @@ func (s *System) GetCompanyLimits(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *System) AttachUserToCompany(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
 	w.Header().Set("x-flags-timestamp", strconv.FormatInt(time.Now().Unix(), 10))
-	s.Context = r.Context()
 
 	if r.Header.Get("x-user-subject") == "" {
 		if err := json.NewEncoder(w).Encode(&Company{}); err != nil {
@@ -199,7 +191,7 @@ func (s *System) AttachUserToCompany(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	company, err := s.GetCompanyBasedOnDomain(user.Domain, user.InviteCode)
+	company, err := s.GetCompanyBasedOnDomain(ctx, user.Domain, user.InviteCode)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -211,13 +203,13 @@ func (s *System) AttachUserToCompany(w http.ResponseWriter, r *http.Request) {
 	}
 
 	clerk.SetKey(s.Config.Clerk.Key)
-	usr, err := clerkUser.Get(s.Context, r.Header.Get("x-user-subject"))
+	usr, err := clerkUser.Get(ctx, r.Header.Get("x-user-subject"))
 	if err != nil {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
 
-	if err := s.AttachUserToCompanyDB(usr.ID); err != nil {
+	if err := s.AttachUserToCompanyDB(ctx, usr.ID); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -226,7 +218,7 @@ func (s *System) AttachUserToCompany(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *System) GetCompanyUsers(w http.ResponseWriter, r *http.Request) {
-	s.Context = r.Context()
+	ctx := r.Context()
 
 	if r.Header.Get("x-user-subject") == "" {
 		w.WriteHeader(http.StatusUnauthorized)
@@ -239,7 +231,7 @@ func (s *System) GetCompanyUsers(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	companyId, err := s.GetCompanyId(userId)
+	companyId, err := s.GetCompanyId(ctx, userId)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -249,7 +241,7 @@ func (s *System) GetCompanyUsers(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	users, err := s.GetCompanyUsersFromDB(companyId)
+	users, err := s.GetCompanyUsersFromDB(ctx, companyId)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -263,8 +255,7 @@ func (s *System) GetCompanyUsers(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *System) UpdateCompanyImage(w http.ResponseWriter, r *http.Request) {
-	s.Context = r.Context()
-
+	ctx := r.Context()
 	if r.Header.Get("x-user-subject") == "" {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
@@ -276,7 +267,7 @@ func (s *System) UpdateCompanyImage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	companyId, err := s.GetCompanyId(userId)
+	companyId, err := s.GetCompanyId(ctx, userId)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -295,7 +286,7 @@ func (s *System) UpdateCompanyImage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := s.UpdateCompanyImageInDB(companyId, imageChange.Image); err != nil {
+	if err := s.UpdateCompanyImageInDB(ctx, companyId, imageChange.Image); err != nil {
 		_ = s.Config.Bugfixes.Logger.Errorf("Failed to update project: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -306,7 +297,7 @@ func (s *System) UpdateCompanyImage(w http.ResponseWriter, r *http.Request) {
 
 func (s *System) InviteUserToCompany(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("x-flags-timestamp", strconv.FormatInt(time.Now().Unix(), 10))
-	s.Context = r.Context()
+	ctx := r.Context()
 
 	if r.Header.Get("x-user-subject") == "" {
 		if err := json.NewEncoder(w).Encode(&Company{}); err != nil {
@@ -316,7 +307,7 @@ func (s *System) InviteUserToCompany(w http.ResponseWriter, r *http.Request) {
 	}
 
 	clerk.SetKey(s.Config.Clerk.Key)
-	usr, err := clerkUser.Get(s.Context, r.Header.Get("x-user-subject"))
+	usr, err := clerkUser.Get(ctx, r.Header.Get("x-user-subject"))
 	if err != nil {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
@@ -332,13 +323,13 @@ func (s *System) InviteUserToCompany(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	companyId, err := s.GetCompanyId(usr.ID)
+	companyId, err := s.GetCompanyId(ctx, usr.ID)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
-	inviteCode, err := s.GetInviteCodeFromDB(companyId)
+	inviteCode, err := s.GetInviteCodeFromDB(ctx, companyId)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -363,7 +354,7 @@ func (s *System) InviteUserToCompany(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *System) UpgradeCompany(w http.ResponseWriter, r *http.Request) {
-	s.Context = r.Context()
+	ctx := r.Context()
 
 	if r.Header.Get("x-user-subject") == "" {
 		w.WriteHeader(http.StatusUnauthorized)
@@ -376,7 +367,7 @@ func (s *System) UpgradeCompany(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	companyId, err := s.GetCompanyId(userId)
+	companyId, err := s.GetCompanyId(ctx, userId)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -396,7 +387,7 @@ func (s *System) UpgradeCompany(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := s.UpgradeCompanyInDB(companyId, upgradeRequest.StripeSessionId); err != nil {
+	if err := s.UpgradeCompanyInDB(ctx, companyId, upgradeRequest.StripeSessionId); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}

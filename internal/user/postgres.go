@@ -3,9 +3,10 @@ package user
 import (
 	"context"
 	"errors"
-	"github.com/jackc/pgx/v5"
 	"strings"
 	"time"
+
+	"github.com/jackc/pgx/v5"
 )
 
 type Group struct {
@@ -42,8 +43,8 @@ type Notifications struct {
 	Notifications []Notification `json:"notifications,omitempty"`
 }
 
-func (s *System) CreateUserDetails(subject, knownAs, email, firstname, lastname, location string, userGroup int) error {
-	client, err := s.Config.Database.GetPGXClient(s.Context)
+func (s *System) CreateUserDetails(ctx context.Context, subject, knownAs, email, firstname, lastname, location string, userGroup int) error {
+	client, err := s.Config.Database.GetPGXClient(ctx)
 	if err != nil {
 		if strings.Contains(err.Error(), "operation was canceled") {
 			return nil
@@ -51,12 +52,12 @@ func (s *System) CreateUserDetails(subject, knownAs, email, firstname, lastname,
 		return s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
 	}
 	defer func() {
-		if err := client.Close(s.Context); err != nil {
+		if err := client.Close(ctx); err != nil {
 			s.Config.Bugfixes.Logger.Fatalf("Failed to close database connection: %v", err)
 		}
 	}()
 
-	if _, err := client.Exec(s.Context, `
+	if _, err := client.Exec(ctx, `
     INSERT INTO public.user (
         subject,
         email_address,
@@ -78,8 +79,8 @@ func (s *System) CreateUserDetails(subject, knownAs, email, firstname, lastname,
 	return nil
 }
 
-func (s *System) RetrieveUserDetailsDB(subject string) (*User, error) {
-	client, err := s.Config.Database.GetPGXClient(s.Context)
+func (s *System) RetrieveUserDetailsDB(ctx context.Context, subject string) (*User, error) {
+	client, err := s.Config.Database.GetPGXClient(ctx)
 	if err != nil {
 		if strings.Contains(err.Error(), "operation was canceled") {
 			return nil, nil
@@ -87,7 +88,7 @@ func (s *System) RetrieveUserDetailsDB(subject string) (*User, error) {
 		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
 	}
 	defer func() {
-		if err := client.Close(s.Context); err != nil {
+		if err := client.Close(ctx); err != nil {
 			s.Config.Bugfixes.Logger.Fatalf("Failed to close database connection: %v", err)
 		}
 	}()
@@ -97,7 +98,7 @@ func (s *System) RetrieveUserDetailsDB(subject string) (*User, error) {
 
 	user := &User{}
 	ug := &Group{}
-	if err := client.QueryRow(s.Context, `
+	if err := client.QueryRow(ctx, `
     SELECT
 		u.id,
         u.known_as,
@@ -132,7 +133,7 @@ func (s *System) RetrieveUserDetailsDB(subject string) (*User, error) {
 	if companyName != nil && user.Onboarded == false {
 		user.Onboarded = true
 
-		if _, err := client.Exec(s.Context, `
+		if _, err := client.Exec(ctx, `
     	UPDATE public.user
     	SET onboarded = true
     	WHERE subject = $1`, subject); err != nil {
@@ -143,8 +144,8 @@ func (s *System) RetrieveUserDetailsDB(subject string) (*User, error) {
 	return user, nil
 }
 
-func (s *System) RetrieveUserNotifications(subject string) ([]Notification, error) {
-	client, err := s.Config.Database.GetPGXClient(s.Context)
+func (s *System) RetrieveUserNotifications(ctx context.Context, subject string) ([]Notification, error) {
+	client, err := s.Config.Database.GetPGXClient(ctx)
 	if err != nil {
 		if strings.Contains(err.Error(), "operation was canceled") {
 			return nil, nil
@@ -152,12 +153,12 @@ func (s *System) RetrieveUserNotifications(subject string) ([]Notification, erro
 		return nil, s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
 	}
 	defer func() {
-		if err := client.Close(s.Context); err != nil {
+		if err := client.Close(ctx); err != nil {
 			s.Config.Bugfixes.Logger.Fatalf("Failed to close database connection: %v", err)
 		}
 	}()
 
-	rows, err := client.Query(s.Context, `
+	rows, err := client.Query(ctx, `
     SELECT
       un.id,
       un.subject,
@@ -189,8 +190,8 @@ func (s *System) RetrieveUserNotifications(subject string) ([]Notification, erro
 	return notifications, nil
 }
 
-func (s *System) MarkNotificationAsRead(subject, notificationId string) error {
-	client, err := s.Config.Database.GetPGXClient(s.Context)
+func (s *System) MarkNotificationAsRead(ctx context.Context, subject, notificationId string) error {
+	client, err := s.Config.Database.GetPGXClient(ctx)
 	if err != nil {
 		if strings.Contains(err.Error(), "operation was canceled") {
 			return nil
@@ -198,12 +199,12 @@ func (s *System) MarkNotificationAsRead(subject, notificationId string) error {
 		return s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
 	}
 	defer func() {
-		if err := client.Close(s.Context); err != nil {
+		if err := client.Close(ctx); err != nil {
 			s.Config.Bugfixes.Logger.Fatalf("Failed to close database connection: %v", err)
 		}
 	}()
 
-	if _, err := client.Exec(s.Context, `
+	if _, err := client.Exec(ctx, `
     UPDATE public.user_notifications AS un
     SET "read" = true
     FROM public.user AS u
@@ -216,8 +217,8 @@ func (s *System) MarkNotificationAsRead(subject, notificationId string) error {
 	return nil
 }
 
-func (s *System) DeleteUserNotificationInDB(subject, notificationId string) error {
-	client, err := s.Config.Database.GetPGXClient(s.Context)
+func (s *System) DeleteUserNotificationInDB(ctx context.Context, subject, notificationId string) error {
+	client, err := s.Config.Database.GetPGXClient(ctx)
 	if err != nil {
 		if strings.Contains(err.Error(), "operation was canceled") {
 			return nil
@@ -225,12 +226,12 @@ func (s *System) DeleteUserNotificationInDB(subject, notificationId string) erro
 		return s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
 	}
 	defer func() {
-		if err := client.Close(s.Context); err != nil {
+		if err := client.Close(ctx); err != nil {
 			s.Config.Bugfixes.Logger.Fatalf("Failed to close database connection: %v", err)
 		}
 	}()
 
-	if _, err := client.Exec(s.Context, `
+	if _, err := client.Exec(ctx, `
     UPDATE public.user_notifications AS un
     SET
       deleted = true,
@@ -245,8 +246,8 @@ func (s *System) DeleteUserNotificationInDB(subject, notificationId string) erro
 	return nil
 }
 
-func (s *System) UpdateUserImageInDB(subject string, image string) error {
-	client, err := s.Config.Database.GetPGXClient(s.Context)
+func (s *System) UpdateUserImageInDB(ctx context.Context, subject string, image string) error {
+	client, err := s.Config.Database.GetPGXClient(ctx)
 	if err != nil {
 		if strings.Contains(err.Error(), "operation was canceled") {
 			return nil
@@ -254,12 +255,12 @@ func (s *System) UpdateUserImageInDB(subject string, image string) error {
 		return s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
 	}
 	defer func() {
-		if err := client.Close(s.Context); err != nil {
+		if err := client.Close(ctx); err != nil {
 			s.Config.Bugfixes.Logger.Fatalf("Failed to close database connection: %v", err)
 		}
 	}()
 
-	if _, err := client.Exec(s.Context, `UPDATE public.user
+	if _, err := client.Exec(ctx, `UPDATE public.user
 		SET avatar = $1
 		WHERE subject = $2`, image, subject); err != nil {
 		return s.Config.Bugfixes.Logger.Errorf("Failed to update user image: %v", err)
@@ -268,8 +269,8 @@ func (s *System) UpdateUserImageInDB(subject string, image string) error {
 	return nil
 }
 
-func (s *System) UpdateUserDetailsDB(subject, knownAs, email, firstname, lastname, location string) error {
-	client, err := s.Config.Database.GetPGXClient(s.Context)
+func (s *System) UpdateUserDetailsDB(ctx context.Context, subject, knownAs, email, firstname, lastname, location string) error {
+	client, err := s.Config.Database.GetPGXClient(ctx)
 	if err != nil {
 		if strings.Contains(err.Error(), "operation was canceled") {
 			return nil
@@ -277,12 +278,12 @@ func (s *System) UpdateUserDetailsDB(subject, knownAs, email, firstname, lastnam
 		return s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
 	}
 	defer func() {
-		if err := client.Close(s.Context); err != nil {
+		if err := client.Close(ctx); err != nil {
 			s.Config.Bugfixes.Logger.Fatalf("Failed to close database connection: %v", err)
 		}
 	}()
 
-	_, err = client.Exec(s.Context, `
+	_, err = client.Exec(ctx, `
     UPDATE public.user
     SET
       known_as = $1,
@@ -298,8 +299,8 @@ func (s *System) UpdateUserDetailsDB(subject, knownAs, email, firstname, lastnam
 	return nil
 }
 
-func (s *System) DeleteUserInDB(subject string) error {
-	client, err := s.Config.Database.GetPGXClient(s.Context)
+func (s *System) DeleteUserInDB(ctx context.Context, subject string) error {
+	client, err := s.Config.Database.GetPGXClient(ctx)
 	if err != nil {
 		if strings.Contains(err.Error(), "operation was canceled") {
 			return nil
@@ -307,12 +308,12 @@ func (s *System) DeleteUserInDB(subject string) error {
 		return s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
 	}
 	defer func() {
-		if err := client.Close(s.Context); err != nil {
+		if err := client.Close(ctx); err != nil {
 			s.Config.Bugfixes.Logger.Fatalf("Failed to close database connection: %v", err)
 		}
 	}()
 
-	if _, err := client.Exec(s.Context, `
+	if _, err := client.Exec(ctx, `
 	WITH deleted_user AS (
         DELETE FROM public.user 
         WHERE subject = $1

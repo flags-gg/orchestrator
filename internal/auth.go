@@ -1,10 +1,11 @@
 package internal
 
 import (
+	"net/http"
+
 	"github.com/clerk/clerk-sdk-go/v2"
 	clerkUser "github.com/clerk/clerk-sdk-go/v2/user"
 	"github.com/flags-gg/orchestrator/internal/agent"
-	"net/http"
 )
 
 func (s *Service) ValidateUser(w http.ResponseWriter, r *http.Request) bool {
@@ -28,6 +29,7 @@ func (s *Service) ValidateUser(w http.ResponseWriter, r *http.Request) bool {
 }
 
 func (s *Service) ValidateAgent(w http.ResponseWriter, r *http.Request) bool {
+	ctx := r.Context()
 	_ = w
 	agentId := r.Header.Get("x-agent-id")
 	projectId := r.Header.Get("x-project-id")
@@ -48,14 +50,14 @@ func (s *Service) ValidateAgent(w http.ResponseWriter, r *http.Request) bool {
 		// validate agent
 		if environmentId != "" {
 			// validate environment
-			v, err := agent.NewSystem(s.Config).ValidateAgentWithEnvironment(r.Context(), agentId, projectId, environmentId)
+			v, err := agent.NewSystem(s.Config).ValidateAgentWithEnvironment(ctx, agentId, projectId, environmentId)
 			if err != nil {
 				return false
 			}
 			validAgent = v
 		}
 
-		v, err := agent.NewSystem(s.Config).ValidateAgentWithoutEnvironment(r.Context(), agentId, projectId)
+		v, err := agent.NewSystem(s.Config).ValidateAgentWithoutEnvironment(ctx, agentId, projectId)
 		if err != nil {
 			return validAgent
 		}

@@ -1,17 +1,16 @@
 package pricing
 
 import (
-	"context"
 	"encoding/json"
-	ConfigBuilder "github.com/keloran/go-config"
 	"net/http"
 	"strconv"
 	"time"
+
+	ConfigBuilder "github.com/keloran/go-config"
 )
 
 type System struct {
-	Config  *ConfigBuilder.Config
-	Context context.Context
+	Config *ConfigBuilder.Config
 }
 
 func NewSystem(cfg *ConfigBuilder.Config) *System {
@@ -20,16 +19,9 @@ func NewSystem(cfg *ConfigBuilder.Config) *System {
 	}
 }
 
-func (s *System) SetContext(ctx context.Context) *System {
-	s.Context = ctx
-	return s
-}
-
 func (s *System) GetCompanyPricing(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("x-flags-timestamp", strconv.FormatInt(time.Now().Unix(), 10))
-	if s.Context == nil {
-		s.Context = r.Context()
-	}
+	ctx := r.Context()
 
 	if r.Header.Get("x-user-subject") == "" {
 		w.WriteHeader(http.StatusUnauthorized)
@@ -42,9 +34,9 @@ func (s *System) GetCompanyPricing(w http.ResponseWriter, r *http.Request) {
 	pricing := Pricing{}
 
 	//pricing.Pricing = append(pricing.Pricing, s.GetFree())
-	pricing.Pricing = append(pricing.Pricing, s.GetStartup())
-	pricing.Pricing = append(pricing.Pricing, s.GetPro())
-	pricing.Pricing = append(pricing.Pricing, s.GetEnterprise())
+	pricing.Pricing = append(pricing.Pricing, s.GetStartup(ctx))
+	pricing.Pricing = append(pricing.Pricing, s.GetPro(ctx))
+	pricing.Pricing = append(pricing.Pricing, s.GetEnterprise(ctx))
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(&pricing); err != nil {
@@ -54,12 +46,12 @@ func (s *System) GetCompanyPricing(w http.ResponseWriter, r *http.Request) {
 
 func (s *System) GetGeneralPricing(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("x-flags-timestamp", strconv.FormatInt(time.Now().Unix(), 10))
-	s.Context = r.Context()
+	ctx := r.Context()
 
 	type Pricing struct {
 		Pricing []Price `json:"prices"`
 	}
-	returnedPrices, err := s.GetPrices()
+	returnedPrices, err := s.GetPrices(ctx)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return

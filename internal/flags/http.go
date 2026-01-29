@@ -1,16 +1,16 @@
 package flags
 
 import (
-	"context"
 	"encoding/json"
+	"net/http"
+	"strconv"
+	"time"
+
 	"github.com/bugfixes/go-bugfixes/logs"
 	"github.com/clerk/clerk-sdk-go/v2"
 	clerkUser "github.com/clerk/clerk-sdk-go/v2/user"
 	"github.com/flags-gg/orchestrator/internal/company"
 	ConfigBuilder "github.com/keloran/go-config"
-	"net/http"
-	"strconv"
-	"time"
 )
 
 type SecretMenuStyle struct {
@@ -41,8 +41,7 @@ type Response struct {
 }
 
 type System struct {
-	Config  *ConfigBuilder.Config
-	Context context.Context
+	Config *ConfigBuilder.Config
 }
 
 type FlagNameChangeRequest struct {
@@ -56,11 +55,6 @@ func NewSystem(cfg *ConfigBuilder.Config) *System {
 	}
 }
 
-func (s *System) SetContext(ctx context.Context) *System {
-	s.Context = ctx
-	return s
-}
-
 // getUserId returns the user ID, using dev mode config if in development, otherwise Clerk
 func (s *System) getUserId(r *http.Request) (string, error) {
 	if s.Config.Local.Development && s.Config.Clerk.DevUser != "" {
@@ -69,7 +63,7 @@ func (s *System) getUserId(r *http.Request) (string, error) {
 
 	// Production mode: use Clerk authentication
 	clerk.SetKey(s.Config.Clerk.Key)
-	usr, err := clerkUser.Get(s.Context, r.Header.Get("x-user-subject"))
+	usr, err := clerkUser.Get(r.Context(), r.Header.Get("x-user-subject"))
 	if err != nil {
 		return "", err
 	}
@@ -78,10 +72,10 @@ func (s *System) getUserId(r *http.Request) (string, error) {
 
 func (s *System) GetAgentFlags(w http.ResponseWriter, r *http.Request) {
 	logs.Infof("Headers: %v", r.Header)
+	ctx := r.Context()
 
 	w.Header().Set("x-flags-timestamp", strconv.FormatInt(time.Now().Unix(), 10))
 	w.Header().Set("Content-Type", "application/json")
-	s.Context = r.Context()
 
 	if r.Header.Get("x-project-id") == "" || r.Header.Get("x-agent-id") == "" {
 		w.WriteHeader(http.StatusUnauthorized)
@@ -94,7 +88,7 @@ func (s *System) GetAgentFlags(w http.ResponseWriter, r *http.Request) {
 	agentId := r.Header.Get("x-agent-id")
 	environmentId := r.Header.Get("x-environment-id")
 
-	res, err := s.GetAgentFlagsFromDB(projectId, agentId, environmentId)
+	res, err := s.GetAgentFlagsFromDB(ctx, projectId, agentId, environmentId)
 	if err != nil {
 		responseObj = AgentResponse{
 			IntervalAllowed: 600,
@@ -116,7 +110,7 @@ func (s *System) GetAgentFlags(w http.ResponseWriter, r *http.Request) {
 
 func (s *System) GetClientFlags(w http.ResponseWriter, r *http.Request) {
 	var responseObj []Flag
-	s.Context = r.Context()
+	ctx := r.Context()
 
 	if r.Header.Get("x-user-subject") == "" {
 		w.WriteHeader(http.StatusUnauthorized)
@@ -129,7 +123,7 @@ func (s *System) GetClientFlags(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	companyId, err := company.NewSystem(s.Config).SetContext(s.Context).GetCompanyId(userId)
+	companyId, err := company.NewSystem(s.Config).GetCompanyId(ctx, userId)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -142,7 +136,7 @@ func (s *System) GetClientFlags(w http.ResponseWriter, r *http.Request) {
 
 	environmentId := r.PathValue("environmentId")
 
-	res, err := s.GetClientFlagsFromDB(environmentId)
+	res, err := s.GetClientFlagsFromDB(ctx, environmentId)
 	if err != nil {
 		_ = s.Config.Bugfixes.Logger.Errorf("Failed to get flags: %v", err)
 	}
@@ -155,7 +149,7 @@ func (s *System) GetClientFlags(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *System) CreateFlags(w http.ResponseWriter, r *http.Request) {
-	s.Context = r.Context()
+	ctx := r.Context()
 
 	if r.Header.Get("x-user-subject") == "" {
 		w.WriteHeader(http.StatusUnauthorized)
@@ -168,7 +162,7 @@ func (s *System) CreateFlags(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	companyId, err := company.NewSystem(s.Config).SetContext(s.Context).GetCompanyId(userId)
+	companyId, err := company.NewSystem(s.Config).GetCompanyId(ctx, userId)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -186,7 +180,7 @@ func (s *System) CreateFlags(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := s.CreateFlagInDB(flag); err != nil {
+	if err := s.CreateFlagInDB(ctx, flag); err != nil {
 		_ = s.Config.Bugfixes.Logger.Errorf("Failed to create flag: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -196,7 +190,7 @@ func (s *System) CreateFlags(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *System) UpdateFlags(w http.ResponseWriter, r *http.Request) {
-	s.Context = r.Context()
+	ctx := r.Context()
 
 	if r.Header.Get("x-user-subject") == "" {
 		w.WriteHeader(http.StatusUnauthorized)
@@ -209,7 +203,7 @@ func (s *System) UpdateFlags(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	companyId, err := company.NewSystem(s.Config).SetContext(s.Context).GetCompanyId(userId)
+	companyId, err := company.NewSystem(s.Config).GetCompanyId(ctx, userId)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -238,7 +232,7 @@ func (s *System) UpdateFlags(w http.ResponseWriter, r *http.Request) {
 			ID:   r.PathValue("flagId"),
 		},
 	}
-	if err := s.UpdateFlagInDB(flagChange); err != nil {
+	if err := s.UpdateFlagInDB(ctx, flagChange); err != nil {
 		_ = s.Config.Bugfixes.Logger.Errorf("Failed to update flag: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -249,7 +243,7 @@ func (s *System) UpdateFlags(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *System) PromoteFlag(w http.ResponseWriter, r *http.Request) {
-	s.Context = r.Context()
+	ctx := r.Context()
 
 	if r.Header.Get("x-user-subject") == "" {
 		w.WriteHeader(http.StatusUnauthorized)
@@ -262,7 +256,7 @@ func (s *System) PromoteFlag(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	companyId, err := company.NewSystem(s.Config).SetContext(s.Context).GetCompanyId(userId)
+	companyId, err := company.NewSystem(s.Config).GetCompanyId(ctx, userId)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -278,7 +272,7 @@ func (s *System) PromoteFlag(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := s.PromoteFlagInDB(flagId); err != nil {
+	if err := s.PromoteFlagInDB(ctx, flagId); err != nil {
 		_ = s.Config.Bugfixes.Logger.Errorf("Failed to promote flag: %v", err)
 		w.WriteHeader(http.StatusBadRequest)
 		return
@@ -288,7 +282,7 @@ func (s *System) PromoteFlag(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *System) EditFlag(w http.ResponseWriter, r *http.Request) {
-	s.Context = r.Context()
+	ctx := r.Context()
 
 	if r.Header.Get("x-user-subject") == "" {
 		w.WriteHeader(http.StatusUnauthorized)
@@ -301,7 +295,7 @@ func (s *System) EditFlag(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	companyId, err := company.NewSystem(s.Config).SetContext(s.Context).GetCompanyId(userId)
+	companyId, err := company.NewSystem(s.Config).GetCompanyId(ctx, userId)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -321,7 +315,7 @@ func (s *System) EditFlag(w http.ResponseWriter, r *http.Request) {
 	}
 	flagChange.ID = flagId
 
-	if err := s.EditFlagInDB(flagChange); err != nil {
+	if err := s.EditFlagInDB(ctx, flagChange); err != nil {
 		_ = s.Config.Bugfixes.Logger.Errorf("Failed to update flag: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -332,7 +326,7 @@ func (s *System) EditFlag(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *System) DeleteFlags(w http.ResponseWriter, r *http.Request) {
-	s.Context = r.Context()
+	ctx := r.Context()
 
 	if r.Header.Get("x-user-subject") == "" {
 		w.WriteHeader(http.StatusUnauthorized)
@@ -345,7 +339,7 @@ func (s *System) DeleteFlags(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	companyId, err := company.NewSystem(s.Config).SetContext(s.Context).GetCompanyId(userId)
+	companyId, err := company.NewSystem(s.Config).GetCompanyId(ctx, userId)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -362,7 +356,7 @@ func (s *System) DeleteFlags(w http.ResponseWriter, r *http.Request) {
 		},
 	}
 
-	if err := s.DeleteFlagFromDB(f); err != nil {
+	if err := s.DeleteFlagFromDB(ctx, f); err != nil {
 		_ = s.Config.Bugfixes.Logger.Errorf("Failed to delete flag: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return

@@ -1,7 +1,6 @@
 package flags
 
 import (
-	"context"
 	"encoding/json"
 	"net/http"
 
@@ -12,20 +11,13 @@ import (
 )
 
 type APIKeyHTTPSystem struct {
-	Config  *ConfigBuilder.Config
-	Context context.Context
+	Config *ConfigBuilder.Config
 }
 
 func NewAPIKeyHTTPSystem(cfg *ConfigBuilder.Config) *APIKeyHTTPSystem {
 	return &APIKeyHTTPSystem{
-		Config:  cfg,
-		Context: context.Background(),
+		Config: cfg,
 	}
-}
-
-func (s *APIKeyHTTPSystem) SetContext(ctx context.Context) *APIKeyHTTPSystem {
-	s.Context = ctx
-	return s
 }
 
 // getUserId returns the user ID, using dev mode config if in development, otherwise Clerk
@@ -36,7 +28,7 @@ func (s *APIKeyHTTPSystem) getUserId(r *http.Request) (string, error) {
 
 	// Production mode: use Clerk authentication
 	clerk.SetKey(s.Config.Clerk.Key)
-	usr, err := clerkUser.Get(s.Context, r.Header.Get("x-user-subject"))
+	usr, err := clerkUser.Get(r.Context(), r.Header.Get("x-user-subject"))
 	if err != nil {
 		return "", err
 	}
@@ -57,7 +49,7 @@ type GenerateAPIKeyResponse struct {
 // GenerateAPIKeyHandler handles POST /api-key/generate
 func (s *APIKeyHTTPSystem) GenerateAPIKeyHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
-	s.Context = r.Context()
+	ctx := r.Context()
 
 	// Authenticate user
 	if r.Header.Get("x-user-subject") == "" {
@@ -71,7 +63,7 @@ func (s *APIKeyHTTPSystem) GenerateAPIKeyHandler(w http.ResponseWriter, r *http.
 		return
 	}
 
-	companyId, err := company.NewSystem(s.Config).SetContext(s.Context).GetCompanyId(userId)
+	companyId, err := company.NewSystem(s.Config).GetCompanyId(ctx, userId)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
