@@ -1,7 +1,6 @@
 package internal
 
 import (
-	"context"
 	"crypto/tls"
 	"fmt"
 	"net/http"
@@ -141,7 +140,7 @@ func (s *Service) startHTTP(errChan chan error) {
 	mux.HandleFunc("/v1/webhooks/stripe", general.NewSystem(s.Config).StripeEvents)
 
 	// middlewares
-	mw := middleware.NewMiddleware(context.Background())
+	mw := middleware.NewMiddleware()
 	mw.AddMiddleware(middleware.SetupLogger(middleware.Error).Logger)
 	mw.AddMiddleware(middleware.RequestID)
 	mw.AddMiddleware(middleware.Recoverer)
