@@ -1,7 +1,6 @@
 package internal
 
 import (
-	"context"
 	"crypto/tls"
 	"fmt"
 	"net/http"
