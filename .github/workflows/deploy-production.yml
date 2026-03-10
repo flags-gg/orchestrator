@@ -1,0 +1,22 @@
+name: Deploy Production
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+      - name: Install Railway CLI
+        run: npm install -g @railway/cli
+      - name: Link Railway project
+        run: RAILWAY_API_TOKEN=${{ secrets.RAILWAY_TOKEN }} railway link --project a53fbabb-c9f2-4a1c-81e7-653521f3bb70 --environment production --service dashboard
+      - name: Deploy to production
+        run: RAILWAY_API_TOKEN=${{ secrets.RAILWAY_TOKEN }} railway up --detach
