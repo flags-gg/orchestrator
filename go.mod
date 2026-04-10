@@ -22,7 +22,7 @@ require (
 	github.com/stretchr/testify v1.11.1
 	github.com/stripe/stripe-go v70.15.0+incompatible
 	github.com/testcontainers/testcontainers-go v0.41.0
-	golang.org/x/text v0.35.0
+	golang.org/x/text v0.36.0
 )
 
 require (
