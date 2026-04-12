@@ -3,6 +3,7 @@ package flags
 import (
 	"bytes"
 	"context"
+	"database/sql"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -215,4 +216,114 @@ func TestOFREPFallbackToIndividualHeaders(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, "feature-flag-1", response.Key)
 	assert.NotNil(t, response.Value)
+}
+
+func TestOFREPRequestAuditIsRecorded(t *testing.T) {
+	ctx := context.Background()
+
+	testDB, err := setupTestDatabase(ctx)
+	if err != nil {
+		t.Fatalf("Failed to setup test database: %v", err)
+	}
+	defer func() {
+		if err := testDB.container.Terminate(ctx); err != nil {
+			t.Errorf("Failed to terminate container: %v", err)
+		}
+	}()
+
+	_, ofrepSystem := setupTestSystem(t)
+
+	singleBody, _ := json.Marshal(EvaluationRequest{})
+	singleReq := httptest.NewRequest(http.MethodPost, "/ofrep/v1/evaluate/flags/feature-flag-1", bytes.NewReader(singleBody))
+	singleReq.Header.Set("x-project-id", "test-project-1")
+	singleReq.Header.Set("x-agent-id", "test-agent-1")
+	singleReq.Header.Set("x-environment-id", "test-env-1")
+	singleReq.SetPathValue("key", "feature-flag-1")
+
+	singleW := httptest.NewRecorder()
+	ofrepSystem.EvaluateSingleFlag(singleW, singleReq)
+	assert.Equal(t, http.StatusOK, singleW.Code)
+
+	bulkBody, _ := json.Marshal(BulkEvaluationRequest{})
+	bulkReq := httptest.NewRequest(http.MethodPost, "/ofrep/v1/evaluate/flags", bytes.NewReader(bulkBody))
+	bulkReq.Header.Set("x-project-id", "test-project-1")
+	bulkReq.Header.Set("x-agent-id", "test-agent-1")
+	bulkReq.Header.Set("x-environment-id", "test-env-1")
+
+	bulkW := httptest.NewRecorder()
+	ofrepSystem.EvaluateBulkFlags(bulkW, bulkReq)
+	assert.Equal(t, http.StatusOK, bulkW.Code)
+
+	db, err := sql.Open("postgres", testDB.uri)
+	assert.NoError(t, err)
+	defer func() {
+		_ = db.Close()
+	}()
+
+	var singleCount int
+	err = db.QueryRow(`
+		SELECT COUNT(*)
+		FROM public.environment_request_audit
+		WHERE request_kind = 'single_flag'
+		  AND request_source = 'ofrep_single'
+		  AND environment_id = 'test-env-1'`).Scan(&singleCount)
+	assert.NoError(t, err)
+	assert.Equal(t, 1, singleCount)
+
+	var allCount int
+	err = db.QueryRow(`
+		SELECT COUNT(*)
+		FROM public.environment_request_audit
+		WHERE request_kind = 'all_flags'
+		  AND request_source = 'ofrep_bulk'
+		  AND environment_id = 'test-env-1'`).Scan(&allCount)
+	assert.NoError(t, err)
+	assert.Equal(t, 1, allCount)
+}
+
+func TestAPIKeyCreationAuditIsRecorded(t *testing.T) {
+	ctx := context.Background()
+
+	testDB, err := setupTestDatabase(ctx)
+	if err != nil {
+		t.Fatalf("Failed to setup test database: %v", err)
+	}
+	defer func() {
+		if err := testDB.container.Terminate(ctx); err != nil {
+			t.Errorf("Failed to terminate container: %v", err)
+		}
+	}()
+
+	system, _ := setupTestSystem(t)
+	httpSystem := NewAPIKeyHTTPSystem(system.Config)
+
+	body, _ := json.Marshal(GenerateAPIKeyRequest{
+		ProjectID:     "test-project-1",
+		AgentID:       "test-agent-1",
+		EnvironmentID: "test-env-1",
+	})
+
+	req := httptest.NewRequest(http.MethodPost, "/api-key/generate", bytes.NewReader(body))
+	req.Header.Set("x-user-subject", "ignored-in-dev-mode")
+	w := httptest.NewRecorder()
+
+	httpSystem.GenerateAPIKeyHandler(w, req)
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	db, err := sql.Open("postgres", testDB.uri)
+	assert.NoError(t, err)
+	defer func() {
+		_ = db.Close()
+	}()
+
+	var count int
+	err = db.QueryRow(`
+		SELECT COUNT(*)
+		FROM public.api_key_audit
+		WHERE project_id = 'test-project-1'
+		  AND agent_id = 'test-agent-1'
+		  AND environment_id = 'test-env-1'
+		  AND created_by_subject = 'test-user-subject'`).Scan(&count)
+	assert.NoError(t, err)
+	assert.Equal(t, 1, count)
 }

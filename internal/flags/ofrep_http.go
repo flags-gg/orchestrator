@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/flags-gg/orchestrator/internal/stats"
 	ConfigBuilder "github.com/keloran/go-config"
 )
 
@@ -133,6 +134,14 @@ func (s *OFREPSystem) EvaluateSingleFlag(w http.ResponseWriter, r *http.Request)
 		s.sendErrorResponse(w, flagKey, ErrorInvalidContext, "Missing project-id or agent-id headers", http.StatusBadRequest)
 		return
 	}
+	if environmentId == "" {
+		defaultEnvironmentId, err := NewSystem(s.Config).GetDefaultEnvironment(ctx, projectId, agentId)
+		if err != nil {
+			s.sendErrorResponse(w, flagKey, ErrorGeneral, "Failed to resolve environment", http.StatusInternalServerError)
+			return
+		}
+		environmentId = defaultEnvironmentId
+	}
 
 	flag, err := s.GetSingleFlagFromDB(ctx, projectId, agentId, environmentId, flagKey)
 	if err != nil {
@@ -143,6 +152,17 @@ func (s *OFREPSystem) EvaluateSingleFlag(w http.ResponseWriter, r *http.Request)
 	if flag == nil {
 		s.sendErrorResponse(w, flagKey, ErrorFlagNotFound, "Flag not found", http.StatusNotFound)
 		return
+	}
+
+	if err := stats.NewSystem(s.Config).RecordEnvironmentRequest(
+		ctx,
+		projectId,
+		agentId,
+		environmentId,
+		stats.RequestKindSingleFlag,
+		stats.RequestSourceOFREPSingle,
+	); err != nil {
+		_ = s.Config.Bugfixes.Logger.Errorf("Failed to record single flag request: %v", err)
 	}
 
 	response := SuccessEvaluationResponse{
@@ -190,6 +210,17 @@ func (s *OFREPSystem) EvaluateBulkFlags(w http.ResponseWriter, r *http.Request) 
 		})
 		return
 	}
+	if environmentId == "" {
+		defaultEnvironmentId, err := NewSystem(s.Config).GetDefaultEnvironment(ctx, projectId, agentId)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			_ = json.NewEncoder(w).Encode(BulkEvaluationResponse{
+				Flags: []interface{}{},
+			})
+			return
+		}
+		environmentId = defaultEnvironmentId
+	}
 
 	flags, err := NewSystem(s.Config).GetAgentFlagsFromDB(ctx, projectId, agentId, environmentId)
 	if err != nil {
@@ -198,6 +229,17 @@ func (s *OFREPSystem) EvaluateBulkFlags(w http.ResponseWriter, r *http.Request) 
 			Flags: []interface{}{},
 		})
 		return
+	}
+
+	if err := stats.NewSystem(s.Config).RecordEnvironmentRequest(
+		ctx,
+		projectId,
+		agentId,
+		environmentId,
+		stats.RequestKindAllFlags,
+		stats.RequestSourceOFREPBulk,
+	); err != nil {
+		_ = s.Config.Bugfixes.Logger.Errorf("Failed to record bulk flag request: %v", err)
 	}
 
 	var responses []interface{}
