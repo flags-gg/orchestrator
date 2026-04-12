@@ -80,8 +80,33 @@ func setupTestDatabase(c context.Context) (*testContainer, error) {
 
 	// Create schema
 	_, err = db.Exec(`
+		CREATE TABLE public.company (
+			id serial PRIMARY KEY,
+			company_id varchar(255) NOT NULL,
+			name varchar(255) NOT NULL,
+			created_at timestamp NOT NULL DEFAULT now()
+		);
+
+		CREATE TABLE public."user" (
+			id serial PRIMARY KEY,
+			subject varchar(255) NOT NULL,
+			email_address varchar(255),
+			first_name varchar(255),
+			last_name varchar(255),
+			known_as varchar(255),
+			created_at timestamp NOT NULL DEFAULT now()
+		);
+
+		CREATE TABLE public.company_user (
+			id serial PRIMARY KEY,
+			company_id integer REFERENCES public.company(id),
+			user_id integer REFERENCES public."user"(id),
+			created_at timestamp NOT NULL DEFAULT now()
+		);
+
 		CREATE TABLE public.project (
 			id serial PRIMARY KEY,
+			company_id integer REFERENCES public.company(id),
 			project_id varchar(255) NOT NULL,
 			name varchar(255) NOT NULL,
 			enabled boolean NOT NULL DEFAULT true,
@@ -138,6 +163,25 @@ func setupTestDatabase(c context.Context) (*testContainer, error) {
 			header text,
 			created_at timestamp NOT NULL DEFAULT now()
 		);
+
+		CREATE TABLE public.environment_request_audit (
+			id serial PRIMARY KEY,
+			project_id varchar(255) NOT NULL,
+			agent_id varchar(255) NOT NULL,
+			environment_id varchar(255) NOT NULL,
+			request_kind varchar(32) NOT NULL,
+			request_source varchar(32) NOT NULL,
+			created_at timestamp NOT NULL DEFAULT now()
+		);
+
+		CREATE TABLE public.api_key_audit (
+			id serial PRIMARY KEY,
+			project_id varchar(255) NOT NULL,
+			agent_id varchar(255) NOT NULL,
+			environment_id varchar(255),
+			created_by_subject varchar(255) NOT NULL,
+			created_at timestamp NOT NULL DEFAULT now()
+		);
 	`)
 	if err != nil {
 		return nil, err
@@ -145,8 +189,17 @@ func setupTestDatabase(c context.Context) (*testContainer, error) {
 
 	// Insert test data
 	_, err = db.Exec(`
-		INSERT INTO public.project (project_id, name, enabled)
-		VALUES ('test-project-1', 'Test Project', true);
+		INSERT INTO public.company (company_id, name)
+		VALUES ('test-company-1', 'Test Company');
+
+		INSERT INTO public."user" (subject, email_address, first_name, last_name, known_as)
+		VALUES ('test-user-subject', 'test@example.com', 'Test', 'User', 'Tester');
+
+		INSERT INTO public.company_user (company_id, user_id)
+		VALUES (1, 1);
+
+		INSERT INTO public.project (company_id, project_id, name, enabled)
+		VALUES (1, 'test-project-1', 'Test Project', true);
 
 		INSERT INTO public.agent (agent_id, project_id, name, enabled, interval)
 		VALUES ('test-agent-1', 1, 'Test Agent', true, 60);
@@ -175,6 +228,8 @@ func setupTestSystem(t *testing.T) (*System, *OFREPSystem) {
 	if err := c.Build(ConfigBuilder.Database, ConfigBuilder.Bugfixes); err != nil {
 		t.Fatalf("Failed to build config: %v", err)
 	}
+	c.Local.Development = true
+	c.Clerk.DevUser = "test-user-subject"
 
 	return NewSystem(c), NewOFREPSystem(c)
 }

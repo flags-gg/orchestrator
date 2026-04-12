@@ -3,7 +3,12 @@ package stats
 import (
 	"encoding/json"
 	"net/http"
+	"strconv"
+	"time"
 
+	"github.com/clerk/clerk-sdk-go/v2"
+	clerkUser "github.com/clerk/clerk-sdk-go/v2/user"
+	"github.com/flags-gg/orchestrator/internal/company"
 	ConfigBuilder "github.com/keloran/go-config"
 )
 
@@ -17,10 +22,59 @@ func NewSystem(cfg *ConfigBuilder.Config) *System {
 	}
 }
 
-func (s *System) GetCompanyStats(w http.ResponseWriter, r *http.Request) {
-	_ = r
+func (s *System) getUserId(r *http.Request) (string, error) {
+	if s.Config.Local.Development && s.Config.Clerk.DevUser != "" {
+		return s.Config.Clerk.DevUser, nil
+	}
 
-	w.WriteHeader(http.StatusNotImplemented)
+	clerk.SetKey(s.Config.Clerk.Key)
+	usr, err := clerkUser.Get(r.Context(), r.Header.Get("x-user-subject"))
+	if err != nil {
+		return "", err
+	}
+
+	return usr.ID, nil
+}
+
+func (s *System) GetCompanyStats(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	w.Header().Set("x-flags-timestamp", strconv.FormatInt(time.Now().Unix(), 10))
+	w.Header().Set("Content-Type", "application/json")
+
+	if r.Header.Get("x-user-subject") == "" {
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
+	userId, err := s.getUserId(r)
+	if err != nil {
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
+	companyId, err := company.NewSystem(s.Config).GetCompanyId(ctx, userId)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	if companyId == "" {
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
+	overview, err := s.GetCompanyOverview(ctx, companyId)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	if overview == nil {
+		overview = &CompanyOverview{}
+	}
+
+	if err := json.NewEncoder(w).Encode(overview); err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+	}
 }
 
 func (s *System) GetProjectStats(w http.ResponseWriter, r *http.Request) {

@@ -7,6 +7,7 @@ import (
 	"github.com/clerk/clerk-sdk-go/v2"
 	clerkUser "github.com/clerk/clerk-sdk-go/v2/user"
 	"github.com/flags-gg/orchestrator/internal/company"
+	"github.com/flags-gg/orchestrator/internal/stats"
 	ConfigBuilder "github.com/keloran/go-config"
 )
 
@@ -101,6 +102,10 @@ func (s *APIKeyHTTPSystem) GenerateAPIKeyHandler(w http.ResponseWriter, r *http.
 			"error": "Failed to generate API key",
 		})
 		return
+	}
+
+	if err := stats.NewSystem(s.Config).RecordAPIKeyCreation(ctx, userId, req.ProjectID, req.AgentID, req.EnvironmentID); err != nil {
+		_ = s.Config.Bugfixes.Logger.Errorf("Failed to record api key creation: %v", err)
 	}
 
 	// Return response

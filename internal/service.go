@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/flags-gg/orchestrator/internal/agent"
+	"github.com/flags-gg/orchestrator/internal/dashboard"
 	"github.com/flags-gg/orchestrator/internal/environment"
 	"github.com/flags-gg/orchestrator/internal/general"
 	"github.com/flags-gg/orchestrator/internal/pricing"
@@ -99,6 +100,7 @@ func (s *Service) startHTTP(errChan chan error) {
 	mux.HandleFunc("GET /secret-menu/{menuId}/style", secretmenu.NewSystem(s.Config).GetSecretMenuStyle)
 
 	// Stats
+	mux.HandleFunc("GET /stats/dashboard", dashboard.NewSystem(s.Config).GetSummary)
 	mux.HandleFunc("GET /stats/company", stats.NewSystem(s.Config).GetCompanyStats)
 	mux.HandleFunc("GET /stats/agent/{agentId}/environment/{environmentId}", stats.NewSystem(s.Config).GetEnvironmentStats)
 	mux.HandleFunc("GET /stats/project/{projectId}", stats.NewSystem(s.Config).GetProjectStats)

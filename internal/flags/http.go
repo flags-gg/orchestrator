@@ -10,6 +10,7 @@ import (
 	"github.com/clerk/clerk-sdk-go/v2"
 	clerkUser "github.com/clerk/clerk-sdk-go/v2/user"
 	"github.com/flags-gg/orchestrator/internal/company"
+	"github.com/flags-gg/orchestrator/internal/stats"
 	ConfigBuilder "github.com/keloran/go-config"
 )
 
@@ -87,6 +88,15 @@ func (s *System) GetAgentFlags(w http.ResponseWriter, r *http.Request) {
 	projectId := r.Header.Get("x-project-id")
 	agentId := r.Header.Get("x-agent-id")
 	environmentId := r.Header.Get("x-environment-id")
+	if environmentId == "" {
+		resolvedEnvironmentId, err := s.GetDefaultEnvironment(ctx, projectId, agentId)
+		if err != nil {
+			_ = s.Config.Bugfixes.Logger.Errorf("Failed to resolve environment: %v", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		environmentId = resolvedEnvironmentId
+	}
 
 	res, err := s.GetAgentFlagsFromDB(ctx, projectId, agentId, environmentId)
 	if err != nil {
@@ -105,7 +115,16 @@ func (s *System) GetAgentFlags(w http.ResponseWriter, r *http.Request) {
 		//stats.NewSystem(s.Config).AddAgentError(projectId, agentId, environmentId)
 		_ = s.Config.Bugfixes.Logger.Errorf("Failed to encode response: %v", err)
 	}
-	//stats.NewSystem(s.Config).AddAgentSuccess(projectId, agentId, environmentId)
+	if err := stats.NewSystem(s.Config).RecordEnvironmentRequest(
+		ctx,
+		projectId,
+		agentId,
+		environmentId,
+		stats.RequestKindAllFlags,
+		stats.RequestSourceSDKAll,
+	); err != nil {
+		_ = s.Config.Bugfixes.Logger.Errorf("Failed to record sdk flag request: %v", err)
+	}
 }
 
 func (s *System) GetClientFlags(w http.ResponseWriter, r *http.Request) {

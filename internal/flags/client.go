@@ -13,6 +13,20 @@ type flagCreate struct {
 	AgentId       string `json:"agentId"`
 }
 
+type CompanyFlagEnvironment struct {
+	Id            string `json:"id"`
+	Name          string `json:"name"`
+	EnvironmentId string `json:"environment_id"`
+	AgentId       string `json:"agent_id"`
+	AgentName     string `json:"agent_name,omitempty"`
+	ProjectName   string `json:"project_name,omitempty"`
+}
+
+type CompanyFlagEntry struct {
+	Flag        Flag                   `json:"flag"`
+	Environment CompanyFlagEnvironment `json:"environment"`
+}
+
 func (s *System) GetClientFlagsFromDB(ctx context.Context, environmentId string) ([]Flag, error) {
 	client, err := s.Config.Database.GetPGXClient(ctx)
 	if err != nil {
@@ -69,6 +83,81 @@ func (s *System) GetClientFlagsFromDB(ctx context.Context, environmentId string)
 	}
 
 	return flags, nil
+}
+
+func (s *System) GetCompanyFlagsFromDB(ctx context.Context, companyId string) ([]CompanyFlagEntry, error) {
+	client, err := s.Config.Database.GetPGXClient(ctx)
+	if err != nil {
+		return nil, s.Config.Bugfixes.Logger.Errorf("failed to connect to database: %v", err)
+	}
+	defer func() {
+		if err := client.Close(ctx); err != nil {
+			_ = s.Config.Bugfixes.Logger.Errorf("failed to close database connection: %v", err)
+		}
+	}()
+
+	rows, err := client.Query(ctx, `
+		SELECT
+			f.id,
+			f.name,
+			f.enabled,
+			COALESCE(f.updated_at::text, ''),
+			COALESCE(
+				EXISTS (
+					SELECT 1
+					FROM public.environment_chain ec
+					JOIN public.flag f2 ON f2.agent_id = f.agent_id
+						AND f2.name = f.name
+						AND f2.environment_id = ec.child_environment_id
+					WHERE ec.agent_id = f.agent_id
+						AND ec.parent_environment_id = f.environment_id
+				), false
+			) AS promoted,
+			env.id,
+			env.name,
+			env.env_id,
+			agent.agent_id,
+			COALESCE(agent.name, ''),
+			COALESCE(project.name, '')
+		FROM public.flag f
+			JOIN public.environment env ON env.id = f.environment_id
+			JOIN public.agent agent ON agent.id = f.agent_id
+			JOIN public.project project ON project.id = agent.project_id
+			JOIN public.company company ON company.id = project.company_id
+		WHERE company.company_id = $1`, companyId)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return []CompanyFlagEntry{}, nil
+		}
+		return nil, s.Config.Bugfixes.Logger.Errorf("failed to get company flags: %v", err)
+	}
+	defer rows.Close()
+	if rows.Err() != nil {
+		return nil, s.Config.Bugfixes.Logger.Errorf("failed to get company flags: %v", err)
+	}
+
+	entries := make([]CompanyFlagEntry, 0)
+	for rows.Next() {
+		entry := CompanyFlagEntry{}
+		if err := rows.Scan(
+			&entry.Flag.Details.ID,
+			&entry.Flag.Details.Name,
+			&entry.Flag.Enabled,
+			&entry.Flag.Details.LastChanged,
+			&entry.Flag.Details.Promoted,
+			&entry.Environment.Id,
+			&entry.Environment.Name,
+			&entry.Environment.EnvironmentId,
+			&entry.Environment.AgentId,
+			&entry.Environment.AgentName,
+			&entry.Environment.ProjectName,
+		); err != nil {
+			return nil, s.Config.Bugfixes.Logger.Errorf("failed to scan row: %v", err)
+		}
+		entries = append(entries, entry)
+	}
+
+	return entries, nil
 }
 
 func (s *System) UpdateFlagInDB(ctx context.Context, flag Flag) error {
