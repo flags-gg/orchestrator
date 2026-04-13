@@ -12,8 +12,8 @@ github.com/RaveNoX/go-jsoncommentstrip v1.0.0/go.mod h1:78ihd09MekBnJnxpICcwzCMz
 github.com/apapsch/go-jsonmerge/v2 v2.0.0 h1:axGnT1gRIfimI7gJifB699GoE/oq+F2MU7Dml6nw9rQ=
 github.com/apapsch/go-jsonmerge/v2 v2.0.0/go.mod h1:lvDnEdqiQrp0O42VQGgmlKpxL1AP2+08jFMw88y4klk=
 github.com/bmatcuk/doublestar v1.1.1/go.mod h1:UD6OnuiIn0yFxxA2le/rnRU1G4RaI4UvFv1sNto9p6w=
-github.com/bugfixes/go-bugfixes v0.16.1 h1:ydT7McLiGQvMMhPhL0gynUO1CTZHVc5HUnLW4h0Pauw=
-github.com/bugfixes/go-bugfixes v0.16.1/go.mod h1:Cp28R3G7ThAdkQo1UjjMtvSbAq3rtD4SdINNYE/hHs4=
+github.com/bugfixes/go-bugfixes v0.17.0 h1:WaqQGtwd+y9RgsugtaVdbOkBOD/FGZv8pdtFIlE1kxk=
+github.com/bugfixes/go-bugfixes v0.17.0/go.mod h1:Cp28R3G7ThAdkQo1UjjMtvSbAq3rtD4SdINNYE/hHs4=
 github.com/caarlos0/env/v8 v8.0.0 h1:POhxHhSpuxrLMIdvTGARuZqR4Jjm8AYmoi/JKlcScs0=
 github.com/caarlos0/env/v8 v8.0.0/go.mod h1:7K4wMY9bH0esiXSSHlfHLX5xKGQMnkH5Fk4TDSSSzfo=
 github.com/cenkalti/backoff/v4 v4.3.0 h1:MyRJ/UdXutAwSAT+s3wNd7MfTIcy71VQueUuFK343L8=
