@@ -146,7 +146,6 @@ func (s *Service) startHTTP(errChan chan error) {
 	mw.AddMiddleware(middleware.SetupLogger(middleware.Error).Logger)
 	mw.AddMiddleware(middleware.RequestID)
 	mw.AddMiddleware(middleware.Recoverer)
-	mw.AddMiddleware(s.Auth)
 	mw.AddMiddleware(mw.CORS)
 	mw.AddMiddleware(middleware.LowerCaseHeaders)
 	mw.AddAllowedHeaders(
@@ -162,6 +161,7 @@ func (s *Service) startHTTP(errChan chan error) {
 	if s.Config.Local.Development {
 		mw.AddAllowedOrigins("http://localhost:3000", "http://localhost:5173", "*")
 	}
+	mw.AddMiddleware(s.Auth)
 
 	port := s.Config.Local.HTTPPort
 	if s.Config.ProjectProperties["railway_port"].(string) != "" && s.Config.ProjectProperties["on_railway"].(bool) {
