@@ -158,7 +158,7 @@ func (s *Service) startHTTP(errChan chan error) {
 		"x-flags-timestamp",
 	)
 	mw.AddAllowedMethods(http.MethodGet, http.MethodPost, http.MethodPut, http.MethodDelete, http.MethodOptions, http.MethodPatch)
-	mw.AddAllowedOrigins("https://www.flags.gg", "https://flags.gg", "*")
+	mw.AddAllowedOrigins("https://www.flags.gg", "https://flags.gg", "https://dashboard.flags.gg", "*")
 	if s.Config.Local.Development {
 		mw.AddAllowedOrigins("http://localhost:3000", "http://localhost:5173", "*")
 	}
