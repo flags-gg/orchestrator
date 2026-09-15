@@ -5,10 +5,10 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"github.com/moby/moby/api/types/network"
 	"net/http"
 	"net/http/httptest"
 	"os"
-	"strings"
 	"testing"
 	"time"
 
@@ -32,8 +32,8 @@ func setupTestDatabase(c context.Context) (*testContainer, error) {
 		ExposedPorts: []string{"5432/tcp"},
 		WaitingFor: wait.ForAll(
 			wait.ForLog("database system is ready to accept connections"),
-			wait.ForSQL("5432/tcp", "postgres", func(host string, port string) string {
-				return fmt.Sprintf("postgres://test:test@%s:%s/testdb?sslmode=disable", host, strings.TrimSuffix(port, "/tcp"))
+			wait.ForSQL("5432/tcp", "postgres", func(host string, port network.Port) string {
+				return fmt.Sprintf("postgres://test:test@%s:%s/testdb?sslmode=disable", host, port.Port())
 			}),
 		).WithDeadline(time.Minute * 2),
 		Env: map[string]string{
