@@ -7,7 +7,6 @@ require (
 	github.com/bugfixes/go-bugfixes v0.17.0
 	github.com/caarlos0/env/v8 v8.0.0
 	github.com/clerk/clerk-sdk-go/v2 v2.7.0
-	github.com/docker/go-connections v0.8.1
 	github.com/flags-gg/go-flags v0.5.2
 	github.com/golang-jwt/jwt/v5 v5.3.1
 	github.com/golang-migrate/migrate/v4 v4.20.1
@@ -38,6 +37,7 @@ require (
 	github.com/containerd/platforms v0.2.1 // indirect
 	github.com/cpuguy83/dockercfg v0.3.2 // indirect
 	github.com/distribution/reference v0.6.0 // indirect
+	github.com/docker/go-connections v0.8.1 // indirect
 	github.com/docker/go-units v0.5.0 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/ebitengine/purego v0.10.0 // indirect

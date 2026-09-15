@@ -9,11 +9,11 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/bugfixes/go-bugfixes/logs"
-	"github.com/docker/go-connections/nat"
 	ConfigBuilder "github.com/keloran/go-config"
 	_ "github.com/lib/pq"
 	"github.com/stretchr/testify/assert"
@@ -32,8 +32,8 @@ func setupTestDatabase(c context.Context) (*testContainer, error) {
 		ExposedPorts: []string{"5432/tcp"},
 		WaitingFor: wait.ForAll(
 			wait.ForLog("database system is ready to accept connections"),
-			wait.ForSQL("5432/tcp", "postgres", func(host string, port nat.Port) string {
-				return fmt.Sprintf("postgres://test:test@%s:%s/testdb?sslmode=disable", host, port.Port())
+			wait.ForSQL("5432/tcp", "postgres", func(host string, port string) string {
+				return fmt.Sprintf("postgres://test:test@%s:%s/testdb?sslmode=disable", host, strings.TrimSuffix(port, "/tcp"))
 			}),
 		).WithDeadline(time.Minute * 2),
 		Env: map[string]string{
