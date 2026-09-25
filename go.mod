@@ -4,7 +4,7 @@ go 1.26.1
 
 require (
 	github.com/Nerzal/gocloak/v13 v13.9.0
-	github.com/bugfixes/go-bugfixes v0.18.0
+	github.com/bugfixes/go-bugfixes v0.19.1
 	github.com/caarlos0/env/v8 v8.0.0
 	github.com/clerk/clerk-sdk-go/v2 v2.7.0
 	github.com/flags-gg/go-flags v0.5.2
