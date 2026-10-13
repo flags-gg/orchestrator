@@ -4,10 +4,10 @@ go 1.26.1
 
 require (
 	github.com/Nerzal/gocloak/v13 v13.9.0
-	github.com/bugfixes/go-bugfixes v0.19.1
+	github.com/bugfixes/go-bugfixes v0.19.4
 	github.com/caarlos0/env/v8 v8.0.0
 	github.com/clerk/clerk-sdk-go/v2 v2.7.0
-	github.com/flags-gg/go-flags v0.5.2
+	github.com/flags-gg/go-flags v0.5.3
 	github.com/golang-jwt/jwt/v5 v5.3.1
 	github.com/golang-migrate/migrate/v4 v4.20.1
 	github.com/google/uuid v1.6.0
@@ -17,7 +17,7 @@ require (
 	github.com/keloran/go-healthcheck v1.2.2
 	github.com/keloran/go-probe v1.0.0
 	github.com/lib/pq v1.12.3
-	github.com/moby/moby/api v1.56.0
+	github.com/moby/moby/api v1.56.1
 	github.com/resend/resend-go/v2 v2.28.0
 	github.com/stretchr/testify v1.12.1
 	github.com/stripe/stripe-go v70.15.0+incompatible
