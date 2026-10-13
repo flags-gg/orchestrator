@@ -70,19 +70,8 @@ func (s *System) GetSummary(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("x-flags-timestamp", strconv.FormatInt(time.Now().Unix(), 10))
 	w.Header().Set("Content-Type", "application/json")
 
-	userSubject := r.Header.Get("x-user-subject")
-	if userSubject == "" {
-		w.WriteHeader(http.StatusUnauthorized)
-		return
-	}
-
-	companyId, err := company.NewSystem(s.Config).GetCompanyId(ctx, userSubject)
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-	if companyId == "" {
-		w.WriteHeader(http.StatusUnauthorized)
+	companyId, ok := company.NewSystem(s.Config).CallerOwns(w, r)
+	if !ok {
 		return
 	}
 

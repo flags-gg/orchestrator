@@ -3,7 +3,6 @@ package environment
 import (
 	"context"
 	"errors"
-	"fmt"
 	"strings"
 
 	"github.com/flags-gg/orchestrator/internal/flags"
@@ -250,11 +249,6 @@ func (s *System) CloneEnvironmentInDB(ctx context.Context, envId, newEnvId, agen
 		}
 	}()
 
-	flagsToClone, err := flags.NewSystem(s.Config).GetClientFlagsFromDB(ctx, envId)
-	if err != nil {
-		return s.Config.Bugfixes.Logger.Errorf("Failed to get flags: %v", err)
-	}
-
 	var agentIdInt int
 	if err := client.QueryRow(ctx, `
     SELECT id FROM public.agent WHERE agent_id = $1`, agentId).Scan(&agentIdInt); err != nil {
@@ -262,6 +256,13 @@ func (s *System) CloneEnvironmentInDB(ctx context.Context, envId, newEnvId, agen
 			return s.Config.Bugfixes.Logger.Errorf("Failed to get agent id: %v", err)
 		}
 		return s.Config.Bugfixes.Logger.Errorf("Failed to query database: %v", err)
+	}
+
+	// the source environment must belong to the same agent
+	var sourceEnvIdInt int
+	if err := client.QueryRow(ctx, `
+    SELECT id FROM public.environment WHERE env_id = $1 AND agent_id = $2`, envId, agentIdInt).Scan(&sourceEnvIdInt); err != nil {
+		return s.Config.Bugfixes.Logger.Errorf("Failed to get source environment: %v", err)
 	}
 
 	var envIdInt int
@@ -278,23 +279,12 @@ func (s *System) CloneEnvironmentInDB(ctx context.Context, envId, newEnvId, agen
 		return s.Config.Bugfixes.Logger.Errorf("Failed to query database: %v", err)
 	}
 
-	insertVars := ""
-
-	for _, flag := range flagsToClone {
-		bv := "false"
-		if flag.Enabled {
-			bv = "true"
-		}
-
-		insertVars += fmt.Sprintf(`('%s', %d, %d, %s),`, flag.Details.Name, agentIdInt, envIdInt, bv)
-	}
-	if insertVars != "" {
-		insertVars = insertVars[:len(insertVars)-1] // Remove last comma
-		_, err := client.Exec(ctx, fmt.Sprintf(`INSERT INTO public.flag (name, agent_id, environment_id, enabled) VALUES %s`, insertVars))
-		if err != nil {
-			return s.Config.Bugfixes.Logger.Errorf("Failed to insert flags into database: %v", err)
-		}
-		return nil
+	if _, err := client.Exec(ctx, `
+    INSERT INTO public.flag (name, agent_id, environment_id, enabled)
+    SELECT name, $1, $2, enabled
+    FROM public.flag
+    WHERE environment_id = $3`, agentIdInt, envIdInt, sourceEnvIdInt); err != nil {
+		return s.Config.Bugfixes.Logger.Errorf("Failed to insert flags into database: %v", err)
 	}
 
 	return nil

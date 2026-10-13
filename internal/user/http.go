@@ -5,8 +5,8 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/clerk/clerk-sdk-go/v2"
 	clerkUser "github.com/clerk/clerk-sdk-go/v2/user"
+	"github.com/flags-gg/orchestrator/internal/auth"
 	ConfigBuilder "github.com/keloran/go-config"
 )
 
@@ -23,15 +23,7 @@ func NewSystem(cfg *ConfigBuilder.Config) *System {
 func (s *System) CreateUser(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	userSubject := r.Header.Get("x-user-subject")
-	if userSubject == "" {
-		_ = s.Config.Bugfixes.Logger.Errorf("No user subject provided")
-		w.WriteHeader(http.StatusBadRequest)
-		return
-	}
-
-	clerk.SetKey(s.Config.Clerk.Key)
-	usr, err := clerkUser.Get(ctx, r.Header.Get("x-user-subject"))
+	userId, err := auth.UserID(r)
 	if err != nil {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
@@ -52,6 +44,11 @@ func (s *System) CreateUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if fd.KnownAs == "" {
+		usr, err := clerkUser.Get(ctx, userId)
+		if err != nil {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		fd.KnownAs = *usr.Username
 		fd.First = *usr.FirstName
 		fd.Last = *usr.LastName
@@ -63,7 +60,7 @@ func (s *System) CreateUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Create user
-	if err := s.CreateUserDetails(ctx, userSubject, fd.KnownAs, fd.Email, fd.First, fd.Last, fd.Location, 1); err != nil {
+	if err := s.CreateUserDetails(ctx, userId, fd.KnownAs, fd.Email, fd.First, fd.Last, fd.Location, 1); err != nil {
 		_ = s.Config.Bugfixes.Logger.Errorf("Failed to create user details: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -76,14 +73,13 @@ func (s *System) GetUser(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	user := &User{}
 
-	clerk.SetKey(s.Config.Clerk.Key)
-	usr, err := clerkUser.Get(ctx, r.Header.Get("x-user-subject"))
+	userId, err := auth.UserID(r)
 	if err != nil {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
 
-	dbuser, err := s.RetrieveUserDetailsDB(ctx, usr.ID)
+	dbuser, err := s.RetrieveUserDetailsDB(ctx, userId)
 	if err != nil {
 		_ = s.Config.Bugfixes.Logger.Errorf("Failed to retrieve user details: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -94,6 +90,11 @@ func (s *System) GetUser(w http.ResponseWriter, r *http.Request) {
 		user = dbuser
 		user.Created = true
 	} else {
+		usr, err := clerkUser.Get(ctx, userId)
+		if err != nil {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		user.Id = &usr.ID
 		user.Email = &usr.EmailAddresses[0].EmailAddress
 		user.FirstName = usr.FirstName
@@ -115,7 +116,11 @@ func (s *System) GetUser(w http.ResponseWriter, r *http.Request) {
 func (s *System) UpdateUser(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	subject := r.Header.Get("x-user-subject")
+	userId, err := auth.UserID(r)
+	if err != nil {
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
 	type formData struct {
 		KnownAs   string `json:"knownAs"`
 		Email     string `json:"emailAddress"`
@@ -131,7 +136,7 @@ func (s *System) UpdateUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := s.UpdateUserDetailsDB(ctx, subject, fd.KnownAs, fd.Email, fd.First, fd.Last, fd.Location); err != nil {
+	if err := s.UpdateUserDetailsDB(ctx, userId, fd.KnownAs, fd.Email, fd.First, fd.Last, fd.Location); err != nil {
 		_ = s.Config.Bugfixes.Logger.Errorf("Failed to update user details: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -143,15 +148,7 @@ func (s *System) UpdateUser(w http.ResponseWriter, r *http.Request) {
 func (s *System) GetUserNotifications(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	subject := r.Header.Get("x-user-subject")
-	if subject == "" {
-		_ = s.Config.Bugfixes.Logger.Errorf("No subject provided")
-		w.WriteHeader(http.StatusBadRequest)
-		return
-	}
-
-	clerk.SetKey(s.Config.Clerk.Key)
-	usr, err := clerkUser.Get(ctx, r.Header.Get("x-user-subject"))
+	userId, err := auth.UserID(r)
 	if err != nil {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
@@ -159,7 +156,7 @@ func (s *System) GetUserNotifications(w http.ResponseWriter, r *http.Request) {
 
 	n := &Notifications{}
 
-	notifications, err := s.RetrieveUserNotifications(ctx, usr.ID)
+	notifications, err := s.RetrieveUserNotifications(ctx, userId)
 	if err != nil {
 		_ = s.Config.Bugfixes.Logger.Errorf("Failed to retrieve user notifications: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -185,22 +182,14 @@ func (s *System) GetUserNotifications(w http.ResponseWriter, r *http.Request) {
 func (s *System) UpdateUserNotification(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	subject := r.Header.Get("x-user-subject")
-	if subject == "" {
-		_ = s.Config.Bugfixes.Logger.Errorf("No subject provided")
-		w.WriteHeader(http.StatusBadRequest)
-		return
-	}
-
-	clerk.SetKey(s.Config.Clerk.Key)
-	usr, err := clerkUser.Get(ctx, r.Header.Get("x-user-subject"))
+	userId, err := auth.UserID(r)
 	if err != nil {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
 
 	notificationId := r.PathValue("notificationId")
-	if err := s.MarkNotificationAsRead(ctx, usr.ID, notificationId); err != nil {
+	if err := s.MarkNotificationAsRead(ctx, userId, notificationId); err != nil {
 		_ = s.Config.Bugfixes.Logger.Errorf("Failed to update user notification: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -212,22 +201,14 @@ func (s *System) UpdateUserNotification(w http.ResponseWriter, r *http.Request) 
 func (s *System) DeleteUserNotification(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	subject := r.Header.Get("x-user-subject")
-	if subject == "" {
-		_ = s.Config.Bugfixes.Logger.Errorf("No subject provided")
-		w.WriteHeader(http.StatusBadRequest)
-		return
-	}
-
-	clerk.SetKey(s.Config.Clerk.Key)
-	usr, err := clerkUser.Get(ctx, r.Header.Get("x-user-subject"))
+	userId, err := auth.UserID(r)
 	if err != nil {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
 
 	notificationId := r.PathValue("notificationId")
-	if err := s.DeleteUserNotificationInDB(ctx, usr.ID, notificationId); err != nil {
+	if err := s.DeleteUserNotificationInDB(ctx, userId, notificationId); err != nil {
 		_ = s.Config.Bugfixes.Logger.Errorf("Failed to update user notification: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -312,13 +293,7 @@ func (s *System) UploadThing(w http.ResponseWriter, r *http.Request) {
 
 func (s *System) UpdateUserImage(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-	if r.Header.Get("x-user-subject") == "" {
-		w.WriteHeader(http.StatusUnauthorized)
-		return
-	}
-
-	clerk.SetKey(s.Config.Clerk.Key)
-	usr, err := clerkUser.Get(ctx, r.Header.Get("x-user-subject"))
+	userId, err := auth.UserID(r)
 	if err != nil {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
@@ -333,7 +308,7 @@ func (s *System) UpdateUserImage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := s.UpdateUserImageInDB(ctx, usr.ID, imageChange.Image); err != nil {
+	if err := s.UpdateUserImageInDB(ctx, userId, imageChange.Image); err != nil {
 		_ = s.Config.Bugfixes.Logger.Errorf("Failed to update project: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -345,21 +320,13 @@ func (s *System) UpdateUserImage(w http.ResponseWriter, r *http.Request) {
 func (s *System) DeleteUser(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	subject := r.Header.Get("x-user-subject")
-	if subject == "" {
-		_ = s.Config.Bugfixes.Logger.Errorf("Missing x-user-subject header")
-		w.WriteHeader(http.StatusBadRequest)
-		return
-	}
-
-	clerk.SetKey(s.Config.Clerk.Key)
-	usr, err := clerkUser.Get(ctx, r.Header.Get("x-user-subject"))
+	userId, err := auth.UserID(r)
 	if err != nil {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
 
-	if err := s.DeleteUserInDB(ctx, usr.ID); err != nil {
+	if err := s.DeleteUserInDB(ctx, userId); err != nil {
 		_ = s.Config.Bugfixes.Logger.Errorf("Failed to delete user: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return

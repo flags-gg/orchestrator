@@ -4,8 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/clerk/clerk-sdk-go/v2"
-	clerkUser "github.com/clerk/clerk-sdk-go/v2/user"
+	"github.com/flags-gg/orchestrator/internal/auth"
 	"github.com/flags-gg/orchestrator/internal/company"
 	"github.com/flags-gg/orchestrator/internal/stats"
 	ConfigBuilder "github.com/keloran/go-config"
@@ -19,21 +18,6 @@ func NewAPIKeyHTTPSystem(cfg *ConfigBuilder.Config) *APIKeyHTTPSystem {
 	return &APIKeyHTTPSystem{
 		Config: cfg,
 	}
-}
-
-// getUserId returns the user ID, using dev mode config if in development, otherwise Clerk
-func (s *APIKeyHTTPSystem) getUserId(r *http.Request) (string, error) {
-	if s.Config.Local.Development && s.Config.Clerk.DevUser != "" {
-		return s.Config.Clerk.DevUser, nil
-	}
-
-	// Production mode: use Clerk authentication
-	clerk.SetKey(s.Config.Clerk.Key)
-	usr, err := clerkUser.Get(r.Context(), r.Header.Get("x-user-subject"))
-	if err != nil {
-		return "", err
-	}
-	return usr.ID, nil
 }
 
 type GenerateAPIKeyRequest struct {
@@ -52,25 +36,8 @@ func (s *APIKeyHTTPSystem) GenerateAPIKeyHandler(w http.ResponseWriter, r *http.
 	w.Header().Set("Content-Type", "application/json")
 	ctx := r.Context()
 
-	// Authenticate user
-	if r.Header.Get("x-user-subject") == "" {
-		w.WriteHeader(http.StatusUnauthorized)
-		return
-	}
-
-	userId, err := s.getUserId(r)
+	userId, err := auth.UserID(r)
 	if err != nil {
-		w.WriteHeader(http.StatusUnauthorized)
-		return
-	}
-
-	companyId, err := company.NewSystem(s.Config).GetCompanyId(ctx, userId)
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-
-	if companyId == "" {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
@@ -90,6 +57,15 @@ func (s *APIKeyHTTPSystem) GenerateAPIKeyHandler(w http.ResponseWriter, r *http.
 		_ = json.NewEncoder(w).Encode(map[string]string{
 			"error": "project_id and agent_id are required",
 		})
+		return
+	}
+
+	// Only issue keys for the caller's own project/agent/environment
+	owned := []string{company.ResourceProject, req.ProjectID, company.ResourceAgent, req.AgentID}
+	if req.EnvironmentID != "" {
+		owned = append(owned, company.ResourceEnvironment, req.EnvironmentID)
+	}
+	if _, ok := company.NewSystem(s.Config).CallerOwns(w, r, owned...); !ok {
 		return
 	}
 

@@ -59,6 +59,11 @@ CREATE TABLE
                            level smallint NOT NULL DEFAULT 0
 );
 
+ALTER TABLE
+    public.environment
+    ADD
+        CONSTRAINT environment_pkey PRIMARY KEY (id);
+
 -- Ensure only one environment per level per agent (ordered chain)
 ALTER TABLE public.environment
     ADD CONSTRAINT environment_agent_level_unique UNIQUE (agent_id, level);
@@ -98,11 +103,6 @@ DROP TRIGGER IF EXISTS trg_chain_same_agent ON public.environment_chain;
 CREATE TRIGGER trg_chain_same_agent
     BEFORE INSERT OR UPDATE ON public.environment_chain
     FOR EACH ROW EXECUTE FUNCTION check_chain_same_agent();
-
-ALTER TABLE
-    public.environment
-    ADD
-        CONSTRAINT environment_pkey PRIMARY KEY (id);
 
 CREATE TABLE
     public.flag (

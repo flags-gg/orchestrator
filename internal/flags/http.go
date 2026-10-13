@@ -3,12 +3,10 @@ package flags
 import (
 	"encoding/json"
 	"net/http"
+	"regexp"
 	"strconv"
 	"time"
 
-	"github.com/bugfixes/go-bugfixes/logs"
-	"github.com/clerk/clerk-sdk-go/v2"
-	clerkUser "github.com/clerk/clerk-sdk-go/v2/user"
 	"github.com/flags-gg/orchestrator/internal/company"
 	"github.com/flags-gg/orchestrator/internal/stats"
 	ConfigBuilder "github.com/keloran/go-config"
@@ -45,6 +43,13 @@ type System struct {
 	Config *ConfigBuilder.Config
 }
 
+// flagNamePattern: letters, digits, space, '-', '_', '.'; 1-100 chars
+var flagNamePattern = regexp.MustCompile(`^[\p{L}\p{N} _.\-]{1,100}$`)
+
+func ValidFlagName(name string) bool {
+	return flagNamePattern.MatchString(name)
+}
+
 type FlagNameChangeRequest struct {
 	Name string `json:"name"`
 	ID   string `json:"id"`
@@ -56,23 +61,7 @@ func NewSystem(cfg *ConfigBuilder.Config) *System {
 	}
 }
 
-// getUserId returns the user ID, using dev mode config if in development, otherwise Clerk
-func (s *System) getUserId(r *http.Request) (string, error) {
-	if s.Config.Local.Development && s.Config.Clerk.DevUser != "" {
-		return s.Config.Clerk.DevUser, nil
-	}
-
-	// Production mode: use Clerk authentication
-	clerk.SetKey(s.Config.Clerk.Key)
-	usr, err := clerkUser.Get(r.Context(), r.Header.Get("x-user-subject"))
-	if err != nil {
-		return "", err
-	}
-	return usr.ID, nil
-}
-
 func (s *System) GetAgentFlags(w http.ResponseWriter, r *http.Request) {
-	logs.Infof("Headers: %v", r.Header)
 	ctx := r.Context()
 
 	w.Header().Set("x-flags-timestamp", strconv.FormatInt(time.Now().Unix(), 10))
@@ -131,25 +120,7 @@ func (s *System) GetClientFlags(w http.ResponseWriter, r *http.Request) {
 	var responseObj []Flag
 	ctx := r.Context()
 
-	if r.Header.Get("x-user-subject") == "" {
-		w.WriteHeader(http.StatusUnauthorized)
-		return
-	}
-
-	userId, err := s.getUserId(r)
-	if err != nil {
-		w.WriteHeader(http.StatusUnauthorized)
-		return
-	}
-
-	companyId, err := company.NewSystem(s.Config).GetCompanyId(ctx, userId)
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-
-	if companyId == "" {
-		w.WriteHeader(http.StatusUnauthorized)
+	if _, ok := company.NewSystem(s.Config).CallerOwns(w, r, company.ResourceEnvironment, r.PathValue("environmentId")); !ok {
 		return
 	}
 
@@ -170,32 +141,18 @@ func (s *System) GetClientFlags(w http.ResponseWriter, r *http.Request) {
 func (s *System) CreateFlags(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	if r.Header.Get("x-user-subject") == "" {
-		w.WriteHeader(http.StatusUnauthorized)
-		return
-	}
-
-	userId, err := s.getUserId(r)
-	if err != nil {
-		w.WriteHeader(http.StatusUnauthorized)
-		return
-	}
-
-	companyId, err := company.NewSystem(s.Config).GetCompanyId(ctx, userId)
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-
-	if companyId == "" {
-		w.WriteHeader(http.StatusUnauthorized)
-		return
-	}
-
 	flag := flagCreate{}
 	if err := json.NewDecoder(r.Body).Decode(&flag); err != nil {
 		_ = s.Config.Bugfixes.Logger.Errorf("Failed to decode request: %v", err)
 		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	if !ValidFlagName(flag.Name) {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	// both must be the caller's; CreateFlagInDB also requires the environment to belong to the agent
+	if _, ok := company.NewSystem(s.Config).CallerOwns(w, r, company.ResourceAgent, flag.AgentId, company.ResourceEnvironment, flag.EnvironmentId); !ok {
 		return
 	}
 
@@ -211,25 +168,7 @@ func (s *System) CreateFlags(w http.ResponseWriter, r *http.Request) {
 func (s *System) UpdateFlags(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	if r.Header.Get("x-user-subject") == "" {
-		w.WriteHeader(http.StatusUnauthorized)
-		return
-	}
-
-	userId, err := s.getUserId(r)
-	if err != nil {
-		w.WriteHeader(http.StatusUnauthorized)
-		return
-	}
-
-	companyId, err := company.NewSystem(s.Config).GetCompanyId(ctx, userId)
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-
-	if companyId == "" {
-		w.WriteHeader(http.StatusUnauthorized)
+	if _, ok := company.NewSystem(s.Config).CallerOwns(w, r, company.ResourceFlag, r.PathValue("flagId")); !ok {
 		return
 	}
 
@@ -241,6 +180,10 @@ func (s *System) UpdateFlags(w http.ResponseWriter, r *http.Request) {
 	cr := changeRequest{}
 	if err := json.NewDecoder(r.Body).Decode(&cr); err != nil {
 		_ = s.Config.Bugfixes.Logger.Errorf("Failed to decode request: %v", err)
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	if !ValidFlagName(cr.Name) {
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
@@ -264,24 +207,7 @@ func (s *System) UpdateFlags(w http.ResponseWriter, r *http.Request) {
 func (s *System) PromoteFlag(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	if r.Header.Get("x-user-subject") == "" {
-		w.WriteHeader(http.StatusUnauthorized)
-		return
-	}
-
-	userId, err := s.getUserId(r)
-	if err != nil {
-		w.WriteHeader(http.StatusUnauthorized)
-		return
-	}
-
-	companyId, err := company.NewSystem(s.Config).GetCompanyId(ctx, userId)
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-	if companyId == "" {
-		w.WriteHeader(http.StatusUnauthorized)
+	if _, ok := company.NewSystem(s.Config).CallerOwns(w, r, company.ResourceFlag, r.PathValue("flagId")); !ok {
 		return
 	}
 
@@ -303,25 +229,7 @@ func (s *System) PromoteFlag(w http.ResponseWriter, r *http.Request) {
 func (s *System) EditFlag(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	if r.Header.Get("x-user-subject") == "" {
-		w.WriteHeader(http.StatusUnauthorized)
-		return
-	}
-
-	userId, err := s.getUserId(r)
-	if err != nil {
-		w.WriteHeader(http.StatusUnauthorized)
-		return
-	}
-
-	companyId, err := company.NewSystem(s.Config).GetCompanyId(ctx, userId)
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-
-	if companyId == "" {
-		w.WriteHeader(http.StatusUnauthorized)
+	if _, ok := company.NewSystem(s.Config).CallerOwns(w, r, company.ResourceFlag, r.PathValue("flagId")); !ok {
 		return
 	}
 
@@ -329,6 +237,10 @@ func (s *System) EditFlag(w http.ResponseWriter, r *http.Request) {
 	flagChange := FlagNameChangeRequest{}
 	if err := json.NewDecoder(r.Body).Decode(&flagChange); err != nil {
 		_ = s.Config.Bugfixes.Logger.Errorf("Failed to decode request: %v", err)
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	if !ValidFlagName(flagChange.Name) {
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
@@ -347,25 +259,7 @@ func (s *System) EditFlag(w http.ResponseWriter, r *http.Request) {
 func (s *System) DeleteFlags(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	if r.Header.Get("x-user-subject") == "" {
-		w.WriteHeader(http.StatusUnauthorized)
-		return
-	}
-
-	userId, err := s.getUserId(r)
-	if err != nil {
-		w.WriteHeader(http.StatusUnauthorized)
-		return
-	}
-
-	companyId, err := company.NewSystem(s.Config).GetCompanyId(ctx, userId)
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-
-	if companyId == "" {
-		w.WriteHeader(http.StatusUnauthorized)
+	if _, ok := company.NewSystem(s.Config).CallerOwns(w, r, company.ResourceFlag, r.PathValue("flagId")); !ok {
 		return
 	}
 

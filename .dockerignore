@@ -1,0 +1,8 @@
+.git
+.codex
+.agents
+.env
+.env.*
+bin
+coverage*
+secrets_file.json

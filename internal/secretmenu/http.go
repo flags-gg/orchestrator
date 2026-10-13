@@ -5,8 +5,6 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/clerk/clerk-sdk-go/v2"
-	clerkUser "github.com/clerk/clerk-sdk-go/v2/user"
 	"github.com/flags-gg/orchestrator/internal/company"
 
 	flagsService "github.com/flags-gg/go-flags"
@@ -22,43 +20,11 @@ type StyleMenu struct {
 	Styles []Style `json:"styles"`
 }
 
-// getUserId returns the user ID, using dev mode config if in development, otherwise Clerk
-func (s *System) getUserId(r *http.Request) (string, error) {
-	if s.Config.Local.Development && s.Config.Clerk.DevUser != "" {
-		return s.Config.Clerk.DevUser, nil
-	}
-
-	// Production mode: use Clerk authentication
-	clerk.SetKey(s.Config.Clerk.Key)
-	usr, err := clerkUser.Get(r.Context(), r.Header.Get("x-user-subject"))
-	if err != nil {
-		return "", err
-	}
-	return usr.ID, nil
-}
-
 func (s *System) GetSecretMenu(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	if r.Header.Get("x-user-subject") == "" {
-		w.WriteHeader(http.StatusUnauthorized)
-		return
-	}
-
-	userId, err := s.getUserId(r)
-	if err != nil {
-		w.WriteHeader(http.StatusUnauthorized)
-		return
-	}
-
-	companyId, err := company.NewSystem(s.Config).GetCompanyId(ctx, userId)
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-
-	if companyId == "" {
-		w.WriteHeader(http.StatusUnauthorized)
+	_, ok := company.NewSystem(s.Config).CallerOwns(w, r, company.ResourceSecretMenu, r.PathValue("menuId"))
+	if !ok {
 		return
 	}
 
@@ -81,25 +47,8 @@ func (s *System) GetSecretMenu(w http.ResponseWriter, r *http.Request) {
 func (s *System) CreateSecretMenu(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	if r.Header.Get("x-user-subject") == "" {
-		w.WriteHeader(http.StatusUnauthorized)
-		return
-	}
-
-	userId, err := s.getUserId(r)
-	if err != nil {
-		w.WriteHeader(http.StatusUnauthorized)
-		return
-	}
-
-	companyId, err := company.NewSystem(s.Config).GetCompanyId(ctx, userId)
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-
-	if companyId == "" {
-		w.WriteHeader(http.StatusUnauthorized)
+	_, ok := company.NewSystem(s.Config).CallerOwns(w, r, company.ResourceEnvironment, r.PathValue("environmentId"))
+	if !ok {
 		return
 	}
 
@@ -133,25 +82,8 @@ func (s *System) CreateSecretMenu(w http.ResponseWriter, r *http.Request) {
 func (s *System) UpdateSecretMenuState(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	if r.Header.Get("x-user-subject") == "" {
-		w.WriteHeader(http.StatusUnauthorized)
-		return
-	}
-
-	userId, err := s.getUserId(r)
-	if err != nil {
-		w.WriteHeader(http.StatusUnauthorized)
-		return
-	}
-
-	companyId, err := company.NewSystem(s.Config).GetCompanyId(ctx, userId)
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-
-	if companyId == "" {
-		w.WriteHeader(http.StatusUnauthorized)
+	_, ok := company.NewSystem(s.Config).CallerOwns(w, r, company.ResourceSecretMenu, r.PathValue("menuId"))
+	if !ok {
 		return
 	}
 
@@ -168,25 +100,8 @@ func (s *System) UpdateSecretMenuState(w http.ResponseWriter, r *http.Request) {
 func (s *System) UpdateSecretMenuSequence(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	if r.Header.Get("x-user-subject") == "" {
-		w.WriteHeader(http.StatusUnauthorized)
-		return
-	}
-
-	userId, err := s.getUserId(r)
-	if err != nil {
-		w.WriteHeader(http.StatusUnauthorized)
-		return
-	}
-
-	companyId, err := company.NewSystem(s.Config).GetCompanyId(ctx, userId)
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-
-	if companyId == "" {
-		w.WriteHeader(http.StatusUnauthorized)
+	_, ok := company.NewSystem(s.Config).CallerOwns(w, r, company.ResourceSecretMenu, r.PathValue("menuId"))
+	if !ok {
 		return
 	}
 
@@ -224,25 +139,8 @@ func (s *System) UpdateSecretMenuStyle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if r.Header.Get("x-user-subject") == "" {
-		w.WriteHeader(http.StatusUnauthorized)
-		return
-	}
-
-	userId, err := s.getUserId(r)
-	if err != nil {
-		w.WriteHeader(http.StatusUnauthorized)
-		return
-	}
-
-	companyId, err := company.NewSystem(s.Config).GetCompanyId(ctx, userId)
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-
-	if companyId == "" {
-		w.WriteHeader(http.StatusUnauthorized)
+	_, ok := company.NewSystem(s.Config).CallerOwns(w, r, company.ResourceSecretMenu, r.PathValue("menuId"))
+	if !ok {
 		return
 	}
 
@@ -343,25 +241,8 @@ func (s *System) GetSecretMenuStyle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if r.Header.Get("x-user-subject") == "" {
-		w.WriteHeader(http.StatusUnauthorized)
-		return
-	}
-
-	userId, err := s.getUserId(r)
-	if err != nil {
-		w.WriteHeader(http.StatusUnauthorized)
-		return
-	}
-
-	companyId, err := company.NewSystem(s.Config).GetCompanyId(ctx, userId)
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-
-	if companyId == "" {
-		w.WriteHeader(http.StatusUnauthorized)
+	_, ok := company.NewSystem(s.Config).CallerOwns(w, r, company.ResourceSecretMenu, r.PathValue("menuId"))
+	if !ok {
 		return
 	}
 

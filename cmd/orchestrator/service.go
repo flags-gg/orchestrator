@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/bugfixes/go-bugfixes/logs"
 	"github.com/caarlos0/env/v8"
@@ -31,10 +32,12 @@ func (pc ProjectConfig) Build(cfg *ConfigBuilder.Config) error {
 	}
 
 	type PC struct {
-		StripeSecret string `env:"STRIPE_SECRET" envDefault:"stripe_secret"`
-		RailwayPort  string `env:"PORT" envDefault:"3000"`
-		OnRailway    bool   `env:"ON_RAILWAY" envDefault:"false"`
-		Flags        FlagsService
+		StripeSecret        string `env:"STRIPE_SECRET" envDefault:"stripe_secret"`
+		StripeWebhookSecret string `env:"STRIPE_WEBHOOK_SECRET" envDefault:""`
+		JWTSigningKey       string `env:"JWT_SIGNING_KEY" envDefault:""`
+		RailwayPort         string `env:"PORT" envDefault:"3000"`
+		OnRailway           bool   `env:"ON_RAILWAY" envDefault:"false"`
+		Flags               FlagsService
 	}
 	p := PC{}
 
@@ -45,6 +48,8 @@ func (pc ProjectConfig) Build(cfg *ConfigBuilder.Config) error {
 		cfg.ProjectProperties = make(map[string]interface{})
 	}
 	cfg.ProjectProperties["stripeKey"] = p.StripeSecret
+	cfg.ProjectProperties["stripe_webhook_secret"] = p.StripeWebhookSecret
+	cfg.ProjectProperties["jwt_signing_key"] = p.JWTSigningKey
 	cfg.ProjectProperties["railway_port"] = p.RailwayPort
 	cfg.ProjectProperties["on_railway"] = p.OnRailway
 
@@ -71,6 +76,9 @@ func main() {
 	if err != nil {
 		logs.Fatalf("Failed to build config: %v", err)
 	}
+	if err := checkConfig(c); err != nil {
+		logs.Fatalf("Refusing to start: %v", err)
+	}
 
 	// do migration before starting app
 	if err := migrateDB(c); err != nil {
@@ -80,6 +88,20 @@ func main() {
 	if err := internal.New(c).Start(); err != nil {
 		logs.Fatalf("Failed to start service: %v", err)
 	}
+}
+
+// checkConfig stops unsafe configurations from starting
+func checkConfig(cfg *ConfigBuilder.Config) error {
+	stripeKey, _ := cfg.ProjectProperties["stripeKey"].(string)
+	signingKey, _ := cfg.ProjectProperties["jwt_signing_key"].(string)
+
+	if cfg.Local.Development && strings.HasPrefix(stripeKey, "sk_live_") {
+		return errors.New("DEVELOPMENT=true with a live Stripe secret key")
+	}
+	if !cfg.Local.Development && signingKey == "" {
+		return errors.New("JWT_SIGNING_KEY must be set outside development")
+	}
+	return nil
 }
 
 func migrateDB(config *ConfigBuilder.Config) error {

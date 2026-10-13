@@ -9,9 +9,9 @@ import (
 	"github.com/bugfixes/go-bugfixes/logs"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
-	"github.com/stripe/stripe-go"
-	"github.com/stripe/stripe-go/checkout/session"
 )
+
+var ErrDomainTaken = errors.New("company domain already registered")
 
 type Agents struct {
 	Allowed int          `json:"allowed"`
@@ -352,7 +352,9 @@ func (s *System) GetCompanyBasedOnDomain(ctx context.Context, domain, inviteCode
 	if err := client.QueryRow(ctx, `
     SELECT company_id
 	FROM company
-	WHERE domain = $1 OR invite_code = $2`, domain, inviteCode).Scan(&companyId); err != nil {
+	WHERE ($1 <> '' AND lower(domain) = lower($1))
+	   OR ($2 <> '' AND invite_code = $2)
+	LIMIT 1`, domain, inviteCode).Scan(&companyId); err != nil {
 		if err.Error() == "context canceled" || errors.Is(err, context.Canceled) {
 			return false, nil
 		}
@@ -416,6 +418,15 @@ func (s *System) CreateCompanyDB(ctx context.Context, name, domain, userSubject 
 			_ = s.Config.Bugfixes.Logger.Errorf("Failed to close database connection: %v", err)
 		}
 	}()
+
+	// ponytail: checked in code, not a unique index, as existing rows may already share domains
+	var taken bool
+	if err := client.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM public.company WHERE lower(domain) = lower($1))`, domain).Scan(&taken); err != nil {
+		return s.Config.Bugfixes.Logger.Errorf("Failed to check company domain: %v", err)
+	}
+	if taken {
+		return ErrDomainTaken
+	}
 
 	companyId := uuid.New().String()
 	inviteCode := uuid.New().String()
@@ -620,13 +631,57 @@ func (s *System) GetInviteCodeFromDB(ctx context.Context, companyId string) (str
 	return inviteCode.String, nil
 }
 
-func (s *System) UpgradeCompanyInDB(ctx context.Context, companyId, stripeSessionId string) error {
+// Resource kinds for OwnsResource
+const (
+	ResourceProject     = "project"
+	ResourceAgent       = "agent"
+	ResourceEnvironment = "environment"
+	ResourceFlag        = "flag"
+	ResourceSecretMenu  = "secret_menu"
+)
+
+var ownershipQueries = map[string]string{
+	ResourceProject: `
+    SELECT 1 FROM public.project p
+      JOIN public.company c ON c.id = p.company_id
+    WHERE p.project_id = $1 AND c.company_id = $2`,
+	ResourceAgent: `
+    SELECT 1 FROM public.agent a
+      JOIN public.project p ON p.id = a.project_id
+      JOIN public.company c ON c.id = p.company_id
+    WHERE a.agent_id = $1 AND c.company_id = $2`,
+	ResourceEnvironment: `
+    SELECT 1 FROM public.environment e
+      JOIN public.agent a ON a.id = e.agent_id
+      JOIN public.project p ON p.id = a.project_id
+      JOIN public.company c ON c.id = p.company_id
+    WHERE e.env_id = $1 AND c.company_id = $2`,
+	ResourceFlag: `
+    SELECT 1 FROM public.flag f
+      JOIN public.agent a ON a.id = f.agent_id
+      JOIN public.project p ON p.id = a.project_id
+      JOIN public.company c ON c.id = p.company_id
+    WHERE f.id::text = $1 AND c.company_id = $2`,
+	ResourceSecretMenu: `
+    SELECT 1 FROM public.secret_menu sm
+      JOIN public.environment e ON e.id = sm.environment_id
+      JOIN public.agent a ON a.id = e.agent_id
+      JOIN public.project p ON p.id = a.project_id
+      JOIN public.company c ON c.id = p.company_id
+    WHERE sm.menu_id = $1 AND c.company_id = $2`,
+}
+
+// OwnsResource reports whether the resource with the given public id belongs to the company.
+// Handlers return 404 when it does not, so other companies' ids are indistinguishable from missing ones.
+func (s *System) OwnsResource(ctx context.Context, companyId, kind, id string) (bool, error) {
+	query, ok := ownershipQueries[kind]
+	if !ok || companyId == "" || id == "" {
+		return false, nil
+	}
+
 	client, err := s.Config.Database.GetPGXClient(ctx)
 	if err != nil {
-		if strings.Contains(err.Error(), "operation was canceled") {
-			return nil
-		}
-		return s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
+		return false, s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
 	}
 	defer func() {
 		if err := client.Close(ctx); err != nil {
@@ -634,31 +689,12 @@ func (s *System) UpgradeCompanyInDB(ctx context.Context, companyId, stripeSessio
 		}
 	}()
 
-	stripe.Key = s.Config.Local.GetValue("STRIPE_SECRET")
-	params := &stripe.CheckoutSessionParams{}
-	result, err := session.Get(stripeSessionId, params)
-	if err != nil {
-		return s.Config.Bugfixes.Logger.Errorf("Failed to get stripe session: %v", err)
+	var one int
+	if err := client.QueryRow(ctx, query, id, companyId).Scan(&one); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return false, nil
+		}
+		return false, s.Config.Bugfixes.Logger.Errorf("Failed to check ownership: %v", err)
 	}
-
-	priceId, exists := result.Metadata["priceId"]
-	if !exists {
-		return s.Config.Bugfixes.Logger.Errorf("Failed to get price id from metadata")
-	}
-
-	_, err = client.Exec(ctx, `
-    UPDATE public.company
-    SET
-      payment_plan_id = (
-          SELECT id
-          FROM public.payment_plans
-          WHERE stripe_id = $1
-            OR stripe_id_dev = $1
-      )
-    WHERE company_id = $2`, priceId, companyId)
-	if err != nil {
-		return s.Config.Bugfixes.Logger.Errorf("Failed to update company: %v", err)
-	}
-
-	return nil
+	return true, nil
 }

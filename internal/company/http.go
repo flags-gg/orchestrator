@@ -3,14 +3,17 @@ package company
 import (
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"html"
 	"net/http"
+	"net/mail"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/bugfixes/go-bugfixes/logs"
-	"github.com/clerk/clerk-sdk-go/v2"
-	clerkUser "github.com/clerk/clerk-sdk-go/v2/user"
+	"github.com/flags-gg/orchestrator/internal/auth"
 	ConfigBuilder "github.com/keloran/go-config"
 	"github.com/resend/resend-go/v2"
 )
@@ -35,33 +38,11 @@ func NewSystem(cfg *ConfigBuilder.Config) *System {
 	}
 }
 
-// getUserId returns the user ID, using dev mode config if in development, otherwise Clerk
-func (s *System) getUserId(r *http.Request) (string, error) {
-	if s.Config.Local.Development && s.Config.Clerk.DevUser != "" {
-		return s.Config.Clerk.DevUser, nil
-	}
-
-	// Production mode: use Clerk authentication
-	clerk.SetKey(s.Config.Clerk.Key)
-	usr, err := clerkUser.Get(r.Context(), r.Header.Get("x-user-subject"))
-	if err != nil {
-		return "", err
-	}
-	return usr.ID, nil
-}
-
 func (s *System) GetCompany(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	w.Header().Set("x-flags-timestamp", strconv.FormatInt(time.Now().Unix(), 10))
 
-	if r.Header.Get("x-user-subject") == "" {
-		if err := json.NewEncoder(w).Encode(&Company{}); err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-		}
-		return
-	}
-
-	userId, err := s.getUserId(r)
+	userId, err := auth.UserID(r)
 	if err != nil {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
@@ -83,11 +64,7 @@ func (s *System) CreateCompany(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	w.Header().Set("x-flags-timestamp", strconv.FormatInt(time.Now().Unix(), 10))
 
-	if r.Header.Get("x-user-subject") == "" {
-		w.WriteHeader(http.StatusUnauthorized)
-		return
-	}
-	userId, err := s.getUserId(r)
+	userId, err := auth.UserID(r)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -108,6 +85,10 @@ func (s *System) CreateCompany(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := s.CreateCompanyDB(ctx, c.Name, c.Domain, userId); err != nil {
+		if errors.Is(err, ErrDomainTaken) {
+			w.WriteHeader(http.StatusConflict)
+			return
+		}
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -118,14 +99,7 @@ func (s *System) CreateCompany(w http.ResponseWriter, r *http.Request) {
 func (s *System) UpdateCompany(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("x-flags-timestamp", strconv.FormatInt(time.Now().Unix(), 10))
 
-	if r.Header.Get("x-user-subject") == "" {
-		if err := json.NewEncoder(w).Encode(&Company{}); err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-		}
-		return
-	}
-
-	_, err := s.getUserId(r)
+	_, err := auth.UserID(r)
 	if err != nil {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
@@ -139,14 +113,7 @@ func (s *System) GetCompanyLimits(w http.ResponseWriter, r *http.Request) {
 	ts := strconv.FormatInt(time.Now().Unix(), 10)
 	w.Header().Set("x-flags-timestamp", ts)
 
-	if r.Header.Get("x-user-subject") == "" {
-		if err := json.NewEncoder(w).Encode(&Company{}); err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-		}
-		return
-	}
-
-	userId, err := s.getUserId(r)
+	userId, err := auth.UserID(r)
 	if err != nil {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
@@ -174,13 +141,6 @@ func (s *System) AttachUserToCompany(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	w.Header().Set("x-flags-timestamp", strconv.FormatInt(time.Now().Unix(), 10))
 
-	if r.Header.Get("x-user-subject") == "" {
-		if err := json.NewEncoder(w).Encode(&Company{}); err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-		}
-		return
-	}
-
 	type CompanyUser struct {
 		Domain     string `json:"domain"`
 		InviteCode string `json:"invite_code"`
@@ -188,6 +148,21 @@ func (s *System) AttachUserToCompany(w http.ResponseWriter, r *http.Request) {
 	user := CompanyUser{}
 	if err := json.NewDecoder(r.Body).Decode(&user); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	userId, err := auth.UserID(r)
+	if err != nil {
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
+	// Invite codes join as before; a domain only joins when it is the caller's verified email domain
+	if !strings.EqualFold(user.Domain, auth.EmailDomain(r)) {
+		user.Domain = ""
+	}
+	if user.Domain == "" && user.InviteCode == "" {
+		w.WriteHeader(http.StatusForbidden)
 		return
 	}
 
@@ -202,14 +177,7 @@ func (s *System) AttachUserToCompany(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	clerk.SetKey(s.Config.Clerk.Key)
-	usr, err := clerkUser.Get(ctx, r.Header.Get("x-user-subject"))
-	if err != nil {
-		w.WriteHeader(http.StatusUnauthorized)
-		return
-	}
-
-	if err := s.AttachUserToCompanyDB(ctx, usr.ID); err != nil {
+	if err := s.AttachUserToCompanyDB(ctx, userId); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -220,12 +188,7 @@ func (s *System) AttachUserToCompany(w http.ResponseWriter, r *http.Request) {
 func (s *System) GetCompanyUsers(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	if r.Header.Get("x-user-subject") == "" {
-		w.WriteHeader(http.StatusUnauthorized)
-		return
-	}
-
-	userId, err := s.getUserId(r)
+	userId, err := auth.UserID(r)
 	if err != nil {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
@@ -256,12 +219,8 @@ func (s *System) GetCompanyUsers(w http.ResponseWriter, r *http.Request) {
 
 func (s *System) UpdateCompanyImage(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-	if r.Header.Get("x-user-subject") == "" {
-		w.WriteHeader(http.StatusUnauthorized)
-		return
-	}
 
-	userId, err := s.getUserId(r)
+	userId, err := auth.UserID(r)
 	if err != nil {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
@@ -299,15 +258,7 @@ func (s *System) InviteUserToCompany(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("x-flags-timestamp", strconv.FormatInt(time.Now().Unix(), 10))
 	ctx := r.Context()
 
-	if r.Header.Get("x-user-subject") == "" {
-		if err := json.NewEncoder(w).Encode(&Company{}); err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-		}
-		return
-	}
-
-	clerk.SetKey(s.Config.Clerk.Key)
-	usr, err := clerkUser.Get(ctx, r.Header.Get("x-user-subject"))
+	userId, err := auth.UserID(r)
 	if err != nil {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
@@ -322,10 +273,19 @@ func (s *System) InviteUserToCompany(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
+	if _, err := mail.ParseAddress(invite.Email); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
 
-	companyId, err := s.GetCompanyId(ctx, usr.ID)
+	// only members can invite to their own company
+	companyId, err := s.GetCompanyId(ctx, userId)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	if companyId == "" {
+		w.WriteHeader(http.StatusForbidden)
 		return
 	}
 
@@ -341,7 +301,7 @@ func (s *System) InviteUserToCompany(w http.ResponseWriter, r *http.Request) {
 		From:    "Flags.gg <support@flags.gg>",
 		To:      []string{invite.Email},
 		Subject: "Flags.gg Invite",
-		Html:    fmt.Sprintf("<p>Hello: %s<br />You have been invited to join <a href=\"https://flags.gg\">Flags.gg</a></p><br /><p>The invite code is <strong>%s</strong></p>", invite.Name, inviteCode),
+		Html:    fmt.Sprintf("<p>Hello: %s<br />You have been invited to join <a href=\"https://flags.gg\">Flags.gg</a></p><br /><p>The invite code is <strong>%s</strong></p>", html.EscapeString(invite.Name), html.EscapeString(inviteCode)),
 		ReplyTo: "support@flags.gg",
 	}
 	if _, err = client.Emails.Send(params); err != nil {
@@ -356,12 +316,7 @@ func (s *System) InviteUserToCompany(w http.ResponseWriter, r *http.Request) {
 func (s *System) UpgradeCompany(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	if r.Header.Get("x-user-subject") == "" {
-		w.WriteHeader(http.StatusUnauthorized)
-		return
-	}
-
-	userId, err := s.getUserId(r)
+	userId, err := auth.UserID(r)
 	if err != nil {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
@@ -387,9 +342,60 @@ func (s *System) UpgradeCompany(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := s.UpgradeCompanyInDB(ctx, companyId, upgradeRequest.StripeSessionId); err != nil {
+	if upgradeRequest.StripeSessionId == "" {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	session, err := fetchCheckoutSession(s.stripeKey(), upgradeRequest.StripeSessionId)
+	if err != nil {
+		_ = s.Config.Bugfixes.Logger.Errorf("Failed to get stripe session: %v", err)
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	if err := validateCheckoutSession(session, userId); err != nil {
+		w.WriteHeader(http.StatusForbidden)
+		return
+	}
+
+	if err := s.UpgradeCompanyInDB(ctx, companyId, session); err != nil {
+		if errors.Is(err, ErrSessionUsed) {
+			w.WriteHeader(http.StatusConflict)
+			return
+		}
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 	w.WriteHeader(http.StatusOK)
+}
+
+// CallerOwns resolves the caller's company and checks they own every (kind, id) pair given.
+// It writes the error response itself and returns the company id plus whether the handler may continue.
+func (s *System) CallerOwns(w http.ResponseWriter, r *http.Request, kindIds ...string) (string, bool) {
+	userId, err := auth.UserID(r)
+	if err != nil {
+		w.WriteHeader(http.StatusUnauthorized)
+		return "", false
+	}
+	companyId, err := s.GetCompanyId(r.Context(), userId)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return "", false
+	}
+	if companyId == "" {
+		w.WriteHeader(http.StatusUnauthorized)
+		return "", false
+	}
+	for i := 0; i+1 < len(kindIds); i += 2 {
+		owns, err := s.OwnsResource(r.Context(), companyId, kindIds[i], kindIds[i+1])
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			return "", false
+		}
+		if !owns {
+			w.WriteHeader(http.StatusNotFound)
+			return "", false
+		}
+	}
+	return companyId, true
 }

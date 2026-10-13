@@ -325,7 +325,7 @@ func (s *System) CreateFlagInDB(ctx context.Context, flag flagCreate) error {
         ) VALUES (
           $1,
           (SELECT id FROM public.agent WHERE agent_id = $2),
-          (SELECT id FROM public.environment WHERE env_id = $3))`, flag.Name, flag.AgentId, flag.EnvironmentId)
+          (SELECT env.id FROM public.environment env JOIN public.agent a ON a.id = env.agent_id WHERE env.env_id = $3 AND a.agent_id = $2))`, flag.Name, flag.AgentId, flag.EnvironmentId)
 	if err != nil {
 		return s.Config.Bugfixes.Logger.Errorf("failed to create flag: %v", err)
 	}
