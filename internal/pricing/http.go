@@ -23,11 +23,6 @@ func (s *System) GetCompanyPricing(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("x-flags-timestamp", strconv.FormatInt(time.Now().Unix(), 10))
 	ctx := r.Context()
 
-	if r.Header.Get("x-user-subject") == "" {
-		w.WriteHeader(http.StatusUnauthorized)
-		return
-	}
-
 	type Pricing struct {
 		Pricing []Price `json:"prices"`
 	}

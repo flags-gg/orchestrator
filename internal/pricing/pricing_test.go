@@ -147,28 +147,20 @@ func TestGetCompanyPricing(t *testing.T) {
 
 	tests := []struct {
 		name              string
-		userSubject       string
-		userAccessToken   string
 		expectedStatus    int
 		expectedPlanCount int
 	}{
 		{
 			name:              "Success with auth",
-			userSubject:       "test-subject",
 			expectedStatus:    http.StatusOK,
 			expectedPlanCount: 3, // startup, pro, enterprise
-		},
-		{
-			name:           "Unauthorized - missing subject",
-			userSubject:    "",
-			expectedStatus: http.StatusUnauthorized,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			req := httptest.NewRequest(http.MethodGet, "/pricing/company", nil)
-			req.Header.Set("x-user-subject", tt.userSubject)
+			// authentication is enforced by the route middleware (internal/auth.go), not the handler
 
 			w := httptest.NewRecorder()
 			system.GetCompanyPricing(w, req)

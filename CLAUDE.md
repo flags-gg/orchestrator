@@ -66,7 +66,7 @@ Each domain follows a consistent pattern with an `http.go` file for handlers and
   - `ofrep_postgres.go`: OFREP database access methods
   - `apikey.go`: JWT-based API key generation and validation
   - `apikey_http.go`: HTTP endpoint for generating API keys
-- **general**: Webhook handlers (Stripe, Keycloak events) and miscellaneous endpoints
+- **general**: Stripe webhook handler (signature-verified)
 - **pricing**: Pricing tiers and limits
 - **project**: Top-level project management
 - **secretmenu**: Secret menu feature with sequence, state, and style management
@@ -74,11 +74,12 @@ Each domain follows a consistent pattern with an `http.go` file for handlers and
 - **user**: User management, notifications, and profile updates
 
 ### Authentication Flow
-Located in `internal/auth.go`. The `Auth` middleware:
-1. First validates as a user via Clerk (`ValidateUser`)
-2. Falls back to agent validation for SDK requests (`ValidateAgent`)
-3. In development mode, bypasses all checks
-4. Agent validation only applies to the `/flags` endpoint
+Every route in `internal/service.go` is registered in exactly one group (unregistered paths 404):
+1. `authed(...)` - dashboard/user routes. `RequireUser` (`internal/auth.go`) verifies the Clerk session JWT from `Authorization: Bearer <token>` (JWKS cached locally by clerk-sdk-go), requires a verified primary email (Clerk lookup cached 5 min), and stores the user in the context. Handlers read it with `auth.UserID(r)` (`internal/auth`); `x-user-subject` is never trusted.
+2. `sdk(...)` - `/flags`, `/v1/flags`, `/ofrep/...`. `RequireAgent` validates `X-API-Key` (JWT) or `x-project-id`/`x-agent-id`/`x-environment-id` against the DB.
+3. `mux.HandleFunc` - public: `/health`, `/probe`, `GET /pricing`, Stripe webhooks (signature verified with `STRIPE_WEBHOOK_SECRET`).
+Resource handlers call `company.CallerOwns(w, r, kind, id, ...)` so another company's ids return 404.
+In development with `CLERK_DEV_USER` set, `RequireUser` uses that user and agent checks are skipped.
 
 ### API Structure
 The service uses Go 1.22+ HTTP routing with method prefixes:
@@ -108,17 +109,12 @@ The service expects these headers for routing and authentication:
 - `x-project-id`: Project identifier
 - `x-environment-id`: Environment identifier
 - `x-company-id`: Company identifier
-- `x-user-subject`: User subject from Clerk
+- `Authorization: Bearer <Clerk session token>`: dashboard/user routes
+- `X-API-Key`: JWT API key for SDK/OFREP routes
 - `x-flags-timestamp`: Timestamp for flag requests
 
 ### Middleware Stack
-Applied in this order (see `internal/service.go:135-154`):
-1. Logger (Error level)
-2. RequestID
-3. Recoverer
-4. Auth (custom user/agent validation)
-5. CORS (configurable origins based on environment)
-6. LowerCaseHeaders
+Applied in this order (see `routes()` in `internal/service.go`): Logger, RequestID, Recoverer, CORS (SDK paths allow `*`, everything else only the flags.gg dashboard origins, plus localhost in development), LowerCaseHeaders, LimitBody (1MB, 32MB for `/uploadthing`), then per-route auth.
 
 ### Agent vs Client Flags
 Three distinct flag retrieval paths:
@@ -133,7 +129,8 @@ Dual storage approach:
 
 ### Development Mode
 When `Development: true` in config:
-- All authentication checks are bypassed
+- `CLERK_DEV_USER` replaces Clerk JWT verification and agent checks are skipped
+- Refuses to start with a live (`sk_live_`) Stripe key; outside development `JWT_SIGNING_KEY` is required
 - Additional CORS origins allowed (localhost:3000, localhost:5173)
 - Bruno API client can be used without authentication
 

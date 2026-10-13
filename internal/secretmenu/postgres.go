@@ -348,7 +348,8 @@ func (s *System) UpdateSecretMenuStyleInDB(ctx context.Context, menuId string, s
 	if _, err := client.Exec(ctx, `
     	UPDATE public.secret_menu_style
     	SET close_button = $1, container = $2, reset_button = $3, flag = $4, button_enabled = $5, button_disabled = $6, header = $7
-    	WHERE style_id = $8`,
+    	WHERE style_id = $8
+    	  AND secret_menu_id = (SELECT id FROM public.secret_menu WHERE menu_id = $9)`,
 		secretMenu.CustomStyle.SQLCloseButton,
 		secretMenu.CustomStyle.SQLContainer,
 		secretMenu.CustomStyle.SQLResetButton,
@@ -356,7 +357,8 @@ func (s *System) UpdateSecretMenuStyleInDB(ctx context.Context, menuId string, s
 		secretMenu.CustomStyle.SQLButtonEnabled,
 		secretMenu.CustomStyle.SQLButtonDisabled,
 		secretMenu.CustomStyle.SQLHeader,
-		secretMenu.CustomStyle.Id); err != nil {
+		secretMenu.CustomStyle.Id,
+		menuId); err != nil {
 		return s.Config.Bugfixes.Logger.Errorf("Failed to update database: %v", err)
 	}
 

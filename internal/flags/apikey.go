@@ -1,6 +1,8 @@
 package flags
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"fmt"
 	"time"
 
@@ -73,17 +75,23 @@ func (s *APIKeySystem) ValidateAPIKey(tokenString string) (*APIKeyClaims, error)
 	return nil, fmt.Errorf("invalid token claims")
 }
 
-// getSigningKey retrieves the JWT signing key from config
-// TODO: This should be stored in environment variables or secrets management
+// devSigningKey is a per-process key used when JWT_SIGNING_KEY is unset. Startup refuses to run
+// without JWT_SIGNING_KEY outside development (cmd/orchestrator checkConfig), so this only signs dev keys.
+var devSigningKey = func() string {
+	b := make([]byte, 32)
+	if _, err := rand.Read(b); err != nil {
+		panic(err)
+	}
+	return hex.EncodeToString(b)
+}()
+
+// getSigningKey retrieves the JWT signing key (JWT_SIGNING_KEY) from config
 func (s *APIKeySystem) getSigningKey() string {
-	// Check if there's a JWT_SIGNING_KEY in environment
-	// For now, return a placeholder that should be configured
 	if s.Config != nil && s.Config.ProjectProperties != nil {
 		if key, ok := s.Config.ProjectProperties["jwt_signing_key"].(string); ok && key != "" {
 			return key
 		}
 	}
 
-	// Default key - should be overridden in production
-	return "flags-gg-jwt-signing-key-change-in-production"
+	return devSigningKey
 }

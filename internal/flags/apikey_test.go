@@ -7,8 +7,10 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
+	"github.com/flags-gg/orchestrator/internal/auth"
 	ConfigBuilder "github.com/keloran/go-config"
 	"github.com/stretchr/testify/assert"
 )
@@ -304,7 +306,7 @@ func TestAPIKeyCreationAuditIsRecorded(t *testing.T) {
 	})
 
 	req := httptest.NewRequest(http.MethodPost, "/api-key/generate", bytes.NewReader(body))
-	req.Header.Set("x-user-subject", "ignored-in-dev-mode")
+	req = req.WithContext(auth.WithUser(req.Context(), auth.User{ID: "test-user-subject"}))
 	w := httptest.NewRecorder()
 
 	httpSystem.GenerateAPIKeyHandler(w, req)
@@ -326,4 +328,28 @@ func TestAPIKeyCreationAuditIsRecorded(t *testing.T) {
 		  AND created_by_subject = 'test-user-subject'`).Scan(&count)
 	assert.NoError(t, err)
 	assert.Equal(t, 1, count)
+}
+
+func TestSigningKey(t *testing.T) {
+	configured := NewAPIKeySystem(&ConfigBuilder.Config{ProjectProperties: map[string]interface{}{"jwt_signing_key": "configured"}})
+	assert.Equal(t, "configured", configured.getSigningKey())
+
+	unset := NewAPIKeySystem(&ConfigBuilder.Config{})
+	assert.Len(t, unset.getSigningKey(), 64, "per-process random key")
+	assert.NotEqual(t, "flags-gg-jwt-signing-key-change-in-production", unset.getSigningKey())
+
+	// keys signed with one secret don't validate under another
+	key, err := configured.GenerateAPIKey("p", "a", "")
+	assert.NoError(t, err)
+	_, err = unset.ValidateAPIKey(key)
+	assert.Error(t, err)
+}
+
+func TestValidFlagName(t *testing.T) {
+	for _, name := range []string{"menu style", "new-checkout", "feature_flag.v2", "Ünïcode", "a"} {
+		assert.True(t, ValidFlagName(name), name)
+	}
+	for _, name := range []string{"", "it's", "x'); DROP TABLE flag; --", "a/b", "<script>", strings.Repeat("a", 101)} {
+		assert.False(t, ValidFlagName(name), name)
+	}
 }
