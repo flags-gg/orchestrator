@@ -280,7 +280,7 @@ func TestCloneEnvironmentWithQuotedFlagName(t *testing.T) {
 func TestJoinCompanyRules(t *testing.T) {
 	db := testdb.Start(t)
 	testdb.Seed(t, db)
-	s, a := newTestService(t, map[string]string{"user-c": "c@a.example", "user-d": "d@d.example", "user-b": "b@b.example"})
+	s, a := newTestService(t, map[string]string{"user-c": "c@a.example", "user-d": "d@d.example", "user-b": "b@b.example", "user-h": "h@gmail.com"})
 	h := s.routes()
 	members := `SELECT COUNT(*) FROM public.company_user cu JOIN public."user" u ON u.id = cu.user_id JOIN public.company c ON c.id = cu.company_id WHERE u.subject = $1 AND c.company_id = 'company-a'`
 
@@ -298,4 +298,14 @@ func TestJoinCompanyRules(t *testing.T) {
 
 	// a second company can't claim an existing domain
 	assert.Equal(t, http.StatusConflict, do(h, http.MethodPost, "/company", a.token(t, "user-b"), `{"name":"dup","domain":"A.EXAMPLE"}`).Code)
+
+	// free-mail users can't domain-join a company claiming their provider's domain, only by invite
+	_, err := db.Exec(`INSERT INTO public."user" (subject, email_address) VALUES ('user-h', 'h@gmail.com');
+		INSERT INTO public.company (name, company_id, invite_code, domain) VALUES ('GM', 'company-gm', 'invite-gm', 'gmail.com')`)
+	require.NoError(t, err)
+	gmMembers := `SELECT COUNT(*) FROM public.company_user cu JOIN public."user" u ON u.id = cu.user_id JOIN public.company c ON c.id = cu.company_id WHERE u.subject = $1 AND c.domain = 'gmail.com'`
+	assert.Equal(t, http.StatusForbidden, do(h, http.MethodPut, "/company/user", a.token(t, "user-h"), `{"domain":"gmail.com"}`).Code)
+	assert.Equal(t, 0, count(t, db, gmMembers, "user-h"))
+	assert.Equal(t, http.StatusOK, do(h, http.MethodPut, "/company/user", a.token(t, "user-h"), `{"invite_code":"invite-gm"}`).Code)
+	assert.Equal(t, 1, count(t, db, gmMembers, "user-h"))
 }

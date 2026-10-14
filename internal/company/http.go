@@ -137,6 +137,18 @@ func (s *System) GetCompanyLimits(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// ponytail: hard-coded list, misses regional/smaller providers; swap for a maintained list if that matters
+var freeEmailDomains = map[string]bool{
+	"gmail.com": true, "googlemail.com": true, "outlook.com": true, "hotmail.com": true, "live.com": true,
+	"msn.com": true, "yahoo.com": true, "ymail.com": true, "icloud.com": true, "me.com": true, "mac.com": true,
+	"aol.com": true, "proton.me": true, "protonmail.com": true, "pm.me": true, "gmx.com": true, "gmx.net": true,
+	"mail.com": true, "zoho.com": true, "yandex.com": true, "fastmail.com": true, "hey.com": true, "tutanota.com": true,
+}
+
+func IsFreeEmailDomain(domain string) bool {
+	return freeEmailDomains[strings.ToLower(domain)]
+}
+
 func (s *System) AttachUserToCompany(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	w.Header().Set("x-flags-timestamp", strconv.FormatInt(time.Now().Unix(), 10))
@@ -157,8 +169,10 @@ func (s *System) AttachUserToCompany(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Invite codes join as before; a domain only joins when it is the caller's verified email domain
-	if !strings.EqualFold(user.Domain, auth.EmailDomain(r)) {
+	// Invite codes join as before; a domain only joins when it is the caller's verified email domain,
+	// and never for free-mail providers (a gmail.com address proves nothing about a company)
+	emailDomain := auth.EmailDomain(r)
+	if IsFreeEmailDomain(emailDomain) || !strings.EqualFold(user.Domain, emailDomain) {
 		user.Domain = ""
 	}
 	if user.Domain == "" && user.InviteCode == "" {
