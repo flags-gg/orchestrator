@@ -84,13 +84,14 @@ func (s *System) GetEnvironmentFromDB(ctx context.Context, envId, companyId stri
         WHERE ec.parent_environment_id = env.id AND ec.agent_id = env.agent_id
       ) AS can_promote,
       agent.name as AgentName,
+      agent.agent_id as AgentId,
       project.name as ProjectName
     FROM public.environment AS env
     	LEFT JOIN public.agent ON agent.id = env.agent_id
     	LEFT JOIN public.project ON project.id = agent.project_id
         JOIN public.company ON company.id = project.company_id
     WHERE env.env_id = $1
-      AND company.company_id = $2`, envId, companyId).Scan(&environment.Id, &environment.Name, &environment.EnvironmentId, &environment.Enabled, &environment.Level, &environment.CanPromote, &environment.AgentName, &environment.ProjectName); err != nil {
+      AND company.company_id = $2`, envId, companyId).Scan(&environment.Id, &environment.Name, &environment.EnvironmentId, &environment.Enabled, &environment.Level, &environment.CanPromote, &environment.AgentName, &environment.AgentId, &environment.ProjectName); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, nil
 		}

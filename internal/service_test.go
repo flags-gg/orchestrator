@@ -309,3 +309,14 @@ func TestJoinCompanyRules(t *testing.T) {
 	assert.Equal(t, http.StatusOK, do(h, http.MethodPut, "/company/user", a.token(t, "user-h"), `{"invite_code":"invite-gm"}`).Code)
 	assert.Equal(t, 1, count(t, db, gmMembers, "user-h"))
 }
+
+func TestGetEnvironmentIncludesAgent(t *testing.T) {
+	db := testdb.Start(t)
+	testdb.Seed(t, db)
+	s, a := newTestService(t, map[string]string{"user-a": "a@a.example"})
+
+	// the dashboard creates flags with this agent_id, so it must come from the environment, not client state
+	w := do(s.routes(), http.MethodGet, "/environment/env-a", a.token(t, "user-a"), "")
+	require.Equal(t, http.StatusOK, w.Code, w.Body.String())
+	assert.Contains(t, w.Body.String(), `"agent_id":"agent-a"`)
+}
