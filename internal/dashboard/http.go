@@ -62,7 +62,20 @@ func parseTimestamp(value string) int64 {
 		return parsed.Unix()
 	}
 
+	// postgres timestamp::text, e.g. "2025-12-25 14:53:00.123456"
+	parsed, err = time.Parse("2006-01-02 15:04:05.999999999", value)
+	if err == nil {
+		return parsed.Unix()
+	}
+
 	return 0
+}
+
+// ids are serial ints sent as strings, so "99" must sort below "100"
+func newerId(a, b string) bool {
+	ai, _ := strconv.Atoi(a)
+	bi, _ := strconv.Atoi(b)
+	return ai > bi
 }
 
 func (s *System) GetSummary(w http.ResponseWriter, r *http.Request) {
@@ -155,7 +168,7 @@ func (s *System) GetSummary(w http.ResponseWriter, r *http.Request) {
 	}
 
 	sort.Slice(projects, func(i, j int) bool {
-		return projects[i].ID > projects[j].ID
+		return newerId(projects[i].ID, projects[j].ID)
 	})
 
 	newestProject := (*project.Project)(nil)
@@ -165,7 +178,7 @@ func (s *System) GetSummary(w http.ResponseWriter, r *http.Request) {
 
 	allFlagsSorted := append([]flags.CompanyFlagEntry(nil), allFlags...)
 	sort.Slice(allFlagsSorted, func(i, j int) bool {
-		return allFlagsSorted[i].Flag.Details.ID > allFlagsSorted[j].Flag.Details.ID
+		return newerId(allFlagsSorted[i].Flag.Details.ID, allFlagsSorted[j].Flag.Details.ID)
 	})
 
 	newestFlag := (*flags.CompanyFlagEntry)(nil)
