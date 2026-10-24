@@ -2,6 +2,7 @@ package environment
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 
 	"github.com/bugfixes/go-bugfixes/logs"
@@ -143,13 +144,12 @@ func (s *System) CloneAgentEnvironment(w http.ResponseWriter, r *http.Request) {
 		EnvironmentId: newEnvId,
 	}
 
-	if err := s.CloneEnvironmentInDB(ctx, environmentId, newEnvId, agentId, cloneRequest.Name); err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-	// Link the cloned environment as a child of the source in the promotion chain
-	if err := s.LinkChildEnvironmentInDB(ctx, environmentId, newEnvId, agentId); err != nil {
-		_ = s.Config.Bugfixes.Logger.Errorf("Failed to link child environment: %v", err)
+	if err := s.CloneChildEnvironmentInDB(ctx, environmentId, newEnvId, agentId, cloneRequest.Name); err != nil {
+		if errors.Is(err, ErrHasChild) {
+			w.WriteHeader(http.StatusConflict)
+			_, _ = w.Write([]byte(err.Error()))
+			return
+		}
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}

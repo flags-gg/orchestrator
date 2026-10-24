@@ -76,6 +76,9 @@ func main() {
 	if err != nil {
 		logs.Fatalf("Failed to build config: %v", err)
 	}
+	// go-config builds a logs.Local() logger, which never prints or reports, so every Logger.Errorf was silent.
+	// ponytail: a nil logger falls back to logs.Errorf, a fresh reporting logger per call configured from BUGFIXES_* env; drop once go-config stops using Local()
+	c.Bugfixes.Logger = nil
 	if err := checkConfig(c); err != nil {
 		logs.Fatalf("Refusing to start: %v", err)
 	}

@@ -236,12 +236,13 @@ func (s *System) UpdateEnvironmentInDB(ctx context.Context, env Environment) err
 	return nil
 }
 
-func (s *System) CloneEnvironmentInDB(ctx context.Context, envId, newEnvId, agentId, name string) error {
+// ErrHasChild is returned when cloning an environment that already has a child; the promotion chain is linear.
+var ErrHasChild = errors.New("environment already has a child")
+
+// CloneChildEnvironmentInDB copies an environment and its flags and links the copy as its child, all or nothing.
+func (s *System) CloneChildEnvironmentInDB(ctx context.Context, envId, newEnvId, agentId, name string) error {
 	client, err := s.Config.Database.GetPGXClient(ctx)
 	if err != nil {
-		if strings.Contains(err.Error(), "operation was canceled") {
-			return nil
-		}
 		return s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
 	}
 	defer func() {
@@ -250,83 +251,54 @@ func (s *System) CloneEnvironmentInDB(ctx context.Context, envId, newEnvId, agen
 		}
 	}()
 
-	var agentIdInt int
-	if err := client.QueryRow(ctx, `
-    SELECT id FROM public.agent WHERE agent_id = $1`, agentId).Scan(&agentIdInt); err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return s.Config.Bugfixes.Logger.Errorf("Failed to get agent id: %v", err)
-		}
-		return s.Config.Bugfixes.Logger.Errorf("Failed to query database: %v", err)
+	tx, err := client.Begin(ctx)
+	if err != nil {
+		return s.Config.Bugfixes.Logger.Errorf("Failed to begin transaction: %v", err)
 	}
+	defer func() {
+		_ = tx.Rollback(ctx)
+	}()
 
-	// the source environment must belong to the same agent
-	var sourceEnvIdInt int
-	if err := client.QueryRow(ctx, `
-    SELECT id FROM public.environment WHERE env_id = $1 AND agent_id = $2`, envId, agentIdInt).Scan(&sourceEnvIdInt); err != nil {
-		return s.Config.Bugfixes.Logger.Errorf("Failed to get source environment: %v", err)
+	// the source environment must belong to the agent
+	var agentIdInt, sourceEnvIdInt int
+	var hasChild bool
+	if err := tx.QueryRow(ctx, `
+    SELECT a.id, e.id, EXISTS (
+        SELECT 1 FROM public.environment_chain ec WHERE ec.agent_id = a.id AND ec.parent_environment_id = e.id
+      )
+    FROM public.environment e
+      JOIN public.agent a ON a.id = e.agent_id
+    WHERE e.env_id = $1 AND a.agent_id = $2`, envId, agentId).Scan(&agentIdInt, &sourceEnvIdInt, &hasChild); err != nil {
+		return s.Config.Bugfixes.Logger.Errorf("Failed to get source environment %s for agent %s: %v", envId, agentId, err)
+	}
+	if hasChild {
+		return ErrHasChild
 	}
 
 	var envIdInt int
-	if err := client.QueryRow(ctx, `
-    WITH next_level AS (
-      SELECT COALESCE(MAX(level) + 1, 0) AS lvl FROM public.environment WHERE agent_id = $1
-    )
+	if err := tx.QueryRow(ctx, `
     INSERT INTO public.environment (agent_id, env_id, name, level)
-        VALUES ($1, $2, $3, (SELECT lvl FROM next_level))
-        RETURNING environment.id`, agentIdInt, newEnvId, name).Scan(&envIdInt); err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return s.Config.Bugfixes.Logger.Errorf("Failed to insert environment into database: %v", err)
-		}
-		return s.Config.Bugfixes.Logger.Errorf("Failed to query database: %v", err)
+        VALUES ($1, $2, $3, (SELECT COALESCE(MAX(level) + 1, 0) FROM public.environment WHERE agent_id = $1))
+        RETURNING id`, agentIdInt, newEnvId, name).Scan(&envIdInt); err != nil {
+		return s.Config.Bugfixes.Logger.Errorf("Failed to insert environment: %v", err)
 	}
 
-	if _, err := client.Exec(ctx, `
+	if _, err := tx.Exec(ctx, `
     INSERT INTO public.flag (name, agent_id, environment_id, enabled)
     SELECT name, $1, $2, enabled
     FROM public.flag
     WHERE environment_id = $3`, agentIdInt, envIdInt, sourceEnvIdInt); err != nil {
-		return s.Config.Bugfixes.Logger.Errorf("Failed to insert flags into database: %v", err)
+		return s.Config.Bugfixes.Logger.Errorf("Failed to copy flags: %v", err)
 	}
 
-	return nil
-}
-
-func (s *System) LinkChildEnvironmentInDB(ctx context.Context, parentEnvId, childEnvId, agentId string) error {
-	client, err := s.Config.Database.GetPGXClient(ctx)
-	if err != nil {
-		if strings.Contains(err.Error(), "operation was canceled") {
-			return nil
-		}
-		return s.Config.Bugfixes.Logger.Errorf("Failed to connect to database: %v", err)
-	}
-	defer func() {
-		if err := client.Close(ctx); err != nil {
-			_ = s.Config.Bugfixes.Logger.Errorf("Failed to close database connection: %v", err)
-		}
-	}()
-
-	// Resolve IDs
-	var (
-		agentIdInt     int
-		parentEnvIdInt int
-		childEnvIdInt  int
-	)
-	if err := client.QueryRow(ctx, `SELECT id FROM public.agent WHERE agent_id = $1`, agentId).Scan(&agentIdInt); err != nil {
-		return s.Config.Bugfixes.Logger.Errorf("Failed to resolve agent: %v", err)
-	}
-	if err := client.QueryRow(ctx, `SELECT id FROM public.environment WHERE env_id = $1`, parentEnvId).Scan(&parentEnvIdInt); err != nil {
-		return s.Config.Bugfixes.Logger.Errorf("Failed to resolve parent environment: %v", err)
-	}
-	if err := client.QueryRow(ctx, `SELECT id FROM public.environment WHERE env_id = $1`, childEnvId).Scan(&childEnvIdInt); err != nil {
-		return s.Config.Bugfixes.Logger.Errorf("Failed to resolve child environment: %v", err)
-	}
-
-	_, err = client.Exec(ctx, `
-		INSERT INTO public.environment_chain (agent_id, parent_environment_id, child_environment_id)
-		VALUES ($1, $2, $3)
-		ON CONFLICT (agent_id, parent_environment_id) DO UPDATE SET child_environment_id = EXCLUDED.child_environment_id`, agentIdInt, parentEnvIdInt, childEnvIdInt)
-	if err != nil {
+	if _, err := tx.Exec(ctx, `
+    INSERT INTO public.environment_chain (agent_id, parent_environment_id, child_environment_id)
+    VALUES ($1, $2, $3)`, agentIdInt, sourceEnvIdInt, envIdInt); err != nil {
 		return s.Config.Bugfixes.Logger.Errorf("Failed to link child environment: %v", err)
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return s.Config.Bugfixes.Logger.Errorf("Failed to commit clone: %v", err)
 	}
 	return nil
 }
