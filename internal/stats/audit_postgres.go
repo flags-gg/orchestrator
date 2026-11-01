@@ -3,7 +3,15 @@ package stats
 import (
 	"context"
 	"strings"
+	"time"
 )
+
+const auditWriteTimeout = 5 * time.Second
+
+// auditContext outlives the request: a client disconnecting after being served must not lose the audit row.
+func auditContext(ctx context.Context) (context.Context, context.CancelFunc) {
+	return context.WithTimeout(context.WithoutCancel(ctx), auditWriteTimeout)
+}
 
 type RequestKind string
 
@@ -62,6 +70,9 @@ func (s *System) RecordEnvironmentRequest(ctx context.Context, projectId, agentI
 		return nil
 	}
 
+	ctx, cancel := auditContext(ctx)
+	defer cancel()
+
 	client, err := s.Config.Database.GetPGXClient(ctx)
 	if err != nil {
 		if strings.Contains(err.Error(), "operation was canceled") {
@@ -99,6 +110,9 @@ func (s *System) RecordAPIKeyCreation(ctx context.Context, userSubject, projectI
 	if userSubject == "" || projectId == "" || agentId == "" {
 		return nil
 	}
+
+	ctx, cancel := auditContext(ctx)
+	defer cancel()
 
 	client, err := s.Config.Database.GetPGXClient(ctx)
 	if err != nil {
