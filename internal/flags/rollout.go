@@ -25,11 +25,16 @@ func InRollout(flagName, targetingKey string, rollout int) bool {
 	return Bucket(flagName, targetingKey) < rollout
 }
 
-// forSDK shapes flags for an SDK: full rollouts omit the field, partial ones are sent to SDKs that
+// forSDK shapes flags for an SDK. Targeting rules are decided here, against the context the SDK sent,
+// and never leave the server. Otherwise full rollouts omit the field, partial ones are sent to SDKs that
 // can evaluate them and are sent disabled to older SDKs, which would otherwise show them to everyone.
-func forSDK(flags []Flag, rolloutAware bool) {
+func forSDK(flags []Flag, rolloutAware bool, ctx EvalContext) {
 	for i := range flags {
 		f := &flags[i]
+		if serve, matched := MatchRules(f.Rules, ctx); f.Enabled && matched {
+			f.Enabled, f.Rollout = serve, nil
+			continue
+		}
 		if f.Rollout == nil || *f.Rollout >= 100 {
 			f.Rollout = nil
 			continue

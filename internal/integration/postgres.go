@@ -8,6 +8,7 @@ import (
 	"errors"
 	"time"
 
+	"github.com/flags-gg/orchestrator/internal/flags"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 )
@@ -256,9 +257,9 @@ func (s *System) archiveFlags(ctx context.Context, where, companyId string, args
       DELETE FROM public.flag f
       USING public.agent a, public.project p, public.company c
       WHERE `+where+` AND a.id = f.agent_id AND p.id = a.project_id AND c.id = p.company_id AND c.company_id = $1
-      RETURNING f.id, f.name, f.agent_id, f.environment_id, f.enabled, f.ticket_ref, f.created_at, f.updated_at, f.rollout
+      RETURNING f.id, f.name, f.agent_id, f.environment_id, f.enabled, f.ticket_ref, f.created_at, f.updated_at, f.rollout, f.rules
     )
-    INSERT INTO public.flag_archive (flag_id, name, agent_id, environment_id, enabled, ticket_ref, created_at, updated_at, rollout)
+    INSERT INTO public.flag_archive (flag_id, name, agent_id, environment_id, enabled, ticket_ref, created_at, updated_at, rollout, rules)
     SELECT * FROM gone`, append([]any{companyId}, args...)...)
 	if err != nil {
 		return 0, err
@@ -378,10 +379,11 @@ type AgentInfo struct {
 
 // FlagState is one flag in one environment; FlagId is what the per-flag dashboard routes take.
 type FlagState struct {
-	EnvironmentId string `json:"environment_id"`
-	FlagId        string `json:"flag_id"`
-	Enabled       bool   `json:"enabled"`
-	Rollout       int    `json:"rollout"`
+	EnvironmentId string       `json:"environment_id"`
+	FlagId        string       `json:"flag_id"`
+	Enabled       bool         `json:"enabled"`
+	Rollout       int          `json:"rollout"`
+	Rules         []flags.Rule `json:"rules"`
 }
 
 // AgentFlag is one flag across the agent's environments; States only lists environments it is in.
@@ -474,7 +476,7 @@ func (s *System) GetAgentFlags(ctx context.Context, companyId, agentId string) (
 	}
 
 	rows, err = client.Query(ctx, `
-    SELECT COALESCE(f.name, ''), COALESCE(f.ticket_ref, ''), e.env_id, f.id::text, f.enabled, f.rollout
+    SELECT COALESCE(f.name, ''), COALESCE(f.ticket_ref, ''), e.env_id, f.id::text, f.enabled, f.rollout, f.rules
     FROM public.flag f JOIN public.environment e ON e.id = f.environment_id
     WHERE f.agent_id = $1
     ORDER BY lower(f.name), f.name, e.level`, agentIdInt)
@@ -485,7 +487,7 @@ func (s *System) GetAgentFlags(ctx context.Context, companyId, agentId string) (
 	for rows.Next() {
 		var name, ticket string
 		var st FlagState
-		if err := rows.Scan(&name, &ticket, &st.EnvironmentId, &st.FlagId, &st.Enabled, &st.Rollout); err != nil {
+		if err := rows.Scan(&name, &ticket, &st.EnvironmentId, &st.FlagId, &st.Enabled, &st.Rollout, &st.Rules); err != nil {
 			return nil, err
 		}
 		if n := len(out.Flags); n == 0 || out.Flags[n-1].Name != name {

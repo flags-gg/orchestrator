@@ -65,13 +65,13 @@ func TestForSDK(t *testing.T) {
 	}
 
 	old := mk()
-	forSDK(old, false)
+	forSDK(old, false, nil)
 	if !old[0].Enabled || old[1].Enabled || old[0].Rollout != nil || old[1].Rollout != nil {
 		t.Errorf("old SDK: want full on, partial off, no rollout field; got %+v", old)
 	}
 
 	aware := mk()
-	forSDK(aware, true)
+	forSDK(aware, true, nil)
 	if aware[0].Rollout != nil || !aware[1].Enabled || aware[1].Rollout == nil || *aware[1].Rollout != 30 {
 		t.Errorf("rollout-aware SDK: want partial kept with rollout 30; got %+v", aware)
 	}
@@ -80,14 +80,14 @@ func TestForSDK(t *testing.T) {
 func TestEvaluateSplit(t *testing.T) {
 	r := 64
 	f := Flag{Enabled: true, Details: Details{Name: "new-checkout", ID: "1"}, Rollout: &r}
-	if res := evaluate("new-checkout", f, "user-1"); !res.Value.(bool) || res.Reason != ReasonSplit {
+	if res := evaluate("new-checkout", f, EvaluationContext{TargetingKey: "user-1"}); !res.Value.(bool) || res.Reason != ReasonSplit {
 		t.Errorf("user-1 (bucket 63) at 64%%: got %v %s", res.Value, res.Reason)
 	}
-	if res := evaluate("new-checkout", f, "user-2"); res.Value.(bool) || res.Variant != "disabled" {
+	if res := evaluate("new-checkout", f, EvaluationContext{TargetingKey: "user-2"}); res.Value.(bool) || res.Variant != "disabled" {
 		t.Errorf("user-2 (bucket 82) at 64%%: got %v", res.Value)
 	}
 	f.Enabled = false
-	if res := evaluate("new-checkout", f, "user-1"); res.Value.(bool) || res.Reason != ReasonStatic {
+	if res := evaluate("new-checkout", f, EvaluationContext{TargetingKey: "user-1"}); res.Value.(bool) || res.Reason != ReasonStatic {
 		t.Errorf("disabled flag must stay off and STATIC; got %v %s", res.Value, res.Reason)
 	}
 }

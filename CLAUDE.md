@@ -127,6 +127,9 @@ Three distinct flag retrieval paths:
 ### Percentage Rollouts
 `flag.rollout` (0-100, default 100) is the share of visitors that see an enabled flag, per environment (`PATCH /flag/{id}/rollout`). Bucketing is `internal/flags/rollout.go`: FNV-1a 32 of `"<flag>:<targeting key>"` mod 100; the test vectors there are shared with every SDK. SDKs that send `x-flags-capabilities: rollout` get `rollout` and evaluate it; older SDKs get partial rollouts as `enabled:false` (they would otherwise show them to everyone). OFREP evaluates server-side on `context.targetingKey` (reason `SPLIT`); no key means off.
 
+### Targeting Rules
+`flag.rules` (jsonb, per environment, `PUT /flag/{id}/rules`) are evaluated in order on the server (`internal/flags/targeting.go`); the first match decides the flag, otherwise the rollout applies. Rules never leave the server: SDKs send the user as base64(JSON) in `x-flags-context` (`key` = targeting key, other attributes strings or string lists) and get the decided value; OFREP reads the flat request context (reason `TARGETING_MATCH`). Operators: in, not_in, contains, starts_with, ends_with, case-insensitive; a missing attribute never matches.
+
 ### Statistics System
 Dual storage approach:
 - PostgreSQL: Structured data and relationships

@@ -35,6 +35,7 @@ func (s *OFREPSystem) GetSingleFlagFromDB(ctx context.Context, projectId, agentI
 	var flagName string
 	var flagEnabled bool
 	var flagRollout int
+	var flagRules []Rule
 	var flagId string
 	var lastChanged string
 
@@ -44,6 +45,7 @@ func (s *OFREPSystem) GetSingleFlagFromDB(ctx context.Context, projectId, agentI
       flags.name AS FlagName,
       flags.enabled AS FlagEnabled,
       flags.rollout,
+      flags.rules,
       COALESCE(flags.updated_at::text, '')
     FROM public.agent
       LEFT JOIN public.flag AS flags ON agent.id = flags.agent_id
@@ -55,7 +57,7 @@ func (s *OFREPSystem) GetSingleFlagFromDB(ctx context.Context, projectId, agentI
       AND LOWER(flags.name) = LOWER($4)
       AND agent.enabled = true
       AND project.enabled = true
-    LIMIT 1`, environmentId, agentId, projectId, flagKey).Scan(&flagId, &flagName, &flagEnabled, &flagRollout, &lastChanged)
+    LIMIT 1`, environmentId, agentId, projectId, flagKey).Scan(&flagId, &flagName, &flagEnabled, &flagRollout, &flagRules, &lastChanged)
 
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -72,6 +74,7 @@ func (s *OFREPSystem) GetSingleFlagFromDB(ctx context.Context, projectId, agentI
 			LastChanged: lastChanged,
 		},
 		Rollout: &flagRollout,
+		Rules:   flagRules,
 	}
 
 	return flag, nil

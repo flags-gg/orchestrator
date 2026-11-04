@@ -13,10 +13,34 @@ import (
 // OFREP (OpenFeature Remote Evaluation Protocol) implementation
 // Spec: https://github.com/open-feature/protocol
 
-// EvaluationContext represents the context for flag evaluation
+// EvaluationContext represents the context for flag evaluation. Per the OFREP spec, attributes sit
+// flat next to targetingKey; a nested "context" object is also accepted for older callers.
 type EvaluationContext struct {
 	TargetingKey string                 `json:"targetingKey,omitempty"`
 	Context      map[string]interface{} `json:"context,omitempty"`
+}
+
+func (e *EvaluationContext) UnmarshalJSON(b []byte) error {
+	var all map[string]interface{}
+	if err := json.Unmarshal(b, &all); err != nil {
+		return err
+	}
+	e.Context = map[string]interface{}{}
+	if nested, ok := all["context"].(map[string]interface{}); ok {
+		for k, v := range nested {
+			e.Context[k] = v
+		}
+	}
+	for k, v := range all {
+		switch k {
+		case "targetingKey":
+			e.TargetingKey, _ = v.(string)
+		case "context":
+		default:
+			e.Context[k] = v
+		}
+	}
+	return nil
 }
 
 // EvaluationRequest is the request body for flag evaluation
@@ -166,7 +190,7 @@ func (s *OFREPSystem) EvaluateSingleFlag(w http.ResponseWriter, r *http.Request)
 		_ = s.Config.Bugfixes.Logger.Errorf("Failed to record single flag request: %v", err)
 	}
 
-	response := evaluate(flagKey, *flag, req.Context.TargetingKey)
+	response := evaluate(flagKey, *flag, req.Context)
 
 	w.WriteHeader(http.StatusOK)
 	if err := json.NewEncoder(w).Encode(response); err != nil {
@@ -233,7 +257,7 @@ func (s *OFREPSystem) EvaluateBulkFlags(w http.ResponseWriter, r *http.Request) 
 	var responses []interface{}
 	if flags != nil {
 		for _, flag := range flags.Flags {
-			responses = append(responses, evaluate(flag.Details.Name, flag, req.Context.TargetingKey))
+			responses = append(responses, evaluate(flag.Details.Name, flag, req.Context))
 		}
 	}
 
@@ -260,12 +284,22 @@ func (s *OFREPSystem) sendErrorResponse(w http.ResponseWriter, key string, code 
 	}
 }
 
-// evaluate resolves a boolean flag for one visitor; an enabled flag with a partial rollout is a SPLIT on the targeting key.
-func evaluate(key string, flag Flag, targetingKey string) SuccessEvaluationResponse {
+// evaluate resolves a boolean flag for one user: an enabled flag's first matching targeting rule decides it
+// (TARGETING_MATCH); otherwise a partial rollout is a SPLIT on the targeting key.
+func evaluate(key string, flag Flag, ec EvaluationContext) SuccessEvaluationResponse {
 	value, reason := flag.Enabled, ReasonStatic
 	metadata := map[string]interface{}{"flagId": flag.Details.ID}
-	if flag.Enabled && flag.Rollout != nil && *flag.Rollout < 100 {
-		value, reason = InRollout(flag.Details.Name, targetingKey, *flag.Rollout), ReasonSplit
+	attrs := EvalContext{}
+	for k, v := range ec.Context {
+		attrs[k] = v
+	}
+	if ec.TargetingKey != "" {
+		attrs["key"] = ec.TargetingKey
+	}
+	if serve, matched := MatchRules(flag.Rules, attrs); flag.Enabled && matched {
+		value, reason = serve, ReasonTargetingMatch
+	} else if flag.Enabled && flag.Rollout != nil && *flag.Rollout < 100 {
+		value, reason = InRollout(flag.Details.Name, ec.TargetingKey, *flag.Rollout), ReasonSplit
 		metadata["rollout"] = *flag.Rollout
 	}
 	variant := "disabled"

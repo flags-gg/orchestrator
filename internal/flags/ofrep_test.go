@@ -137,6 +137,7 @@ func setupTestDatabase(c context.Context) (*testContainer, error) {
 			name varchar(255) NOT NULL,
 			enabled boolean NOT NULL DEFAULT false,
 			rollout smallint NOT NULL DEFAULT 100,
+			rules jsonb NOT NULL DEFAULT '[]'::jsonb,
 			agent_id integer REFERENCES public.agent(id),
 			environment_id integer REFERENCES public.environment(id),
 			created_at timestamp NOT NULL DEFAULT now(),

@@ -32,6 +32,8 @@ type Flag struct {
 	Details Details `json:"details"`
 	// Rollout is the percentage of visitors that see an enabled flag; omitted (nil) means 100.
 	Rollout *int `json:"rollout,omitempty"`
+	// Rules are evaluated on the server and never sent to SDKs.
+	Rules []Rule `json:"-"`
 }
 type AgentResponse struct {
 	IntervalAllowed int        `json:"intervalAllowed,omitempty"`
@@ -92,7 +94,11 @@ func (s *System) GetAgentFlags(w http.ResponseWriter, r *http.Request) {
 
 	res, err := s.GetAgentFlagsFromDB(ctx, projectId, agentId, environmentId)
 	if res != nil {
-		forSDK(res.Flags, strings.Contains(strings.ToLower(r.Header.Get("x-flags-capabilities")), RolloutCapability))
+		evalCtx, err := ParseContextHeader(r.Header.Get(ContextHeader))
+		if err != nil {
+			evalCtx = nil // a malformed context only means no rule can match
+		}
+		forSDK(res.Flags, strings.Contains(strings.ToLower(r.Header.Get("x-flags-capabilities")), RolloutCapability), evalCtx)
 	}
 	if err != nil {
 		responseObj = AgentResponse{
@@ -299,6 +305,36 @@ func (s *System) SetRollout(w http.ResponseWriter, r *http.Request) {
 	}
 	if err := s.SetRolloutInDB(r.Context(), flagId, *req.Rollout); err != nil {
 		_ = s.Config.Bugfixes.Logger.Errorf("Failed to set rollout: %v", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+}
+
+// SetRules: PUT /flag/{flagId}/rules {"rules": [...]} replaces the flag's targeting rules in its environment.
+func (s *System) SetRules(w http.ResponseWriter, r *http.Request) {
+	flagId := r.PathValue("flagId")
+	if _, ok := company.NewSystem(s.Config).CallerOwns(w, r, company.ResourceFlag, flagId); !ok {
+		return
+	}
+	var req struct {
+		Rules []Rule `json:"rules"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	if req.Rules == nil {
+		req.Rules = []Rule{}
+	}
+	if err := ValidateRules(req.Rules); err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+		return
+	}
+	if err := s.SetRulesInDB(r.Context(), flagId, req.Rules); err != nil {
+		_ = s.Config.Bugfixes.Logger.Errorf("Failed to set rules: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}

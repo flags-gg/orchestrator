@@ -270,13 +270,14 @@ func (s *System) PromoteFlagInDB(ctx context.Context, flagId string) error {
 		flagName            string
 		enabled             bool
 		rollout             int
+		rules               []Rule
 		agentIdInt          int
 		sourceEnvironmentId int
 	)
 	err = client.QueryRow(ctx, `
-		SELECT f.name, f.enabled, f.rollout, f.agent_id, f.environment_id
+		SELECT f.name, f.enabled, f.rollout, f.rules, f.agent_id, f.environment_id
 		FROM public.flag f
-		WHERE f.id = $1`, flagId).Scan(&flagName, &enabled, &rollout, &agentIdInt, &sourceEnvironmentId)
+		WHERE f.id = $1`, flagId).Scan(&flagName, &enabled, &rollout, &rules, &agentIdInt, &sourceEnvironmentId)
 	if err != nil {
 		return s.Config.Bugfixes.Logger.Errorf("failed to load flag for promotion: %v", err)
 	}
@@ -296,10 +297,10 @@ func (s *System) PromoteFlagInDB(ctx context.Context, flagId string) error {
 
 	// 3) Copy the flag into the child environment; already there is a no-op so retries are safe
 	_, err = client.Exec(ctx, `
-		INSERT INTO public.flag (name, agent_id, environment_id, enabled, rollout)
-		VALUES ($1, $2, $3, $4, $5)
+		INSERT INTO public.flag (name, agent_id, environment_id, enabled, rollout, rules)
+		VALUES ($1, $2, $3, $4, $5, $6)
 		ON CONFLICT (environment_id, name) DO NOTHING`,
-		flagName, agentIdInt, childEnvId, enabled, rollout,
+		flagName, agentIdInt, childEnvId, enabled, rollout, rules,
 	)
 	if err != nil {
 		return s.Config.Bugfixes.Logger.Errorf("failed to insert promoted flag: %v", err)
@@ -348,5 +349,21 @@ func (s *System) SetRolloutInDB(ctx context.Context, flagId string, rollout int)
 	}()
 
 	_, err = client.Exec(ctx, `UPDATE public.flag SET rollout = $2, updated_at = now() WHERE id::text = $1`, flagId, rollout)
+	return err
+}
+
+// SetRulesInDB replaces the flag's targeting rules.
+func (s *System) SetRulesInDB(ctx context.Context, flagId string, rules []Rule) error {
+	client, err := s.Config.Database.GetPGXClient(ctx)
+	if err != nil {
+		return s.Config.Bugfixes.Logger.Errorf("failed to connect to database: %v", err)
+	}
+	defer func() {
+		if err := client.Close(ctx); err != nil {
+			_ = s.Config.Bugfixes.Logger.Errorf("failed to close database connection: %v", err)
+		}
+	}()
+
+	_, err = client.Exec(ctx, `UPDATE public.flag SET rules = $2, updated_at = now() WHERE id::text = $1`, flagId, rules)
 	return err
 }
