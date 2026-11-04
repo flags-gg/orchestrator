@@ -24,7 +24,7 @@ A ticket can say it **needs a feature flag**. From then on the flag follows the 
 - A token sees only its own company's agents and flags. Anything else returns **404**, which is indistinguishable from "missing".
 - Store the token encrypted, per Tracklines project (or organisation). Never send it to the browser: Tracklines' server calls Flags.
 
-Base URL: `https://api.flags.gg/v1`. In local development it's `http://localhost:8080`, with no `/v1` prefix.
+Base URL: `https://api.flags.gg` (no `/v1` prefix). In local development it's `http://localhost:8080`.
 
 ## What Tracklines needs to store
 
@@ -137,7 +137,7 @@ Both successful responses return the **TicketFlag** body:
 Flags also serves an MCP server at `/mcp` (streamable HTTP, stateless), using the **same integration token**:
 
 ```json
-{ "mcpServers": { "flags": { "type": "http", "url": "https://api.flags.gg/v1/mcp",
+{ "mcpServers": { "flags": { "type": "http", "url": "https://api.flags.gg/mcp",
   "headers": { "Authorization": "Bearer flg_…" } } } }
 ```
 
