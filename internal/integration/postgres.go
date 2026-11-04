@@ -256,9 +256,9 @@ func (s *System) archiveFlags(ctx context.Context, where, companyId string, args
       DELETE FROM public.flag f
       USING public.agent a, public.project p, public.company c
       WHERE `+where+` AND a.id = f.agent_id AND p.id = a.project_id AND c.id = p.company_id AND c.company_id = $1
-      RETURNING f.id, f.name, f.agent_id, f.environment_id, f.enabled, f.ticket_ref, f.created_at, f.updated_at
+      RETURNING f.id, f.name, f.agent_id, f.environment_id, f.enabled, f.ticket_ref, f.created_at, f.updated_at, f.rollout
     )
-    INSERT INTO public.flag_archive (flag_id, name, agent_id, environment_id, enabled, ticket_ref, created_at, updated_at)
+    INSERT INTO public.flag_archive (flag_id, name, agent_id, environment_id, enabled, ticket_ref, created_at, updated_at, rollout)
     SELECT * FROM gone`, append([]any{companyId}, args...)...)
 	if err != nil {
 		return 0, err
@@ -381,6 +381,7 @@ type FlagState struct {
 	EnvironmentId string `json:"environment_id"`
 	FlagId        string `json:"flag_id"`
 	Enabled       bool   `json:"enabled"`
+	Rollout       int    `json:"rollout"`
 }
 
 // AgentFlag is one flag across the agent's environments; States only lists environments it is in.
@@ -473,7 +474,7 @@ func (s *System) GetAgentFlags(ctx context.Context, companyId, agentId string) (
 	}
 
 	rows, err = client.Query(ctx, `
-    SELECT COALESCE(f.name, ''), COALESCE(f.ticket_ref, ''), e.env_id, f.id::text, f.enabled
+    SELECT COALESCE(f.name, ''), COALESCE(f.ticket_ref, ''), e.env_id, f.id::text, f.enabled, f.rollout
     FROM public.flag f JOIN public.environment e ON e.id = f.environment_id
     WHERE f.agent_id = $1
     ORDER BY lower(f.name), f.name, e.level`, agentIdInt)
@@ -484,7 +485,7 @@ func (s *System) GetAgentFlags(ctx context.Context, companyId, agentId string) (
 	for rows.Next() {
 		var name, ticket string
 		var st FlagState
-		if err := rows.Scan(&name, &ticket, &st.EnvironmentId, &st.FlagId, &st.Enabled); err != nil {
+		if err := rows.Scan(&name, &ticket, &st.EnvironmentId, &st.FlagId, &st.Enabled, &st.Rollout); err != nil {
 			return nil, err
 		}
 		if n := len(out.Flags); n == 0 || out.Flags[n-1].Name != name {

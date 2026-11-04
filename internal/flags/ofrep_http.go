@@ -34,6 +34,7 @@ type ResolutionReason string
 
 const (
 	ReasonStatic         ResolutionReason = "STATIC"
+	ReasonSplit          ResolutionReason = "SPLIT"
 	ReasonTargetingMatch ResolutionReason = "TARGETING_MATCH"
 	ReasonDefault        ResolutionReason = "DEFAULT"
 	ReasonDisabled       ResolutionReason = "DISABLED"
@@ -165,20 +166,7 @@ func (s *OFREPSystem) EvaluateSingleFlag(w http.ResponseWriter, r *http.Request)
 		_ = s.Config.Bugfixes.Logger.Errorf("Failed to record single flag request: %v", err)
 	}
 
-	response := SuccessEvaluationResponse{
-		Key:    flagKey,
-		Reason: ReasonStatic,
-		Value:  flag.Enabled,
-		Variant: func() string {
-			if flag.Enabled {
-				return "enabled"
-			}
-			return "disabled"
-		}(),
-		Metadata: map[string]interface{}{
-			"flagId": flag.Details.ID,
-		},
-	}
+	response := evaluate(flagKey, *flag, req.Context.TargetingKey)
 
 	w.WriteHeader(http.StatusOK)
 	if err := json.NewEncoder(w).Encode(response); err != nil {
@@ -245,21 +233,7 @@ func (s *OFREPSystem) EvaluateBulkFlags(w http.ResponseWriter, r *http.Request) 
 	var responses []interface{}
 	if flags != nil {
 		for _, flag := range flags.Flags {
-			response := SuccessEvaluationResponse{
-				Key:    flag.Details.Name,
-				Reason: ReasonStatic,
-				Value:  flag.Enabled,
-				Variant: func() string {
-					if flag.Enabled {
-						return "enabled"
-					}
-					return "disabled"
-				}(),
-				Metadata: map[string]interface{}{
-					"flagId": flag.Details.ID,
-				},
-			}
-			responses = append(responses, response)
+			responses = append(responses, evaluate(flag.Details.Name, flag, req.Context.TargetingKey))
 		}
 	}
 
@@ -284,4 +258,19 @@ func (s *OFREPSystem) sendErrorResponse(w http.ResponseWriter, key string, code 
 	if err := json.NewEncoder(w).Encode(response); err != nil {
 		_ = s.Config.Bugfixes.Logger.Errorf("Failed to encode error response: %v", err)
 	}
+}
+
+// evaluate resolves a boolean flag for one visitor; an enabled flag with a partial rollout is a SPLIT on the targeting key.
+func evaluate(key string, flag Flag, targetingKey string) SuccessEvaluationResponse {
+	value, reason := flag.Enabled, ReasonStatic
+	metadata := map[string]interface{}{"flagId": flag.Details.ID}
+	if flag.Enabled && flag.Rollout != nil && *flag.Rollout < 100 {
+		value, reason = InRollout(flag.Details.Name, targetingKey, *flag.Rollout), ReasonSplit
+		metadata["rollout"] = *flag.Rollout
+	}
+	variant := "disabled"
+	if value {
+		variant = "enabled"
+	}
+	return SuccessEvaluationResponse{Key: key, Reason: reason, Value: value, Variant: variant, Metadata: metadata}
 }

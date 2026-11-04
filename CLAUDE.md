@@ -124,6 +124,9 @@ Three distinct flag retrieval paths:
 - **Client path** (`flags/client.go`): Used by frontend applications, returns simpler flag list
 - **OFREP path** (`flags/ofrep_http.go`): OpenFeature Remote Evaluation Protocol compliant endpoints for standard OpenFeature SDK integration
 
+### Percentage Rollouts
+`flag.rollout` (0-100, default 100) is the share of visitors that see an enabled flag, per environment (`PATCH /flag/{id}/rollout`). Bucketing is `internal/flags/rollout.go`: FNV-1a 32 of `"<flag>:<targeting key>"` mod 100; the test vectors there are shared with every SDK. SDKs that send `x-flags-capabilities: rollout` get `rollout` and evaluate it; older SDKs get partial rollouts as `enabled:false` (they would otherwise show them to everyone). OFREP evaluates server-side on `context.targetingKey` (reason `SPLIT`); no key means off.
+
 ### Statistics System
 Dual storage approach:
 - PostgreSQL: Structured data and relationships

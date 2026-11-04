@@ -57,6 +57,7 @@ func (s *System) GetAgentFlagsFromDB(ctx context.Context, projectId, agentId, en
     SELECT
       flags.name AS FlagName,
       flags.enabled AS FlagEnabled,
+      flags.rollout AS FlagRollout,
       secretMenu.enabled AS MenuEnabled,
       secretMenu.code AS MenuCode,
       menuStyle.close_button AS MenuCloseButton,
@@ -98,10 +99,12 @@ func (s *System) GetAgentFlagsFromDB(ctx context.Context, projectId, agentId, en
 	for rows.Next() {
 		var flagName string
 		var flagEnabled bool
+		var flagRollout int
 
 		if err = rows.Scan(
 			&flagName,
 			&flagEnabled,
+			&flagRollout,
 			&menuEnabled,
 			&menuCode,
 			&menuCloseButton,
@@ -127,6 +130,7 @@ func (s *System) GetAgentFlagsFromDB(ctx context.Context, projectId, agentId, en
 				Name: flagName,
 				ID:   randId.String(),
 			},
+			Rollout: &flagRollout,
 		}
 		flags = append(flags, flag)
 	}

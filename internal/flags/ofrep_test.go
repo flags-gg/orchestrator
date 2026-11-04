@@ -136,6 +136,7 @@ func setupTestDatabase(c context.Context) (*testContainer, error) {
 			id serial PRIMARY KEY,
 			name varchar(255) NOT NULL,
 			enabled boolean NOT NULL DEFAULT false,
+			rollout smallint NOT NULL DEFAULT 100,
 			agent_id integer REFERENCES public.agent(id),
 			environment_id integer REFERENCES public.environment(id),
 			created_at timestamp NOT NULL DEFAULT now(),

@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"regexp"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/flags-gg/orchestrator/internal/company"
@@ -29,6 +30,8 @@ type Details struct {
 type Flag struct {
 	Enabled bool    `json:"enabled"`
 	Details Details `json:"details"`
+	// Rollout is the percentage of visitors that see an enabled flag; omitted (nil) means 100.
+	Rollout *int `json:"rollout,omitempty"`
 }
 type AgentResponse struct {
 	IntervalAllowed int        `json:"intervalAllowed,omitempty"`
@@ -88,6 +91,9 @@ func (s *System) GetAgentFlags(w http.ResponseWriter, r *http.Request) {
 	}
 
 	res, err := s.GetAgentFlagsFromDB(ctx, projectId, agentId, environmentId)
+	if res != nil {
+		forSDK(res.Flags, strings.Contains(strings.ToLower(r.Header.Get("x-flags-capabilities")), RolloutCapability))
+	}
 	if err != nil {
 		responseObj = AgentResponse{
 			IntervalAllowed: 600,
@@ -275,5 +281,26 @@ func (s *System) DeleteFlags(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	w.WriteHeader(http.StatusOK)
+}
+
+// SetRollout: PATCH /flag/{flagId}/rollout {"rollout": 0-100}
+func (s *System) SetRollout(w http.ResponseWriter, r *http.Request) {
+	flagId := r.PathValue("flagId")
+	if _, ok := company.NewSystem(s.Config).CallerOwns(w, r, company.ResourceFlag, flagId); !ok {
+		return
+	}
+	var req struct {
+		Rollout *int `json:"rollout"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.Rollout == nil || *req.Rollout < 0 || *req.Rollout > 100 {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	if err := s.SetRolloutInDB(r.Context(), flagId, *req.Rollout); err != nil {
+		_ = s.Config.Bugfixes.Logger.Errorf("Failed to set rollout: %v", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
 	w.WriteHeader(http.StatusOK)
 }
