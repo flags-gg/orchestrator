@@ -13,10 +13,34 @@ import (
 // OFREP (OpenFeature Remote Evaluation Protocol) implementation
 // Spec: https://github.com/open-feature/protocol
 
-// EvaluationContext represents the context for flag evaluation
+// EvaluationContext represents the context for flag evaluation. Per the OFREP spec, attributes sit
+// flat next to targetingKey; a nested "context" object is also accepted for older callers.
 type EvaluationContext struct {
 	TargetingKey string                 `json:"targetingKey,omitempty"`
 	Context      map[string]interface{} `json:"context,omitempty"`
+}
+
+func (e *EvaluationContext) UnmarshalJSON(b []byte) error {
+	var all map[string]interface{}
+	if err := json.Unmarshal(b, &all); err != nil {
+		return err
+	}
+	e.Context = map[string]interface{}{}
+	if nested, ok := all["context"].(map[string]interface{}); ok {
+		for k, v := range nested {
+			e.Context[k] = v
+		}
+	}
+	for k, v := range all {
+		switch k {
+		case "targetingKey":
+			e.TargetingKey, _ = v.(string)
+		case "context":
+		default:
+			e.Context[k] = v
+		}
+	}
+	return nil
 }
 
 // EvaluationRequest is the request body for flag evaluation
@@ -34,6 +58,7 @@ type ResolutionReason string
 
 const (
 	ReasonStatic         ResolutionReason = "STATIC"
+	ReasonSplit          ResolutionReason = "SPLIT"
 	ReasonTargetingMatch ResolutionReason = "TARGETING_MATCH"
 	ReasonDefault        ResolutionReason = "DEFAULT"
 	ReasonDisabled       ResolutionReason = "DISABLED"
@@ -165,20 +190,7 @@ func (s *OFREPSystem) EvaluateSingleFlag(w http.ResponseWriter, r *http.Request)
 		_ = s.Config.Bugfixes.Logger.Errorf("Failed to record single flag request: %v", err)
 	}
 
-	response := SuccessEvaluationResponse{
-		Key:    flagKey,
-		Reason: ReasonStatic,
-		Value:  flag.Enabled,
-		Variant: func() string {
-			if flag.Enabled {
-				return "enabled"
-			}
-			return "disabled"
-		}(),
-		Metadata: map[string]interface{}{
-			"flagId": flag.Details.ID,
-		},
-	}
+	response := evaluate(flagKey, *flag, req.Context)
 
 	w.WriteHeader(http.StatusOK)
 	if err := json.NewEncoder(w).Encode(response); err != nil {
@@ -188,6 +200,7 @@ func (s *OFREPSystem) EvaluateSingleFlag(w http.ResponseWriter, r *http.Request)
 
 // EvaluateBulkFlags handles POST /ofrep/v1/evaluate/flags
 func (s *OFREPSystem) EvaluateBulkFlags(w http.ResponseWriter, r *http.Request) {
+	start := time.Now()
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("x-flags-timestamp", strconv.FormatInt(time.Now().Unix(), 10))
 	ctx := r.Context()
@@ -241,25 +254,20 @@ func (s *OFREPSystem) EvaluateBulkFlags(w http.ResponseWriter, r *http.Request) 
 	); err != nil {
 		_ = s.Config.Bugfixes.Logger.Errorf("Failed to record bulk flag request: %v", err)
 	}
+	if flags != nil {
+		attrs := EvalContext{"key": req.Context.TargetingKey}
+		for k, v := range req.Context.Context {
+			attrs[k] = v
+		}
+		if err := stats.NewSystem(s.Config).RecordFlagsRequest(ctx, environmentId, req.Context.TargetingKey, time.Since(start), exposures(flags.Flags, attrs, req.Context.TargetingKey)); err != nil {
+			_ = s.Config.Bugfixes.Logger.Errorf("Failed to record flag metrics: %v", err)
+		}
+	}
 
 	var responses []interface{}
 	if flags != nil {
 		for _, flag := range flags.Flags {
-			response := SuccessEvaluationResponse{
-				Key:    flag.Details.Name,
-				Reason: ReasonStatic,
-				Value:  flag.Enabled,
-				Variant: func() string {
-					if flag.Enabled {
-						return "enabled"
-					}
-					return "disabled"
-				}(),
-				Metadata: map[string]interface{}{
-					"flagId": flag.Details.ID,
-				},
-			}
-			responses = append(responses, response)
+			responses = append(responses, evaluate(flag.Details.Name, flag, req.Context))
 		}
 	}
 
@@ -284,4 +292,29 @@ func (s *OFREPSystem) sendErrorResponse(w http.ResponseWriter, key string, code 
 	if err := json.NewEncoder(w).Encode(response); err != nil {
 		_ = s.Config.Bugfixes.Logger.Errorf("Failed to encode error response: %v", err)
 	}
+}
+
+// evaluate resolves a boolean flag for one user: an enabled flag's first matching targeting rule decides it
+// (TARGETING_MATCH); otherwise a partial rollout is a SPLIT on the targeting key.
+func evaluate(key string, flag Flag, ec EvaluationContext) SuccessEvaluationResponse {
+	value, reason := flag.Enabled, ReasonStatic
+	metadata := map[string]interface{}{"flagId": flag.Details.ID}
+	attrs := EvalContext{}
+	for k, v := range ec.Context {
+		attrs[k] = v
+	}
+	if ec.TargetingKey != "" {
+		attrs["key"] = ec.TargetingKey
+	}
+	if serve, matched := MatchRules(flag.Rules, attrs); flag.Enabled && matched {
+		value, reason = serve, ReasonTargetingMatch
+	} else if flag.Enabled && flag.Rollout != nil && *flag.Rollout < 100 {
+		value, reason = InRollout(flag.Details.Name, ec.TargetingKey, *flag.Rollout), ReasonSplit
+		metadata["rollout"] = *flag.Rollout
+	}
+	variant := "disabled"
+	if value {
+		variant = "enabled"
+	}
+	return SuccessEvaluationResponse{Key: key, Reason: reason, Value: value, Variant: variant, Metadata: metadata}
 }

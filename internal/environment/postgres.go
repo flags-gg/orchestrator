@@ -284,8 +284,8 @@ func (s *System) CloneChildEnvironmentInDB(ctx context.Context, envId, newEnvId,
 	}
 
 	if _, err := tx.Exec(ctx, `
-    INSERT INTO public.flag (name, agent_id, environment_id, enabled)
-    SELECT name, $1, $2, enabled
+    INSERT INTO public.flag (name, agent_id, environment_id, enabled, rollout, rules)
+    SELECT name, $1, $2, enabled, rollout, rules
     FROM public.flag
     WHERE environment_id = $3`, agentIdInt, envIdInt, sourceEnvIdInt); err != nil {
 		return s.Config.Bugfixes.Logger.Errorf("Failed to copy flags: %v", err)

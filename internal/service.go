@@ -110,6 +110,8 @@ func (s *Service) routes() http.Handler {
 	authed("PUT /flag/{flagId}", flags.NewSystem(s.Config).EditFlag)
 	authed("DELETE /flag/{flagId}", flags.NewSystem(s.Config).DeleteFlags)
 	authed("POST /flag/{flagId}/promote", flags.NewSystem(s.Config).PromoteFlag)
+	authed("PATCH /flag/{flagId}/rollout", flags.NewSystem(s.Config).SetRollout)
+	authed("PUT /flag/{flagId}/rules", flags.NewSystem(s.Config).SetRules)
 
 	// Client
 	sdk("POST /ofrep/v1/evaluate/flags/{key}", flags.NewOFREPSystem(s.Config).EvaluateSingleFlag)
@@ -149,6 +151,7 @@ func (s *Service) routes() http.Handler {
 	authed("GET /stats/agent/{agentId}/environment/{environmentId}", stats.NewSystem(s.Config).GetEnvironmentStats)
 	authed("GET /stats/project/{projectId}", stats.NewSystem(s.Config).GetProjectStats)
 	authed("GET /stats/agent/{agentId}", stats.NewSystem(s.Config).GetAgentStats)
+	authed("GET /agent/{agentId}/metrics", stats.NewSystem(s.Config).GetAgentMetricsHandler)
 
 	// User
 	authed("POST /user", user.NewSystem(s.Config).CreateUser)
@@ -193,6 +196,8 @@ func (s *Service) routes() http.Handler {
 		"x-project-id",
 		"x-environment-id",
 		"x-flags-timestamp",
+		"x-flags-capabilities",
+		"x-flags-context",
 	}
 	methods := []string{http.MethodGet, http.MethodPost, http.MethodPut, http.MethodDelete, http.MethodOptions, http.MethodPatch}
 	sdkCORS := middleware.NewMiddleware()
