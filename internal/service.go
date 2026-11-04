@@ -27,6 +27,7 @@ import (
 
 	"github.com/flags-gg/orchestrator/internal/company"
 	"github.com/flags-gg/orchestrator/internal/flags"
+	"github.com/flags-gg/orchestrator/internal/integration"
 	"github.com/flags-gg/orchestrator/internal/stats"
 	"github.com/flags-gg/orchestrator/internal/user"
 )
@@ -74,6 +75,7 @@ func (s *Service) routes() http.Handler {
 	mux := http.NewServeMux()
 	authed := func(pattern string, h http.HandlerFunc) { mux.Handle(pattern, s.RequireUser(h)) }
 	sdk := func(pattern string, h http.HandlerFunc) { mux.Handle(pattern, s.RequireAgent(h)) }
+	tracker := func(pattern string, h http.HandlerFunc) { mux.Handle(pattern, s.RequireIntegration(h)) }
 
 	// Projects
 	authed("GET /projects", project.NewSystem(s.Config).GetProjects)
@@ -116,6 +118,21 @@ func (s *Service) routes() http.Handler {
 	sdk("GET /flags", flags.NewSystem(s.Config).GetAgentFlags)
 
 	// API Key Management
+	// Ticket tracker integration (Tracklines), integration token auth
+	ticketFlags := integration.NewSystem(s.Config)
+	tracker("GET /integration/agents", ticketFlags.ListAgentsHandler)
+	tracker("GET /integration/tickets/{ticket}/flag", ticketFlags.GetFlag)
+	tracker("PUT /integration/tickets/{ticket}/flag", ticketFlags.CreateFlag)
+	tracker("PATCH /integration/tickets/{ticket}/flag", ticketFlags.SetFlag)
+	tracker("POST /integration/tickets/{ticket}/flag/promote", ticketFlags.PromoteFlag)
+	tracker("DELETE /integration/tickets/{ticket}/flag", ticketFlags.ArchiveFlag)
+	mux.Handle("/mcp", s.RequireIntegration(ticketFlags.MCPHandler())) // MCP for agents, same tokens
+	authed("GET /agent/{agentId}/flags", ticketFlags.AgentFlagsHandler)
+	authed("DELETE /agent/{agentId}/flags/{name}", ticketFlags.ArchiveAgentFlagHandler)
+	authed("POST /company/integration-token", ticketFlags.CreateTokenHandler)
+	authed("GET /company/integration-tokens", ticketFlags.ListTokensHandler)
+	authed("DELETE /company/integration-token/{tokenId}", ticketFlags.DeleteTokenHandler)
+
 	authed("POST /api-key/generate", flags.NewAPIKeyHTTPSystem(s.Config).GenerateAPIKeyHandler)
 
 	// Secret Menu

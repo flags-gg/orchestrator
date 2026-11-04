@@ -13,6 +13,7 @@ import (
 	"github.com/flags-gg/orchestrator/internal/agent"
 	"github.com/flags-gg/orchestrator/internal/auth"
 	"github.com/flags-gg/orchestrator/internal/flags"
+	"github.com/flags-gg/orchestrator/internal/integration"
 )
 
 // getClerkUser is a seam for tests; production uses the Clerk API.
@@ -139,6 +140,27 @@ func (s *Service) ValidateAgent(r *http.Request) bool {
 		valid, err = agent.NewSystem(s.Config).ValidateAgentWithoutEnvironment(ctx, agentId, projectId)
 	}
 	return err == nil && valid
+}
+
+// RequireIntegration accepts "Authorization: Bearer flg_..." integration tokens and puts the owning company in the context.
+func (s *Service) RequireIntegration(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		raw, ok := strings.CutPrefix(r.Header.Get("authorization"), "Bearer ")
+		if !ok || !strings.HasPrefix(raw, "flg_") {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+		companyId, err := integration.NewSystem(s.Config).CompanyForToken(r.Context(), raw)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		if companyId == "" {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+		next.ServeHTTP(w, r.WithContext(auth.WithCompany(r.Context(), companyId)))
+	})
 }
 
 // LimitBody caps request bodies; uploads get more room for multipart files.
