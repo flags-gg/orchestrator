@@ -293,10 +293,11 @@ func (s *System) PromoteFlagInDB(ctx context.Context, flagId string) error {
 		return s.Config.Bugfixes.Logger.Errorf("failed to find child environment: %v", err)
 	}
 
-	// 3) Create a NEW flag in the child environment (do not rely on name uniqueness)
+	// 3) Copy the flag into the child environment; already there is a no-op so retries are safe
 	_, err = client.Exec(ctx, `
 		INSERT INTO public.flag (name, agent_id, environment_id, enabled)
-		VALUES ($1, $2, $3, $4)`,
+		VALUES ($1, $2, $3, $4)
+		ON CONFLICT (environment_id, name) DO NOTHING`,
 		flagName, agentIdInt, childEnvId, enabled,
 	)
 	if err != nil {

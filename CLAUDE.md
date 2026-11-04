@@ -66,6 +66,7 @@ Each domain follows a consistent pattern with an `http.go` file for handlers and
   - `ofrep_postgres.go`: OFREP database access methods
   - `apikey.go`: JWT-based API key generation and validation
   - `apikey_http.go`: HTTP endpoint for generating API keys
+- **integration**: Ticket-tracker (Tracklines) API. One flag per ticket (`flag.ticket_ref`), created off in the lowest-level environment, promoted (arriving off) one level or `?to=production` (highest level), archived into `flag_archive` on delete. The tracker owns the column -> action mapping; every call is idempotent. Also serves the MCP server at `/mcp` (same tokens, `mcp.go`) and the dashboard's flag-first agent view (`GET /agent/{agentId}/flags`, `DELETE /agent/{agentId}/flags/{name}` archives by name). Tracker-facing docs: `docs/tracklines-integration.md`.
 - **general**: Stripe webhook handler (signature-verified)
 - **pricing**: Pricing tiers and limits
 - **project**: Top-level project management
@@ -77,7 +78,8 @@ Each domain follows a consistent pattern with an `http.go` file for handlers and
 Every route in `internal/service.go` is registered in exactly one group (unregistered paths 404):
 1. `authed(...)` - dashboard/user routes. `RequireUser` (`internal/auth.go`) verifies the Clerk session JWT from `Authorization: Bearer <token>` (JWKS cached locally by clerk-sdk-go), requires a verified primary email (Clerk lookup cached 5 min), and stores the user in the context. Handlers read it with `auth.UserID(r)` (`internal/auth`); `x-user-subject` is never trusted.
 2. `sdk(...)` - `/flags`, `/v1/flags`, `/ofrep/...`. `RequireAgent` validates `X-API-Key` (JWT) or `x-project-id`/`x-agent-id`/`x-environment-id` against the DB.
-3. `mux.HandleFunc` - public: `/health`, `/probe`, `GET /pricing`, Stripe webhooks (signature verified with `STRIPE_WEBHOOK_SECRET`).
+3. `tracker(...)` - `/integration/tickets/{ticket}/flag[...]`. `RequireIntegration` accepts `Authorization: Bearer flg_...` company integration tokens (sha256 stored in `integration_token`, managed at `/company/integration-token(s)`) and puts the company in the context (`auth.CompanyID(r)`).
+4. `mux.HandleFunc` - public: `/health`, `/probe`, `GET /pricing`, Stripe webhooks (signature verified with `STRIPE_WEBHOOK_SECRET`).
 Resource handlers call `company.CallerOwns(w, r, kind, id, ...)` so another company's ids return 404.
 In development with `CLERK_DEV_USER` set, `RequireUser` uses that user and agent checks are skipped.
 

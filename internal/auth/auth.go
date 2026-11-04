@@ -40,3 +40,16 @@ func EmailDomain(r *http.Request) string {
 	}
 	return strings.ToLower(domain)
 }
+
+type companyKey struct{}
+
+// WithCompany marks the request as made by an integration token for the given public company id.
+func WithCompany(ctx context.Context, companyId string) context.Context {
+	return context.WithValue(ctx, companyKey{}, companyId)
+}
+
+// CompanyID returns the company an integration token belongs to, empty for user requests.
+func CompanyID(r *http.Request) string {
+	id, _ := r.Context().Value(companyKey{}).(string)
+	return id
+}
