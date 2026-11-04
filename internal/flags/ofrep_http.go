@@ -200,6 +200,7 @@ func (s *OFREPSystem) EvaluateSingleFlag(w http.ResponseWriter, r *http.Request)
 
 // EvaluateBulkFlags handles POST /ofrep/v1/evaluate/flags
 func (s *OFREPSystem) EvaluateBulkFlags(w http.ResponseWriter, r *http.Request) {
+	start := time.Now()
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("x-flags-timestamp", strconv.FormatInt(time.Now().Unix(), 10))
 	ctx := r.Context()
@@ -252,6 +253,15 @@ func (s *OFREPSystem) EvaluateBulkFlags(w http.ResponseWriter, r *http.Request) 
 		stats.RequestSourceOFREPBulk,
 	); err != nil {
 		_ = s.Config.Bugfixes.Logger.Errorf("Failed to record bulk flag request: %v", err)
+	}
+	if flags != nil {
+		attrs := EvalContext{"key": req.Context.TargetingKey}
+		for k, v := range req.Context.Context {
+			attrs[k] = v
+		}
+		if err := stats.NewSystem(s.Config).RecordFlagsRequest(ctx, environmentId, req.Context.TargetingKey, time.Since(start), exposures(flags.Flags, attrs, req.Context.TargetingKey)); err != nil {
+			_ = s.Config.Bugfixes.Logger.Errorf("Failed to record flag metrics: %v", err)
+		}
 	}
 
 	var responses []interface{}

@@ -6,6 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+
+	"github.com/flags-gg/orchestrator/internal/stats"
 )
 
 // Rule targets users by an attribute of their evaluation context. Rules are checked in order and the first
@@ -134,4 +136,35 @@ func ParseContextHeader(h string) (EvalContext, error) {
 		return nil, err
 	}
 	return ctx, nil
+}
+
+// Decide is what one user is served: off when disabled, else the first matching rule, else the rollout.
+func Decide(f Flag, ctx EvalContext, key string) (on, ruleHit bool) {
+	if !f.Enabled {
+		return false, false
+	}
+	if serve, matched := MatchRules(f.Rules, ctx); matched {
+		return serve, true
+	}
+	rollout := 100
+	if f.Rollout != nil {
+		rollout = *f.Rollout
+	}
+	return InRollout(f.Details.Name, key, rollout), false
+}
+
+// exposures is every flag's decision for one user, for the usage metrics; nil without a targeting key.
+func exposures(flags []Flag, ctx EvalContext, key string) []stats.Exposure {
+	if key == "" {
+		return nil
+	}
+	out := make([]stats.Exposure, 0, len(flags))
+	for _, f := range flags {
+		if f.Details.Name == "" {
+			continue
+		}
+		on, hit := Decide(f, ctx, key)
+		out = append(out, stats.Exposure{Flag: f.Details.Name, On: on, RuleHit: hit})
+	}
+	return out
 }

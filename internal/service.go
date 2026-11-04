@@ -151,6 +151,7 @@ func (s *Service) routes() http.Handler {
 	authed("GET /stats/agent/{agentId}/environment/{environmentId}", stats.NewSystem(s.Config).GetEnvironmentStats)
 	authed("GET /stats/project/{projectId}", stats.NewSystem(s.Config).GetProjectStats)
 	authed("GET /stats/agent/{agentId}", stats.NewSystem(s.Config).GetAgentStats)
+	authed("GET /agent/{agentId}/metrics", stats.NewSystem(s.Config).GetAgentMetricsHandler)
 
 	// User
 	authed("POST /user", user.NewSystem(s.Config).CreateUser)

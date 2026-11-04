@@ -68,6 +68,9 @@ func NewSystem(cfg *ConfigBuilder.Config) *System {
 
 func (s *System) GetAgentFlags(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
+	start := time.Now()
+	var served []stats.Exposure
+	var targetingKey string
 
 	w.Header().Set("x-flags-timestamp", strconv.FormatInt(time.Now().Unix(), 10))
 	w.Header().Set("Content-Type", "application/json")
@@ -98,6 +101,8 @@ func (s *System) GetAgentFlags(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			evalCtx = nil // a malformed context only means no rule can match
 		}
+		targetingKey, _ = evalCtx["key"].(string)
+		served = exposures(res.Flags, evalCtx, targetingKey) // before forSDK rewrites the flags for the SDK
 		forSDK(res.Flags, strings.Contains(strings.ToLower(r.Header.Get("x-flags-capabilities")), RolloutCapability), evalCtx)
 	}
 	if err != nil {
@@ -125,6 +130,9 @@ func (s *System) GetAgentFlags(w http.ResponseWriter, r *http.Request) {
 		stats.RequestSourceSDKAll,
 	); err != nil {
 		_ = s.Config.Bugfixes.Logger.Errorf("Failed to record sdk flag request: %v", err)
+	}
+	if err := stats.NewSystem(s.Config).RecordFlagsRequest(ctx, environmentId, targetingKey, time.Since(start), served); err != nil {
+		_ = s.Config.Bugfixes.Logger.Errorf("Failed to record flag metrics: %v", err)
 	}
 }
 

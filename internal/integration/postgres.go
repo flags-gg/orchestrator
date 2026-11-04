@@ -384,6 +384,9 @@ type FlagState struct {
 	Enabled       bool         `json:"enabled"`
 	Rollout       int          `json:"rollout"`
 	Rules         []flags.Rule `json:"rules"`
+	// users served the flag on/off in the last 7 days (the server's own decisions)
+	ServedOn  int `json:"served_on"`
+	ServedOff int `json:"served_off"`
 }
 
 // AgentFlag is one flag across the agent's environments; States only lists environments it is in.
@@ -476,8 +479,13 @@ func (s *System) GetAgentFlags(ctx context.Context, companyId, agentId string) (
 	}
 
 	rows, err = client.Query(ctx, `
-    SELECT COALESCE(f.name, ''), COALESCE(f.ticket_ref, ''), e.env_id, f.id::text, f.enabled, f.rollout, f.rules
+    SELECT COALESCE(f.name, ''), COALESCE(f.ticket_ref, ''), e.env_id, f.id::text, f.enabled, f.rollout, f.rules,
+           COALESCE(x.served_on, 0), COALESCE(x.served_off, 0)
     FROM public.flag f JOIN public.environment e ON e.id = f.environment_id
+      LEFT JOIN LATERAL (
+        SELECT sum(served_on)::int AS served_on, sum(served_off)::int AS served_off FROM public.flag_exposure_daily d
+        WHERE d.environment_id = f.environment_id AND d.flag_name = f.name AND d.day > current_date - 7
+      ) x ON true
     WHERE f.agent_id = $1
     ORDER BY lower(f.name), f.name, e.level`, agentIdInt)
 	if err != nil {
@@ -487,7 +495,7 @@ func (s *System) GetAgentFlags(ctx context.Context, companyId, agentId string) (
 	for rows.Next() {
 		var name, ticket string
 		var st FlagState
-		if err := rows.Scan(&name, &ticket, &st.EnvironmentId, &st.FlagId, &st.Enabled, &st.Rollout, &st.Rules); err != nil {
+		if err := rows.Scan(&name, &ticket, &st.EnvironmentId, &st.FlagId, &st.Enabled, &st.Rollout, &st.Rules, &st.ServedOn, &st.ServedOff); err != nil {
 			return nil, err
 		}
 		if n := len(out.Flags); n == 0 || out.Flags[n-1].Name != name {
