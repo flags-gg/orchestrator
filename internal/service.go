@@ -47,7 +47,10 @@ func New(cfg *ConfigBuilder.Config) *Service {
 
 // dashboardOrigins are the browser origins allowed on dashboard/user routes (CORS and the JWT azp claim).
 func dashboardOrigins(cfg *ConfigBuilder.Config) []string {
-	origins := []string{"https://dashboard.flags.gg", "https://flags.gg", "https://www.flags.gg"}
+	origins := []string{
+		"https://dashboard.flags.gg", "https://flags.gg", "https://www.flags.gg",
+		"https://dashboard.1ff.pw", "https://1ff.pw",
+	}
 	if cfg.Local.Development {
 		origins = append(origins, "http://localhost:3000", "http://localhost:5173")
 	}

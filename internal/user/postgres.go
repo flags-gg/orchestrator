@@ -26,8 +26,8 @@ type User struct {
 	FirstName *string `json:"first_name,omitempty"`
 	LastName  *string `json:"last_name,omitempty"`
 	UserGroup *Group  `json:"user_group,omitempty"`
-	Onboarded bool    `json:"onboarded,omitempty"`
-	Created   bool    `json:"created,omitempty"`
+	Onboarded bool    `json:"onboarded"`
+	Created   bool    `json:"created"`
 }
 
 type Notification struct {
@@ -44,6 +44,15 @@ type Notifications struct {
 }
 
 func (s *System) CreateUserDetails(ctx context.Context, subject, knownAs, email, firstname, lastname, location string, userGroup int) error {
+	return s.saveUserDetails(ctx, subject, knownAs, email, firstname, lastname, location, userGroup, true)
+}
+
+// A first-login lookup may race another lookup or a profile edit. Never overwrite an existing profile here.
+func (s *System) createUserIfMissing(ctx context.Context, subject, knownAs, email, firstname, lastname string) error {
+	return s.saveUserDetails(ctx, subject, knownAs, email, firstname, lastname, "Unknown", 1, false)
+}
+
+func (s *System) saveUserDetails(ctx context.Context, subject, knownAs, email, firstname, lastname, location string, userGroup int, updateExisting bool) error {
 	client, err := s.Config.Database.GetPGXClient(ctx)
 	if err != nil {
 		if strings.Contains(err.Error(), "operation was canceled") {
@@ -57,6 +66,15 @@ func (s *System) CreateUserDetails(ctx context.Context, subject, knownAs, email,
 		}
 	}()
 
+	conflict := "DO NOTHING"
+	if updateExisting {
+		conflict = `DO UPDATE SET
+        email_address = $2,
+        first_name = $3,
+        last_name = $4,
+        known_as = $5,
+        location = $7`
+	}
 	if _, err := client.Exec(ctx, `
     INSERT INTO public.user (
         subject,
@@ -67,12 +85,7 @@ func (s *System) CreateUserDetails(ctx context.Context, subject, knownAs, email,
         user_group_id,
         location
     ) VALUES ($1, $2, $3, $4, $5, $6, $7)
-    ON CONFLICT (subject) DO UPDATE SET
-        email_address = $2,
-        first_name = $3,
-        last_name = $4,
-        known_as = $5,
-        location = $7`, subject, email, firstname, lastname, knownAs, userGroup, location); err != nil {
+    ON CONFLICT (subject) `+conflict, subject, email, firstname, lastname, knownAs, userGroup, location); err != nil {
 		return s.Config.Bugfixes.Logger.Errorf("Failed to insert user into database: %v", err)
 	}
 
