@@ -26,6 +26,9 @@ type EnvironmentState struct {
 	Present       bool   `json:"present"`
 	Enabled       bool   `json:"enabled"`
 	Production    bool   `json:"production"`
+	// Rollout and Rules decide who gets the flag while it is enabled (100 and none = everyone); see flags.Decide.
+	Rollout int          `json:"rollout"`
+	Rules   []flags.Rule `json:"rules"`
 
 	id int
 }
@@ -83,7 +86,7 @@ func ticketFlag(ctx context.Context, q queryer, companyId, ticket string) (*Tick
     )
     SELECT tf.agent_id, a.agent_id, tf.name, e.id, e.env_id, COALESCE(e.name, ''), e.level,
            f.id IS NOT NULL, COALESCE(f.enabled, false),
-           e.level = MAX(e.level) OVER ()
+           e.level = MAX(e.level) OVER (), COALESCE(f.rollout, 100), COALESCE(f.rules, '[]'::jsonb)
     FROM tf
       JOIN public.agent a ON a.id = tf.agent_id
       JOIN public.environment e ON e.agent_id = tf.agent_id
@@ -101,7 +104,7 @@ func ticketFlag(ctx context.Context, q queryer, companyId, ticket string) (*Tick
 		}
 		var env EnvironmentState
 		if err := rows.Scan(&tf.agentId, &tf.AgentId, &tf.Name, &env.id, &env.EnvironmentId, &env.Name, &env.Level,
-			&env.Present, &env.Enabled, &env.Production); err != nil {
+			&env.Present, &env.Enabled, &env.Production, &env.Rollout, &env.Rules); err != nil {
 			return nil, err
 		}
 		tf.Environments = append(tf.Environments, env)
@@ -174,19 +177,45 @@ func (s *System) CreateTicketFlag(ctx context.Context, companyId, ticket, agentI
 	return tf, err == nil, err
 }
 
-func (s *System) SetTicketFlag(ctx context.Context, companyId, ticket, environmentId string, enabled bool) error {
+// FlagChange is what a PATCH changes in one environment; nil fields stay as they are.
+type FlagChange struct {
+	Enabled *bool
+	Rollout *int
+	Rules   *[]flags.Rule
+}
+
+// Valid checks the change has something in it and is in bounds, the same bounds as the dashboard's.
+func (c FlagChange) Valid() error {
+	if c.Enabled == nil && c.Rollout == nil && c.Rules == nil {
+		return errors.New("one of enabled, rollout or rules is required")
+	}
+	if c.Rollout != nil && (*c.Rollout < 0 || *c.Rollout > 100) {
+		return errors.New("rollout must be 0-100")
+	}
+	if c.Rules != nil {
+		return flags.ValidateRules(*c.Rules)
+	}
+	return nil
+}
+
+func (s *System) SetTicketFlag(ctx context.Context, companyId, ticket, environmentId string, c FlagChange) error {
 	client, done, err := s.conn(ctx)
 	if err != nil {
 		return err
 	}
 	defer done()
 
+	var rules any // nil keeps the rules
+	if c.Rules != nil {
+		rules = *c.Rules
+	}
 	tag, err := client.Exec(ctx, `
-    UPDATE public.flag f SET enabled = $4, updated_at = now()
+    UPDATE public.flag f SET enabled = COALESCE($4, f.enabled), rollout = COALESCE($5, f.rollout),
+      rules = COALESCE($6::jsonb, f.rules), updated_at = now()
     FROM public.environment e, public.agent a, public.project p, public.company c
     WHERE f.ticket_ref = $2 AND e.env_id = $3 AND f.environment_id = e.id
       AND a.id = f.agent_id AND p.id = a.project_id AND c.id = p.company_id AND c.company_id = $1`,
-		companyId, ticket, environmentId, enabled)
+		companyId, ticket, environmentId, c.Enabled, c.Rollout, rules)
 	if err != nil {
 		return err
 	}

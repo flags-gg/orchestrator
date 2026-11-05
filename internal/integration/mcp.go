@@ -22,9 +22,11 @@ type createIn struct {
 	Name    string `json:"name" jsonschema:"flag name the code checks: letters, digits, space, - _ . (max 100)"`
 }
 type setIn struct {
-	Ticket        string `json:"ticket" jsonschema:"ticket key the flag belongs to"`
-	EnvironmentId string `json:"environment_id" jsonschema:"environment id the flag is in"`
-	Enabled       bool   `json:"enabled" jsonschema:"true to turn the flag on"`
+	Ticket        string        `json:"ticket" jsonschema:"ticket key the flag belongs to"`
+	EnvironmentId string        `json:"environment_id" jsonschema:"environment id the flag is in"`
+	Enabled       *bool         `json:"enabled,omitempty" jsonschema:"true to turn the flag on"`
+	Rollout       *int          `json:"rollout,omitempty" jsonschema:"percentage of users (0-100) who get the flag when no rule matches"`
+	Rules         *[]flags.Rule `json:"rules,omitempty" jsonschema:"targeting rules, replacing the current ones; checked in order, the first match serves its value; [] clears"`
 }
 type promoteIn struct {
 	Ticket       string `json:"ticket" jsonschema:"ticket key the flag belongs to"`
@@ -49,7 +51,7 @@ func checkTicket(t string) error {
 func (s *System) mcpServer(companyId string) *mcp.Server {
 	srv := mcp.NewServer(&mcp.Implementation{Name: "flags", Title: "Flags", Version: "1.0.0"}, &mcp.ServerOptions{
 		Instructions: "Feature flags follow a ticket: create_flag puts it, off, in the agent's first environment; " +
-			"set_flag toggles it in one environment; promote_flag copies it (off) to the next environment, or to production; " +
+			"set_flag toggles it, or sets its rollout percentage and targeting rules, in one environment; promote_flag copies it (off) to the next environment, or to production; " +
 			"archive_flag removes it everywhere once the feature is decided. Use list_agents to find agent and environment ids.",
 	})
 
@@ -82,12 +84,16 @@ func (s *System) mcpServer(companyId string) *mcp.Server {
 			tf, _, err := s.CreateTicketFlag(ctx, companyId, in.Ticket, in.AgentId, in.Name)
 			return nil, tf, err
 		})
-	mcp.AddTool(srv, &mcp.Tool{Name: "set_flag", Description: "Turn a ticket's flag on or off in one environment it has been promoted to."},
+	mcp.AddTool(srv, &mcp.Tool{Name: "set_flag", Description: "Change a ticket's flag in one environment it has been promoted to: on or off, its rollout percentage, and/or its targeting rules (attribute, operator in/not_in/contains/starts_with/ends_with, values, serve)."},
 		func(ctx context.Context, _ *mcp.CallToolRequest, in setIn) (*mcp.CallToolResult, *TicketFlag, error) {
 			if err := checkTicket(in.Ticket); err != nil {
 				return nil, nil, err
 			}
-			if err := s.SetTicketFlag(ctx, companyId, in.Ticket, in.EnvironmentId, in.Enabled); err != nil {
+			c := FlagChange{Enabled: in.Enabled, Rollout: in.Rollout, Rules: in.Rules}
+			if err := c.Valid(); err != nil {
+				return nil, nil, err
+			}
+			if err := s.SetTicketFlag(ctx, companyId, in.Ticket, in.EnvironmentId, c); err != nil {
 				return nil, nil, err
 			}
 			tf, err := s.GetTicketFlag(ctx, companyId, in.Ticket)

@@ -71,15 +71,16 @@ Both successful responses return the **TicketFlag** body:
   "name": "tl-123",
   "agent_id": "8c1f…",
   "environments": [
-    { "environment_id": "env-dev",  "name": "dev",     "level": 0, "present": true,  "enabled": false, "production": false },
-    { "environment_id": "env-stg",  "name": "staging", "level": 1, "present": false, "enabled": false, "production": false },
-    { "environment_id": "env-prod", "name": "prod",    "level": 2, "present": false, "enabled": false, "production": true }
+    { "environment_id": "env-dev",  "name": "dev",     "level": 0, "present": true,  "enabled": false, "production": false, "rollout": 100, "rules": [] },
+    { "environment_id": "env-stg",  "name": "staging", "level": 1, "present": false, "enabled": false, "production": false, "rollout": 100, "rules": [] },
+    { "environment_id": "env-prod", "name": "prod",    "level": 2, "present": false, "enabled": false, "production": true,  "rollout": 100, "rules": [] }
   ]
 }
 ```
 
 - `environments` lists **every** environment of the agent, lowest level first.
 - `present` says whether the flag has reached that environment yet. `production` marks the last environment.
+- `rollout` (0–100) and `rules` decide who gets the flag while it's `enabled`: the first matching rule serves its value, otherwise the user's bucket must be under `rollout`. `100` with no rules means everyone (a plain on/off flag). Environments the flag hasn't reached read as `100` and `[]`.
 
 ### `GET /integration/agents`: settings picker
 
@@ -91,13 +92,17 @@ Both successful responses return the **TicketFlag** body:
 - **200** with a TicketFlag. **404** if the ticket has no flag.
 - Use it to render the ticket's flag panel.
 
-### `PATCH /integration/tickets/{key}/flag`: toggle
+### `PATCH /integration/tickets/{key}/flag`: toggle, rollout, rules
 
 ```json
 { "environment_id": "env-dev", "enabled": true }
+{ "environment_id": "env-dev", "rollout": 25 }
+{ "environment_id": "env-dev", "rules": [{ "attribute": "key", "operator": "in", "values": ["u_8812"], "serve": true }] }
 ```
 
-- **200** with the updated TicketFlag.
+- Send any of `enabled`, `rollout` and `rules` (at least one); the others stay as they are. `rules` replaces the environment's rules, and `[]` clears them.
+- `rollout` is 0–100. A rule has an `attribute` from the SDK's context (`key` is the targeting key), an `operator` (`in`, `not_in`, `contains`, `starts_with`, `ends_with`), 1–1000 `values` (matched ignoring case) and `serve` (on or off). At most 50 rules.
+- **200** with the updated TicketFlag. **400** with `{"error": "..."}` when the change is out of bounds.
 - **404** if the ticket has no flag, or the flag isn't in that environment yet.
 - Only offer toggles for environments where `present` is true.
 
@@ -147,7 +152,7 @@ Flags also serves an MCP server at `/mcp` (streamable HTTP, stateless), using th
 | `list_flags` | Lists all of an agent's flags (including ones not tied to a ticket), with per-environment state |
 | `get_flag` | Same as `GET` |
 | `create_flag` | Same as `PUT` |
-| `set_flag` | Same as `PATCH` |
+| `set_flag` | Same as `PATCH`: on/off, rollout and/or rules |
 | `promote_flag` | Same as `POST …/promote`; `to_production: true` promotes to production |
 | `archive_flag` | Same as `DELETE` |
 
