@@ -67,6 +67,41 @@ func TestTicketFlagLifecycle(t *testing.T) {
 	assert.Equal(t, [2]bool{true, true}, state(w)["dev"])
 	assert.Equal(t, http.StatusNotFound, do(h, http.MethodPatch, flag, tokA, `{"environment_id":"env-a-prod","enabled":true}`).Code)
 
+	// specialise dev: rollout and rules, alone or together; enabled stays as it was
+	w = do(h, http.MethodPatch, flag, tokA, `{"environment_id":"env-a","rollout":25,"rules":[{"attribute":"key","operator":"in","values":["u_8812"],"serve":true}]}`)
+	require.Equal(t, http.StatusOK, w.Code, w.Body.String())
+	var tf integration.TicketFlag
+	require.NoError(t, json.NewDecoder(w.Body).Decode(&tf))
+	dev := tf.Environments[0]
+	assert.True(t, dev.Enabled)
+	assert.Equal(t, 25, dev.Rollout)
+	require.Len(t, dev.Rules, 1)
+	assert.Equal(t, []string{"u_8812"}, dev.Rules[0].Values)
+	assert.Equal(t, 100, tf.Environments[1].Rollout, "not-yet environments read as everyone")
+	assert.Empty(t, tf.Environments[1].Rules)
+	w = do(h, http.MethodPatch, flag, tokA, `{"environment_id":"env-a","rollout":40}`)
+	require.Equal(t, http.StatusOK, w.Code)
+	assert.Contains(t, w.Body.String(), `"rollout":40`)
+	assert.Contains(t, w.Body.String(), `u_8812`, "rules kept when only rollout changes")
+	// stored on the row the SDK path reads
+	assert.Equal(t, 1, count(t, db, `SELECT count(*) FROM public.flag WHERE ticket_ref = 'TL-1' AND rollout = 40 AND rules @> '[{"values":["u_8812"],"serve":true}]'`))
+	// bad changes are refused with a reason; nothing to change is a 400
+	for _, body := range []string{
+		`{"environment_id":"env-a"}`,
+		`{"environment_id":"env-a","rollout":101}`,
+		`{"environment_id":"env-a","rollout":-1}`,
+		`{"environment_id":"env-a","rules":[{"attribute":"key","operator":"regex","values":["x"],"serve":true}]}`,
+		`{"environment_id":"env-a","rules":[{"attribute":"","operator":"in","values":["x"],"serve":true}]}`,
+		`{"environment_id":"env-a","rules":[{"attribute":"key","operator":"in","values":[],"serve":true}]}`,
+	} {
+		assert.Equal(t, http.StatusBadRequest, do(h, http.MethodPatch, flag, tokA, body).Code, body)
+	}
+	assert.Equal(t, http.StatusNotFound, do(h, http.MethodPatch, flag, tokB, `{"environment_id":"env-a","rollout":10}`).Code)
+	// make generic again: everyone, no rules
+	w = do(h, http.MethodPatch, flag, tokA, `{"environment_id":"env-a","rollout":100,"rules":[]}`)
+	require.Equal(t, http.StatusOK, w.Code)
+	assert.Contains(t, w.Body.String(), `"rollout":100,"rules":[]`)
+
 	// testing: one step to staging, arrives off
 	w = do(h, http.MethodPost, flag+"/promote", tokA, "")
 	require.Equal(t, http.StatusOK, w.Code)
@@ -149,6 +184,9 @@ func TestMCPAndAgentFlags(t *testing.T) {
 	assert.Contains(t, call("create_flag", `{"ticket":"TL-7","agent_id":"agent-a","name":"new-nav"}`), `"present":true`)
 	assert.Contains(t, call("create_flag", `{"ticket":"TL-8","agent_id":"agent-b","name":"x"}`), `"isError":true`)
 	assert.Contains(t, call("set_flag", `{"ticket":"TL-7","environment_id":"env-a","enabled":true}`), `"enabled":true`)
+	assert.Contains(t, call("set_flag", `{"ticket":"TL-7","environment_id":"env-a","rollout":10,"rules":[{"attribute":"plan","operator":"in","values":["pro"],"serve":true}]}`), `"rollout":10`)
+	assert.Contains(t, call("set_flag", `{"ticket":"TL-7","environment_id":"env-a","rollout":101}`), `"isError":true`)
+	assert.Contains(t, call("set_flag", `{"ticket":"TL-7","environment_id":"env-a"}`), `"isError":true`)
 	assert.Contains(t, call("list_flags", `{"agent_id":"agent-a"}`), `"ticket":"TL-7"`)
 	assert.Contains(t, call("archive_flag", `{"ticket":"TL-7"}`), `"archived":true`)
 	assert.Equal(t, 1, count(t, db, `SELECT count(*) FROM public.flag_archive WHERE ticket_ref = 'TL-7'`))

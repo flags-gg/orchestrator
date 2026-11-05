@@ -99,21 +99,29 @@ func (s *System) CreateFlag(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, status, tf)
 }
 
-// SetFlag: PATCH /integration/tickets/{ticket}/flag {"environment_id","enabled"}
+// SetFlag: PATCH /integration/tickets/{ticket}/flag {"environment_id", "enabled"?, "rollout"?, "rules"?}; at least one
+// of the three. Rules replace the environment's rules ([] clears them).
 func (s *System) SetFlag(w http.ResponseWriter, r *http.Request) {
 	companyId, key, ok := ticket(w, r)
 	if !ok {
 		return
 	}
 	var req struct {
-		EnvironmentId string `json:"environment_id"`
-		Enabled       *bool  `json:"enabled"`
+		EnvironmentId string        `json:"environment_id"`
+		Enabled       *bool         `json:"enabled"`
+		Rollout       *int          `json:"rollout"`
+		Rules         *[]flags.Rule `json:"rules"`
 	}
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.EnvironmentId == "" || req.Enabled == nil {
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.EnvironmentId == "" {
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
-	if err := s.SetTicketFlag(r.Context(), companyId, key, req.EnvironmentId, *req.Enabled); err != nil {
+	c := FlagChange{Enabled: req.Enabled, Rollout: req.Rollout, Rules: req.Rules}
+	if err := c.Valid(); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
+		return
+	}
+	if err := s.SetTicketFlag(r.Context(), companyId, key, req.EnvironmentId, c); err != nil {
 		s.fail(w, err)
 		return
 	}
