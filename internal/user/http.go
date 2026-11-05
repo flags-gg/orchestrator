@@ -2,13 +2,63 @@ package user
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
+	"strings"
 
+	"github.com/clerk/clerk-sdk-go/v2"
 	clerkUser "github.com/clerk/clerk-sdk-go/v2/user"
 	"github.com/flags-gg/orchestrator/internal/auth"
 	ConfigBuilder "github.com/keloran/go-config"
 )
+
+var getClerkUser = clerkUser.Get
+
+type loginProfile struct {
+	knownAs, email, first, last string
+}
+
+func loadLoginProfile(ctx context.Context, subject string) (loginProfile, error) {
+	usr, err := getClerkUser(ctx, subject)
+	if err != nil {
+		return loginProfile{}, err
+	}
+	if usr == nil {
+		return loginProfile{}, errors.New("Clerk returned no user")
+	}
+	return profileFromClerk(usr)
+}
+
+func profileFromClerk(usr *clerk.User) (loginProfile, error) {
+	p := loginProfile{}
+	if usr.FirstName != nil {
+		p.first = *usr.FirstName
+	}
+	if usr.LastName != nil {
+		p.last = *usr.LastName
+	}
+	for _, email := range usr.EmailAddresses {
+		if email != nil && usr.PrimaryEmailAddressID != nil && email.ID == *usr.PrimaryEmailAddressID {
+			p.email = email.EmailAddress
+			break
+		}
+	}
+	if p.email == "" {
+		return p, errors.New("Clerk user has no primary email")
+	}
+	if usr.Username != nil {
+		p.knownAs = strings.TrimSpace(*usr.Username)
+	}
+	if p.knownAs == "" {
+		p.knownAs = strings.TrimSpace(p.first + " " + p.last)
+	}
+	if p.knownAs == "" {
+		p.knownAs = strings.SplitN(p.email, "@", 2)[0]
+	}
+	return p, nil
+}
 
 type System struct {
 	Config *ConfigBuilder.Config
@@ -44,15 +94,12 @@ func (s *System) CreateUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if fd.KnownAs == "" {
-		usr, err := clerkUser.Get(ctx, userId)
+		profile, err := loadLoginProfile(ctx, userId)
 		if err != nil {
-			w.WriteHeader(http.StatusUnauthorized)
+			w.WriteHeader(http.StatusBadGateway)
 			return
 		}
-		fd.KnownAs = *usr.Username
-		fd.First = *usr.FirstName
-		fd.Last = *usr.LastName
-		fd.Email = usr.EmailAddresses[0].EmailAddress
+		fd.KnownAs, fd.First, fd.Last, fd.Email = profile.knownAs, profile.first, profile.last, profile.email
 	}
 
 	if fd.Location == "" {
@@ -86,20 +133,27 @@ func (s *System) GetUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if dbuser != nil {
-		user = dbuser
-		user.Created = true
-	} else {
-		usr, err := clerkUser.Get(ctx, userId)
+	if dbuser == nil {
+		profile, err := loadLoginProfile(ctx, userId)
 		if err != nil {
-			w.WriteHeader(http.StatusUnauthorized)
+			_ = s.Config.Bugfixes.Logger.Errorf("Failed to load Clerk profile for first login: %v", err)
+			w.WriteHeader(http.StatusBadGateway)
 			return
 		}
-		user.Id = &usr.ID
-		user.Email = &usr.EmailAddresses[0].EmailAddress
-		user.FirstName = usr.FirstName
-		user.LastName = usr.LastName
+		if err := s.createUserIfMissing(ctx, userId, profile.knownAs, profile.email, profile.first, profile.last); err != nil {
+			_ = s.Config.Bugfixes.Logger.Errorf("Failed to provision user on first login: %v", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		dbuser, err = s.RetrieveUserDetailsDB(ctx, userId)
+		if err != nil || dbuser == nil {
+			_ = s.Config.Bugfixes.Logger.Errorf("Failed to retrieve provisioned user: %v", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
 	}
+	user = dbuser
+	user.Created = true
 
 	buf, err := json.Marshal(user)
 	if err != nil {

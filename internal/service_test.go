@@ -74,16 +74,20 @@ func newTestService(t *testing.T, emails map[string]string) (*Service, *testAuth
 	return s, &testAuth{key: key}
 }
 
-func (a *testAuth) token(t *testing.T, sub string) string {
+func (a *testAuth) token(t *testing.T, sub string, origin ...string) string {
 	t.Helper()
-	tok := jwt.NewWithClaims(jwt.SigningMethodRS256, jwt.MapClaims{
+	claims := jwt.MapClaims{
 		"iss": "https://clerk.flags.test",
 		"sub": sub,
 		"sid": "sess_1",
 		"iat": time.Now().Add(-time.Minute).Unix(),
 		"nbf": time.Now().Add(-time.Minute).Unix(),
 		"exp": time.Now().Add(time.Hour).Unix(),
-	})
+	}
+	if len(origin) > 0 {
+		claims["azp"] = origin[0]
+	}
+	tok := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)
 	signed, err := tok.SignedString(a.key)
 	require.NoError(t, err)
 	return signed
@@ -139,6 +143,22 @@ func TestDevelopmentBypassUsesDevUser(t *testing.T) {
 	assert.Equal(t, "dev-user", w.Body.String())
 }
 
+func TestUserTokenOrigins(t *testing.T) {
+	s, a := newTestService(t, map[string]string{"user-ok": "ok@a.example"})
+	h := s.RequireUser(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	for _, origin := range []string{
+		"https://dashboard.flags.gg", "https://flags.gg", "https://www.flags.gg",
+		"https://dashboard.1ff.pw", "https://1ff.pw",
+	} {
+		assert.Equal(t, http.StatusOK, do(h, http.MethodGet, "/user", a.token(t, "user-ok", origin), "").Code, origin)
+	}
+	for _, origin := range []string{"https://evil.example", "https://dashboard.1ff.pw.evil.example", "http://localhost:3000"} {
+		assert.Equal(t, http.StatusUnauthorized, do(h, http.MethodGet, "/user", a.token(t, "user-ok", origin), "").Code, origin)
+	}
+}
+
 func TestSDKAndPublicRoutes(t *testing.T) {
 	s, _ := newTestService(t, nil)
 	h := s.routes()
@@ -168,6 +188,10 @@ func TestCORSByRouteGroup(t *testing.T) {
 	assert.Equal(t, "https://dashboard.flags.gg", w.Header().Get("Access-Control-Allow-Origin"))
 	assert.Contains(t, w.Header().Get("Access-Control-Allow-Headers"), "authorization")
 	assert.NotContains(t, w.Header().Get("Access-Control-Allow-Headers"), "x-user-subject")
+
+	w = do(h, http.MethodOptions, "/user", "", "", "Origin", "https://dashboard.1ff.pw")
+	assert.Equal(t, http.StatusOK, w.Code)
+	assert.Equal(t, "https://dashboard.1ff.pw", w.Header().Get("Access-Control-Allow-Origin"))
 
 	w = do(h, http.MethodOptions, "/flags", "", "", "Origin", "https://customer-site.example")
 	assert.Equal(t, http.StatusOK, w.Code)
