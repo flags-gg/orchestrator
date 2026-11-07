@@ -78,11 +78,8 @@ func (s *System) GetEnvironmentFromDB(ctx context.Context, envId, companyId stri
       env.env_id,
       env.enabled,
       env.level,
-      -- can promote: has a child link
-      EXISTS (
-        SELECT 1 FROM public.environment_chain ec
-        WHERE ec.parent_environment_id = env.id AND ec.agent_id = env.agent_id
-      ) AS can_promote,
+      -- can promote: there's a next environment, by chain or level (FLA-111)
+      public.next_environment(env.id) IS NOT NULL AS can_promote,
       agent.name as AgentName,
       agent.agent_id as AgentId,
       project.name as ProjectName
@@ -125,10 +122,7 @@ func (s *System) GetAgentEnvironmentsFromDB(ctx context.Context, agentId, compan
       env.env_id,
       env.enabled,
       env.level,
-      EXISTS (
-        SELECT 1 FROM public.environment_chain ec
-        WHERE ec.parent_environment_id = env.id AND ec.agent_id = env.agent_id
-      ) AS can_promote
+      public.next_environment(env.id) IS NOT NULL AS can_promote
     FROM environment AS env
       JOIN agent ON env.agent_id = agent.id
       JOIN project ON project.id = agent.project_id

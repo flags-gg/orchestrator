@@ -203,10 +203,7 @@ func (s *System) GetAgentsForProject(ctx context.Context, companyId, projectId s
       env.env_id,
       env.enabled AS EnvEnabled,
       env.level,
-      EXISTS (
-        SELECT 1 FROM public.environment_chain ec
-        WHERE ec.parent_environment_id = env.id AND ec.agent_id = env.agent_id
-      ) AS can_promote
+      public.next_environment(env.id) IS NOT NULL AS can_promote
     FROM public.agent
       JOIN public.project ON agent.project_id = project.id
       JOIN public.company ON project.company_id = company.id
