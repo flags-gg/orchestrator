@@ -47,13 +47,9 @@ func (s *System) GetClientFlagsFromDB(ctx context.Context, environmentId string)
         COALESCE(flags.updated_at::text, ''),
         COALESCE(
           EXISTS (
-            SELECT 1
-            FROM public.environment_chain ec
-            JOIN public.flag f2 ON f2.agent_id = flags.agent_id
-                                AND f2.name = flags.name
-                                AND f2.environment_id = ec.child_environment_id
-            WHERE ec.agent_id = flags.agent_id
-              AND ec.parent_environment_id = flags.environment_id
+            SELECT 1 FROM public.flag f2
+            WHERE f2.agent_id = flags.agent_id AND f2.name = flags.name
+              AND f2.environment_id = public.next_environment(flags.environment_id)
           ), false
         ) AS promoted
     FROM public.agent
@@ -104,13 +100,9 @@ func (s *System) GetCompanyFlagsFromDB(ctx context.Context, companyId string) ([
 			COALESCE(f.updated_at::text, ''),
 			COALESCE(
 				EXISTS (
-					SELECT 1
-					FROM public.environment_chain ec
-					JOIN public.flag f2 ON f2.agent_id = f.agent_id
-						AND f2.name = f.name
-						AND f2.environment_id = ec.child_environment_id
-					WHERE ec.agent_id = f.agent_id
-						AND ec.parent_environment_id = f.environment_id
+					SELECT 1 FROM public.flag f2
+					WHERE f2.agent_id = f.agent_id AND f2.name = f.name
+						AND f2.environment_id = public.next_environment(f.environment_id)
 				), false
 			) AS promoted,
 			env.id,
@@ -282,17 +274,13 @@ func (s *System) PromoteFlagInDB(ctx context.Context, flagId string) error {
 		return s.Config.Bugfixes.Logger.Errorf("failed to load flag for promotion: %v", err)
 	}
 
-	// 2) Find the next child environment in the chain
-	var childEnvId int
-	err = client.QueryRow(ctx, `
-		SELECT ec.child_environment_id
-		FROM public.environment_chain ec
-		WHERE ec.agent_id = $1 AND ec.parent_environment_id = $2`, agentIdInt, sourceEnvironmentId).Scan(&childEnvId)
-	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return s.Config.Bugfixes.Logger.Errorf("no child environment to promote to")
-		}
-		return s.Config.Bugfixes.Logger.Errorf("failed to find child environment: %v", err)
+	// 2) Find the next environment: the chain's child, else the next level up (FLA-111)
+	var childEnvId *int
+	if err := client.QueryRow(ctx, `SELECT public.next_environment($1)`, sourceEnvironmentId).Scan(&childEnvId); err != nil {
+		return s.Config.Bugfixes.Logger.Errorf("failed to find next environment: %v", err)
+	}
+	if childEnvId == nil {
+		return s.Config.Bugfixes.Logger.Errorf("no next environment to promote to")
 	}
 
 	// 3) Copy the flag into the child environment; already there is a no-op so retries are safe
@@ -300,7 +288,7 @@ func (s *System) PromoteFlagInDB(ctx context.Context, flagId string) error {
 		INSERT INTO public.flag (name, agent_id, environment_id, enabled, rollout, rules)
 		VALUES ($1, $2, $3, $4, $5, $6)
 		ON CONFLICT (environment_id, name) DO NOTHING`,
-		flagName, agentIdInt, childEnvId, enabled, rollout, rules,
+		flagName, agentIdInt, *childEnvId, enabled, rollout, rules,
 	)
 	if err != nil {
 		return s.Config.Bugfixes.Logger.Errorf("failed to insert promoted flag: %v", err)
