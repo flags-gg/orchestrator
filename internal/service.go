@@ -11,6 +11,7 @@ import (
 
 	"github.com/clerk/clerk-sdk-go/v2"
 	clerkhttp "github.com/clerk/clerk-sdk-go/v2/http"
+	"github.com/flags-gg/orchestrator/internal/chewedfeed"
 
 	"github.com/flags-gg/orchestrator/internal/agent"
 	"github.com/flags-gg/orchestrator/internal/dashboard"
@@ -69,6 +70,7 @@ func (s *Service) Start() error {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	go webhooks.New(s.Config).Run(ctx)
+	go chewedfeed.Run(ctx, s.Config) // every company is a customer in ChewedFeed HQ
 	errChan := make(chan error)
 
 	go s.startHTTP(errChan)
