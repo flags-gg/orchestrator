@@ -43,11 +43,16 @@ Example body:
     "project_id": "project-public-id",
     "agent_id": "agent-public-id",
     "environment_id": "environment-public-id",
+    "project_name": "Flags.gg",
+    "agent_name": "Dashboard",
+    "environment_name": "Production",
     "enabled": true,
     "rollout": 100
   }
 }
 ```
+
+`project_name`, `agent_name`, and `environment_name` are separate display names captured when the event is queued, so receivers can display `<project> - <agent> - <environment>` without additional lookups. They are included in all three event types. Renames do not rewrite existing delivery payloads. Events queued before migration `0013_webhook_resource_names` do not include these fields.
 
 `ticket_ref` is null for flags not linked to a ticket. IDs for project, agent, environment and company are public identifiers. `flag_id` is a string containing the numeric flag row ID. The payload has the changed row's state; archive events carry the state before removal. It describes the stored flag, not a particular user's evaluation.
 
@@ -91,4 +96,4 @@ All configuration and log endpoints require a verified Clerk user session (`Auth
 | GET | `/company/webhook-deliveries` | `{ "deliveries": [...] }`, newest first, up to 50. Optional `endpoint=<UUID>` and `before=<delivery ID>` cursor. |
 | POST | `/company/webhook-deliveries/{deliveryId}/retry` | Retry a failed delivery on an enabled endpoint; 204, otherwise 409. |
 
-Production deployments may expose these routes beneath their API `/v1` prefix. Local Compose routes have no prefix. Apply migration `0012_outbound_webhooks` and deploy the API before deploying the dashboard Webhooks tab. The delivery worker starts with the API; no separate service or webhook environment variables are required.
+Production deployments may expose these routes beneath their API `/v1` prefix. Local Compose routes have no prefix. Apply migrations through `0013_webhook_resource_names` and deploy the API before deploying the dashboard Webhooks tab. The delivery worker starts with the API; no separate service or webhook environment variables are required.
