@@ -1,6 +1,7 @@
 package internal
 
 import (
+	"context"
 	"crypto/tls"
 	"fmt"
 	"net/http"
@@ -28,8 +29,10 @@ import (
 	"github.com/flags-gg/orchestrator/internal/company"
 	"github.com/flags-gg/orchestrator/internal/flags"
 	"github.com/flags-gg/orchestrator/internal/integration"
+	"github.com/flags-gg/orchestrator/internal/staff"
 	"github.com/flags-gg/orchestrator/internal/stats"
 	"github.com/flags-gg/orchestrator/internal/user"
+	"github.com/flags-gg/orchestrator/internal/webhooks"
 )
 
 type Service struct {
@@ -63,6 +66,9 @@ func isSDKPath(path string) bool {
 }
 
 func (s *Service) Start() error {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go webhooks.New(s.Config).Run(ctx)
 	errChan := make(chan error)
 
 	go s.startHTTP(errChan)
@@ -96,6 +102,14 @@ func (s *Service) routes() http.Handler {
 	authed("GET /agent/{agentId}", agent.NewSystem(s.Config).GetAgent)
 	authed("PUT /agent/{agentId}", agent.NewSystem(s.Config).UpdateAgent)
 	authed("DELETE /agent/{agentId}", agent.NewSystem(s.Config).DeleteAgent)
+
+	// Platform staff: the configured verified Clerk user, independent of company roles.
+	staffPanel := staff.New(s.Config)
+	authed("GET /staff/me", staffPanel.Only(staffPanel.Me))
+	authed("GET /staff/stats", staffPanel.Only(staffPanel.Stats))
+	authed("GET /staff/companies", staffPanel.Only(staffPanel.Companies))
+	authed("GET /staff/users", staffPanel.Only(staffPanel.Users))
+	authed("GET /staff/operations", staffPanel.Only(staffPanel.Operations))
 
 	// Environments
 	authed("GET /agent/{agentId}/environments", environment.NewSystem(s.Config).GetAgentEnvironments)
@@ -139,6 +153,15 @@ func (s *Service) routes() http.Handler {
 	authed("DELETE /company/integration-token/{tokenId}", ticketFlags.DeleteTokenHandler)
 
 	authed("POST /api-key/generate", flags.NewAPIKeyHTTPSystem(s.Config).GenerateAPIKeyHandler)
+
+	// Company outbound webhook subscriptions and delivery history (FLA-104).
+	hooks := webhooks.New(s.Config)
+	authed("GET /company/webhooks", hooks.List)
+	authed("POST /company/webhooks", hooks.Create)
+	authed("PATCH /company/webhooks/{endpointId}", hooks.Update)
+	authed("DELETE /company/webhooks/{endpointId}", hooks.Delete)
+	authed("GET /company/webhook-deliveries", hooks.Deliveries)
+	authed("POST /company/webhook-deliveries/{deliveryId}/retry", hooks.Retry)
 
 	// Secret Menu
 	authed("GET /secret-menu/{menuId}", secretmenu.NewSystem(s.Config).GetSecretMenu)

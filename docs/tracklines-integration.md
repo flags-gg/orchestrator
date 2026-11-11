@@ -158,6 +158,6 @@ Flags also serves an MCP server at `/mcp` (streamable HTTP, stateless), using th
 
 An agent working a ticket can create its flag through the MCP server, and the board automation stays consistent because both paths are keyed by the ticket. A Tracklines agent should still prefer the board automation, so it doesn't double up.
 
-## Not provided yet (ask if you need it)
+## Flags → TrackLines callbacks
 
-- Flags → Tracklines callbacks, for when someone toggles a flag in the Flags dashboard. For now, Tracklines should re-`GET` when the ticket panel opens.
+Company-scoped outbound webhooks report `flag.created`, `flag.state_changed`, and `flag.archived`. Configure an endpoint in Company → Webhooks, verify its timestamped HMAC signature, deduplicate by event UUID, then re-read the ticket’s canonical flag state. Events contain `ticket_ref`, agent and environment IDs. See [Outbound flag webhooks](outbound-webhooks.md) for the payload, signature verification, retry policy and delivery log. Until TrackLines has a receiver configured, continue refreshing with `GET` when the ticket panel opens.
