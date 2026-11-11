@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/bugfixes/go-bugfixes/logs"
+	"github.com/flags-gg/orchestrator/internal/chewedfeed"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 )
@@ -463,6 +464,7 @@ func (s *System) CreateCompanyDB(ctx context.Context, name, domain, userSubject 
 		return s.Config.Bugfixes.Logger.Errorf("Failed to insert user into company_user: %v", err)
 	}
 
+	chewedfeed.Push(ctx, s.Config, companyId) // a new free customer in ChewedFeed HQ
 	return nil
 }
 

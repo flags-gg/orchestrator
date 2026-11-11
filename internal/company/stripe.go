@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/url"
 
+	"github.com/flags-gg/orchestrator/internal/chewedfeed"
 	"github.com/jackc/pgx/v5"
 	"github.com/stripe/stripe-go"
 )
@@ -128,7 +129,11 @@ func (s *System) UpgradeCompanyInDB(ctx context.Context, companyId string, cs *C
 		return s.Config.Bugfixes.Logger.Errorf("Company not found: %s", companyId)
 	}
 
-	return tx.Commit(ctx)
+	if err := tx.Commit(ctx); err != nil {
+		return err
+	}
+	chewedfeed.Push(ctx, s.Config, companyId) // upgraded: ChewedFeed HQ counts the new plan as paid
+	return nil
 }
 
 // DowngradeSubscription puts the company holding the subscription back on the default (free) plan.
@@ -147,12 +152,19 @@ func (s *System) DowngradeSubscription(ctx context.Context, subscriptionId strin
 		}
 	}()
 
-	if _, err := client.Exec(ctx, `
+	var companyId string
+	err = client.QueryRow(ctx, `
     UPDATE public.company
     SET payment_plan_id = DEFAULT, stripe_subscription_id = NULL
-    WHERE stripe_subscription_id = $1`, subscriptionId); err != nil {
+    WHERE stripe_subscription_id = $1
+    RETURNING company_id`, subscriptionId).Scan(&companyId)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil
+	}
+	if err != nil {
 		return s.Config.Bugfixes.Logger.Errorf("Failed to downgrade company: %v", err)
 	}
+	chewedfeed.Push(ctx, s.Config, companyId) // back on free in ChewedFeed HQ
 	return nil
 }
 
