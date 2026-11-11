@@ -32,6 +32,7 @@ func (pc ProjectConfig) Build(cfg *ConfigBuilder.Config) error {
 	}
 
 	type PC struct {
+		StaffUserID         string `env:"STAFF_USER_ID" envDefault:""`
 		StripeSecret        string `env:"STRIPE_SECRET" envDefault:"stripe_secret"`
 		StripeWebhookSecret string `env:"STRIPE_WEBHOOK_SECRET" envDefault:""`
 		JWTSigningKey       string `env:"JWT_SIGNING_KEY" envDefault:""`
@@ -47,6 +48,7 @@ func (pc ProjectConfig) Build(cfg *ConfigBuilder.Config) error {
 	if cfg.ProjectProperties == nil {
 		cfg.ProjectProperties = make(map[string]interface{})
 	}
+	cfg.ProjectProperties["staff_user_id"] = p.StaffUserID
 	cfg.ProjectProperties["stripeKey"] = p.StripeSecret
 	cfg.ProjectProperties["stripe_webhook_secret"] = p.StripeWebhookSecret
 	cfg.ProjectProperties["jwt_signing_key"] = p.JWTSigningKey

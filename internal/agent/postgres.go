@@ -81,7 +81,7 @@ func (s *System) GetAgentDetails(ctx context.Context, agentId, companyId string)
     SELECT
       agent.id,
       agent.name AS AgentName,
-      payment_plans.agents,
+      payment_plans.requests,
       payment_plans.environments,
       agent.enabled,
       project.name,
@@ -135,7 +135,7 @@ func (s *System) GetAgents(ctx context.Context, companyId string) ([]*Agent, err
     SELECT
       agent.id,
       agent.name AS AgentName,
-      payment_plans.agents,
+      payment_plans.requests,
       agent.agent_id,
       payment_plans.environments,
       project.name AS ProjectName,
