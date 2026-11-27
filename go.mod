@@ -6,7 +6,7 @@ require (
 	github.com/Nerzal/gocloak/v13 v13.9.0
 	github.com/bugfixes/go-bugfixes v0.19.6
 	github.com/caarlos0/env/v8 v8.0.0
-	github.com/clerk/clerk-sdk-go/v2 v2.9.0
+	github.com/clerk/clerk-sdk-go/v2 v2.10.0
 	github.com/flags-gg/go-flags v0.5.3
 	github.com/golang-jwt/jwt/v5 v5.3.1
 	github.com/golang-migrate/migrate/v4 v4.20.1
